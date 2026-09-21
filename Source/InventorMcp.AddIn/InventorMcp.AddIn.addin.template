@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Inventor discovers add-ins by reading the .addin manifests in its Addins folders.
+	The ClassId must match the Guid attribute on StandardAddInServer.
+	The Assembly element below is substituted by the deployment targets: a full path for development, a bare file name inside a bundle.
+	The token they replace must appear exactly once in this file, because the substitution is a plain global string replace.
+	Element reference: https://help.autodesk.com/view/INVNTOR/2027/ENU/?guid=GUID-52422162-1784-4E8F-B495-CDB7BE9987AB
+-->
+<Addin Type="Standard">
+	<ClassId>{D827FC6D-39D8-495F-89AE-64E56F845FFC}</ClassId>
+	<ClientId>{D827FC6D-39D8-495F-89AE-64E56F845FFC}</ClientId>
+	<DisplayName>Inventor MCP Bridge</DisplayName>
+	<Description>Exposes the running Inventor session to the Inventor MCP server over a named pipe.</Description>
+	<Assembly>ASSEMBLY_PATH</Assembly>
+	<LoadOnStartUp>1</LoadOnStartUp>
+	<UserUnloadable>1</UserUnloadable>
+	<Hidden>0</Hidden>
+	<SupportedSoftwareVersionGreaterThan>30..</SupportedSoftwareVersionGreaterThan>
+	<DataVersion>1</DataVersion>
+	<OSType>Win64</OSType>
+
+	<!--
+		The element names whether to use Inventor's assembly load context, so 0 is the isolated mode.
+		Isolation keeps this add-in's dependencies, notably the Roslyn scripting assemblies, from clashing
+		with the versions Inventor and other vendors' add-ins load into the same process.
+		Inventor 2026 and earlier ignore the element.
+		The Autodesk.Inventor.Interop reference must stay Private=false so the interop still resolves from Inventor.
+	-->
+	<UseInventorAssemblyContext>0</UseInventorAssemblyContext>
+</Addin>

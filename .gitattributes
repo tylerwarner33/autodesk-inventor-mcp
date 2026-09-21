@@ -1,0 +1,8 @@
+*.msi   binary -delta
+*.zip   binary -delta
+*.7z    binary -delta
+*.gz    binary -delta
+
+*.dll   binary
+*.pdb   binary
+*.exe   binary

@@ -1,0 +1,109 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!-- Inventor 2027 loads managed add-ins on net10.0; the -windows suffix is needed for the COM interop surface. -->
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<RootNamespace>InventorMcp.AddIn</RootNamespace>
+		<AssemblyName>InventorMcp.AddIn</AssemblyName>
+		<AssemblyTitle>Inventor MCP Bridge</AssemblyTitle>
+		<Description>Exposes the running Inventor session to the Inventor MCP server over a named pipe.</Description>
+		<Product>Inventor MCP Bridge</Product>
+
+		<EnableComHosting>false</EnableComHosting>
+		<!-- Inventor discovers the add-in through the .addin manifest, so the class only has to be COM visible. -->
+		<ComVisible>false</ComVisible>
+
+		<!-- A Library cannot be launched, so F5 starts Inventor with the debugger attached instead. -->
+		<OutputType>Library</OutputType>
+		<StartAction>Program</StartAction>
+		<StartProgram>$(InventorInstallDir)\Bin\Inventor.exe</StartProgram>
+
+		<!-- Package assemblies must land beside the add-in so the isolated load context can resolve them. -->
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<GenerateDependencyFile>true</GenerateDependencyFile>
+		<GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\InventorMcp.Contracts\InventorMcp.Contracts.csproj" />
+	</ItemGroup>
+
+	<!--
+		Private=false is load bearing, not tidiness.
+		Under an isolated AssemblyLoadContext the interop must always resolve from Inventor itself,
+		while this add-in's own package dependencies resolve from its output folder.
+		Shipping a second copy of the interop would give two managed identities for the same COM types.
+		EmbedInteropTypes=false is required because embedded types cannot carry the event interfaces the activity feed subscribes to.
+		The HintPath points at the vendored copy under Libs so a build agent without Inventor installed can still build.
+	-->
+	<ItemGroup>
+		<Reference Include="Autodesk.Inventor.Interop">
+			<HintPath>$(InventorInteropDir)\Autodesk.Inventor.Interop.dll</HintPath>
+			<EmbedInteropTypes>false</EmbedInteropTypes>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="InventorMcp.AddIn.addin.template" />
+		<None Include="PackageContents.xml" />
+	</ItemGroup>
+
+	<PropertyGroup>
+		<!-- Per user, version dependent. The same location both reference samples use. -->
+		<InventorAddinsDir>$(AppData)\Autodesk\Inventor $(AutodeskVersion)\Addins</InventorAddinsDir>
+		<InventorBundleDir>$(InventorAddinsDir)\$(AssemblyName).bundle</InventorBundleDir>
+	</PropertyGroup>
+
+	<!--
+		Development deployment. Opt in with -p:DeployAddIn=true.
+		The manifest is written outside the repository, so it must never happen on an ordinary build.
+		It points straight at the build output, so a rebuild needs no redeployment.
+	-->
+	<Target Name="DeployAddInManifest" AfterTargets="Build" Condition="'$(DeployAddIn)' == 'true'">
+		<PropertyGroup>
+			<AddInAssemblyPath>$([System.IO.Path]::GetFullPath('$(ProjectDir)$(OutputPath)$(AssemblyName).dll'))</AddInAssemblyPath>
+			<AddInManifestText>$([System.IO.File]::ReadAllText('$(ProjectDir)InventorMcp.AddIn.addin.template').Replace('ASSEMBLY_PATH', '$(AddInAssemblyPath)'))</AddInManifestText>
+		</PropertyGroup>
+		<MakeDir Directories="$(InventorAddinsDir)" />
+		<WriteLinesToFile
+			File="$(InventorAddinsDir)\$(AssemblyName).addin"
+			Lines="$(AddInManifestText)"
+			Overwrite="true"
+			WriteOnlyWhenDifferent="true" />
+		<Message Importance="high" Text="Deployed add-in manifest to $(InventorAddinsDir), pointing at $(AddInAssemblyPath)" />
+	</Target>
+
+	<!--
+		Release deployment. Opt in with -p:DeployBundle=true.
+		Produces the self contained bundle layout an installer would ship,
+		rather than a manifest pointing back into a build folder.
+	-->
+	<Target Name="DeployAddInBundle" AfterTargets="Build" Condition="'$(DeployBundle)' == 'true'">
+		<PropertyGroup>
+			<BundleManifestText>$([System.IO.File]::ReadAllText('$(ProjectDir)InventorMcp.AddIn.addin.template').Replace('ASSEMBLY_PATH', '$(AssemblyName).dll'))</BundleManifestText>
+		</PropertyGroup>
+		<ItemGroup>
+			<BundlePayload Include="$(TargetDir)**\*.*" Exclude="$(TargetDir)**\*.msi" />
+		</ItemGroup>
+		<MakeDir Directories="$(InventorBundleDir)\Contents" />
+		<Copy SourceFiles="$(ProjectDir)PackageContents.xml" DestinationFolder="$(InventorBundleDir)" />
+		<Copy SourceFiles="@(BundlePayload)" DestinationFolder="$(InventorBundleDir)\Contents\%(RecursiveDir)" />
+		<WriteLinesToFile
+			File="$(InventorBundleDir)\Contents\$(AssemblyName).addin"
+			Lines="$(BundleManifestText)"
+			Overwrite="true"
+			WriteOnlyWhenDifferent="true" />
+		<Message Importance="high" Text="Deployed add-in bundle to $(InventorBundleDir)" />
+	</Target>
+
+	<Target Name="CleanAddInDeployment" AfterTargets="Clean">
+		<Delete Files="$(InventorAddinsDir)\$(AssemblyName).addin" />
+		<RemoveDir Directories="$(InventorBundleDir)" />
+	</Target>
+
+</Project>

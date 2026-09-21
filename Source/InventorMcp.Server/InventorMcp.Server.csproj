@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<RootNamespace>InventorMcp.Server</RootNamespace>
+		<AssemblyName>InventorMcp.Server</AssemblyName>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Hosting" />
+		<PackageReference Include="ModelContextProtocol" />
+		<PackageReference Include="Serilog.Extensions.Logging" />
+		<PackageReference Include="Serilog.Sinks.File" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\InventorMcp.Contracts\InventorMcp.Contracts.csproj" />
+	</ItemGroup>
+
+	<!--
+		Autodesk's own documentation for the interop assembly, used by inventor_api_lookup.
+		It is copied here so the server can answer API questions with Inventor closed.
+	-->
+	<ItemGroup>
+		<Content Include="$(InventorInteropDir)\Autodesk.Inventor.Interop.xml" Link="InventorApi.xml">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
+</Project>

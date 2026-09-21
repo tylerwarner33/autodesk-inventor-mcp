@@ -1,0 +1,10 @@
+{
+	"inputs": [],
+	"servers": {
+		"autodesk-inventor-mcp-server": {
+			"type": "stdio",
+			"command": "Source\\InventorMcp.Server\\bin\\Debug\\InventorMcp.Server.exe",
+			"args": []
+		}
+	}
+}

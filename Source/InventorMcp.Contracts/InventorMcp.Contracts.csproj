@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!--
+			The wire contract is the only code shared by the server and the add-in.
+			It must stay free of Inventor interop so the server never needs Inventor installed to build.
+		-->
+		<RootNamespace>InventorMcp.Contracts</RootNamespace>
+	</PropertyGroup>
+
+</Project>

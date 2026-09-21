@@ -1,0 +1,49 @@
+using InventorMcp.Server.Bridge;
+
+using ModelContextProtocol.Server;
+
+namespace InventorMcp.Server.McpTools;
+
+/// <summary>
+/// 	Tools that read and drive the running Inventor session.
+/// </summary>
+/// <remarks>
+/// 	Every tool goes through <see cref="BridgeClient"/> to the add-in hosted inside Inventor.exe.
+/// 	Tools live here rather than in the add-in so they can change without restarting Inventor.
+/// </remarks>
+[McpServerToolType]
+internal static partial class InventorTool
+{
+	/// <summary>
+	/// 	Runs a bridge call and turns a bridge failure into a result the model can read.
+	/// </summary>
+	/// <remarks>
+	/// 	Throwing would surface as an opaque protocol error.
+	/// 	A structured object lets the model see that Inventor is merely busy or has no open document, and act on it.
+	/// </remarks>
+	/// <typeparam name="TResult">
+	/// 	Type the operation returns.
+	/// </typeparam>
+	/// <param name="work">
+	/// 	The bridge call to run.
+	/// </param>
+	/// <returns>
+	/// 	The result, or a failure description.
+	/// </returns>
+	private static async Task<object> SafeAsync<TResult>(Func<Task<TResult>> work)
+	{
+		try
+		{
+			return (await work().ConfigureAwait(false))!;
+		}
+		catch (InventorBridgeException exception)
+		{
+			return new
+			{
+				error = exception.Code,
+				message = exception.Message,
+				detail = exception.Detail
+			};
+		}
+	}
+}

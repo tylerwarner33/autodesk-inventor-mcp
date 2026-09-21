@@ -1,0 +1,29 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path=".mcp.json" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="LICENSE" />
+    <File Path="nuget.config" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/Solution Items/.claude/">
+    <File Path=".claude/CLAUDE.md" />
+  </Folder>
+  <Folder Name="/Solution Items/Docs/">
+    <File Path="Docs/Setup-and-Usage-Guide.md" />
+  </Folder>
+  <Folder Name="/Solution Items/Pipelines/">
+    <File Path="Pipelines/Build.yml" />
+  </Folder>
+  <Folder Name="/Solution Items/Docs/Tasks/">
+    <File Path="Docs/Tasks/Inventor-MCP-Server-Plan.md" />
+    <File Path="Docs/Tasks/Reference-Repo-Findings.md" />
+  </Folder>
+  <Project Path="Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj" />
+  <Project Path="Source/InventorMcp.Contracts/InventorMcp.Contracts.csproj" />
+  <Project Path="Source/InventorMcp.Server/InventorMcp.Server.csproj" />
+</Solution>

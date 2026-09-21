@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+	<PropertyGroup>
+		<RepoRootDir>$(MSBuildThisFileDirectory)</RepoRootDir>
+
+		<TargetFramework>net10.0</TargetFramework>
+
+		<Version>0.1.0</Version>
+
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+		<!-- Symbols live in the assembly, which matters for an add-in Inventor loads straight from a build folder. -->
+		<DebugType>embedded</DebugType>
+		<PathMap>$(MSBuildProjectDirectory)=.</PathMap>
+		<DeterministicSourcePaths Condition="'$(Configuration)' == 'Release'">true</DeterministicSourcePaths>
+
+		<!-- Keeps the output path stable, so .mcp.json does not have to name the target framework. -->
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+		<!-- Audits transitive packages too, which is where the Roslyn scripting dependencies arrive. -->
+		<NuGetAuditMode>all</NuGetAuditMode>
+	</PropertyGroup>
+
+	<!--
+		One knob for the Inventor release this repository targets.
+		The interop assembly is vendored under Libs so a build agent, which has no Inventor installed, can still build the add-in.
+	-->
+	<PropertyGroup>
+		<AutodeskVersion>2027</AutodeskVersion>
+		<InventorInstallDir>$(ProgramFiles)\Autodesk\Inventor $(AutodeskVersion)</InventorInstallDir>
+		<InventorInteropDir>$(RepoRootDir)Libs\Inventor\$(AutodeskVersion)</InventorInteropDir>
+	</PropertyGroup>
+</Project>
