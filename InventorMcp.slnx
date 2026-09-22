@@ -15,6 +15,7 @@
   </Folder>
   <Folder Name="/Solution Items/Docs/">
     <File Path="Docs/Architecture.md" />
+    <File Path="Docs/Plugin-Development-Loop.md" />
     <File Path="Docs/Setup-and-Usage-Guide.md" />
   </Folder>
   <Folder Name="/Solution Items/Pipelines/">
