@@ -20,6 +20,9 @@ internal static partial class InventorTool
 		System, System.Collections.Generic, System.Linq and Inventor are imported. Call Log(...) to report progress,
 		and end with an expression or a return statement to return a value.
 
+		'Document' is null when no document is open and none is named. The snippet still runs, so it can open or
+		create its own documents, ex. Application.Documents.Add, or run a plugin that does.
+
 		Lengths are in centimetres and angles in radians, because those are Inventor's internal units. Convert with
 		Document.UnitsOfMeasure.ConvertUnits or write expressions through parameters instead.
 

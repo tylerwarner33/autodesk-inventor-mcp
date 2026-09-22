@@ -32,9 +32,15 @@ internal sealed partial class InventorOperations
 
 	private ExecutionResult EvaluateCSharp(ExecuteRequest request)
 	{
-		Document document = ResolveDocument(request.DocumentName);
+		// A snippet may need no document at all, ex. one that runs a plugin which opens its own.
+		// A named document that cannot be found is still an error.
+		Document? document = string.IsNullOrWhiteSpace(request.DocumentName)
+			? _inventor.ActiveDocument as Document
+			: ResolveDocument(request.DocumentName);
 
-		GuardUnsavedChanges(document, request.AllowUnsavedChanges);
+		if (document is not null)
+			GuardUnsavedChanges(document, request.AllowUnsavedChanges);
+
 		WriteAuditEntry("csharp", document, request.Code);
 
 		InventorScriptGlobals globals = new() { Application = _inventor, Document = document };
@@ -218,12 +224,12 @@ internal sealed partial class InventorOperations
 	/// 	"csharp" or "ilogic".
 	/// </param>
 	/// <param name="document">
-	/// 	The document the snippet targeted.
+	/// 	The document the snippet targeted, or null when none was open.
 	/// </param>
 	/// <param name="code">
 	/// 	The snippet, recorded in full.
 	/// </param>
-	private static void WriteAuditEntry(string language, Document document, string code)
+	private static void WriteAuditEntry(string language, Document? document, string code)
 	{
 		try
 		{
@@ -234,7 +240,7 @@ internal sealed partial class InventorOperations
 
 			string entry =
 				$"{new string('=', 80)}{newLine}" +
-				$"{DateTimeOffset.UtcNow:O}  {language}  document='{document.DisplayName}'{newLine}" +
+				$"{DateTimeOffset.UtcNow:O}  {language}  document='{document?.DisplayName ?? "(none)"}'{newLine}" +
 				$"{new string('-', 80)}{newLine}" +
 				$"{code}{newLine}";
 

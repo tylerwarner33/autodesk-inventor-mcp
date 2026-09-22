@@ -21,7 +21,12 @@ public sealed class InventorScriptGlobals
 	/// <summary>
 	/// 	The document the snippet targets, which is the active document unless one was named.
 	/// </summary>
-	public required Document Document { get; init; }
+	/// <remarks>
+	/// 	Null when no document is open and none was named.
+	/// 	A snippet that runs a plugin opens its own documents, and one that needs a document can call
+	/// 	'Application.Documents.Add'.
+	/// </remarks>
+	public required Document? Document { get; init; }
 
 	/// <summary>
 	/// 	Everything the snippet logged, in order.

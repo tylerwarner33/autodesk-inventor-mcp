@@ -17,6 +17,10 @@ internal static partial class InventorTool
 	/// 	so it needs no add-in rebuild and therefore no Inventor restart.
 	/// </remarks>
 	private const string _orientationSnippet = """
+		// The execution tool runs with no document open, so say why there is nothing to read.
+		if (Application.ActiveView is null)
+			throw new InvalidOperationException("No document is open, so there is no ViewCube to read. Open a document first.");
+
 		Camera camera = Application.ActiveView.Camera;
 
 		Point originalEye = camera.Eye;
