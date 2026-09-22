@@ -22,7 +22,7 @@ Inventor.exe 2025, 2026 or 2027
 | `InventorMcp.AddIn` | Runs inside Inventor. Owns the pipe listener and main thread dispatch only. |
 | `InventorMcp.AddIn.Loader` | Inventor 2025 and 2026 only. The one assembly loaded into the default context; loads the add-in from `App\` in isolation. |
 | `InventorMcp.Server` | Owns every tool. |
-| `Libs/Inventor/<version>` | The vendored interop assembly per release, so a build agent without Inventor can still build. |
+| `Libs/Inventor/<version>` | The vendored interop assembly per release, so a machine without Inventor can still build. |
 
 ## Decisions
 
@@ -81,7 +81,7 @@ so the build output is never locked and a code change needs no Inventor restart.
 ### The interop assembly is vendored
 
 `Autodesk.Inventor.Interop.dll` and its documentation live in `Libs/Inventor/<version>` rather than being referenced
-from Program Files, so the repository builds on a machine or build agent with no Inventor installed.
+from Program Files, so the repository builds on a machine with no Inventor installed.
 The same documentation file backs the `inventor_api_lookup` tool, which selects the file that matches the connected
 session's release. A lookup answered from the 2027 file would name members that do not exist in 2025.
 

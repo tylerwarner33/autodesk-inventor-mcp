@@ -59,7 +59,7 @@
 		while this add-in's own package dependencies resolve from its output folder.
 		Shipping a second copy of the interop would give two managed identities for the same COM types.
 		EmbedInteropTypes=false is required because embedded types cannot carry the event interfaces the activity feed subscribes to.
-		The HintPath points at the vendored copy under Libs so a build agent without Inventor installed can still build.
+		The HintPath points at the vendored copy under Libs so a machine without Inventor installed can still build.
 	-->
 	<ItemGroup>
 		<Reference Include="Autodesk.Inventor.Interop">
@@ -125,7 +125,7 @@
 
 	<!--
 		Release deployment. Opt in with -p:DeployBundle=true.
-		Produces the self contained bundle layout an installer would ship.
+		Produces the self contained bundle layout under ApplicationPlugins.
 		Run once per release: each run adds its own manifest and Contents subfolder, leaving the others alone.
 	-->
 	<Target Name="DeployAddInBundle" AfterTargets="Build;StageAddInLoader" Condition="'$(DeployBundle)' == 'true'">

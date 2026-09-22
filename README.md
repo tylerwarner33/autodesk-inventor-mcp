@@ -38,7 +38,7 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `Source/InventorMcp.AddIn` | The Inventor add-in. Owns the pipe listener and main thread dispatch only. |
 | `Source/InventorMcp.AddIn.Loader` | Isolates the add-in on Inventor 2025 and 2026, which cannot do it themselves. Unused on 2027. |
 | `Source/InventorMcp.Server` | The MCP server. Owns every tool. |
-| `Libs/Inventor/<version>` | The vendored Inventor interop assembly per release, so a build agent without Inventor can still build. |
+| `Libs/Inventor/<version>` | The vendored Inventor interop assembly per release, so a machine without Inventor can still build. |
 
 ## Requirements
 
