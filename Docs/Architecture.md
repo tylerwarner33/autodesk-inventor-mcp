@@ -10,9 +10,10 @@ Claude
     | stdio
 InventorMcp.Server            net10.0    every MCP tool lives here
     | named pipe  InventorMcp.Bridge     restricted to the current Windows user
-InventorMcp.AddIn             net10.0    thin bridge: pipe listener, dispatch, main thread marshaling
+InventorMcp.AddIn             net8.0-windows (2025, 2026) or net10.0-windows (2027)
+    |                                    thin bridge: pipe listener, dispatch, main thread marshaling
     | in-process COM on Inventor's main thread
-Inventor.exe 2027
+Inventor.exe 2025, 2026 or 2027
 ```
 
 | Project | Purpose |
@@ -21,7 +22,7 @@ Inventor.exe 2027
 | `InventorMcp.AddIn` | Runs inside Inventor. Owns the pipe listener and main thread dispatch only. |
 | `InventorMcp.AddIn.Loader` | Inventor 2025 and 2026 only. The one assembly loaded into the default context; loads the add-in from `App\` in isolation. |
 | `InventorMcp.Server` | Owns every tool. |
-| `Libs/Inventor/2027` | The vendored interop assembly, so a build agent without Inventor can still build. |
+| `Libs/Inventor/<version>` | The vendored interop assembly per release, so a machine without Inventor can still build. |
 
 ## Decisions
 
@@ -67,11 +68,69 @@ One C# execution tool reaches every member, and the API lookup tool supplies the
 
 That is why the tool surface is small and ends with `inventor_eval_csharp` rather than growing indefinitely.
 
+A few tools are canned snippets the server composes and sends through the same execution operation:
+`inventor_orientation`, `inventor_run_plugin` and `inventor_drawing_layout`. They add a named, documented entry
+point for a job worth repeating, and cost no add-in rebuild. Their argument values reach the snippet only as C#
+literals built by `CSharpLiteral`, never as pasted text, because a composed snippet is compiled inside Inventor.
+
+### Plugins under development load from a copy
+
+`inventor_run_plugin` copies a plugin's build output and loads the copy into a new collectible context on every call,
+so the build output is never locked and a code change needs no Inventor restart. See `Plugin-Development-Loop.md`.
+
 ### The interop assembly is vendored
 
-`Autodesk.Inventor.Interop.dll` and its documentation live in `Libs/Inventor/2027` rather than being referenced
-from Program Files, so the repository builds on a machine or build agent with no Inventor installed.
-The same documentation file backs the `inventor_api_lookup` tool.
+`Autodesk.Inventor.Interop.dll` and its documentation live in `Libs/Inventor/<version>` rather than being referenced
+from Program Files, so the repository builds on a machine with no Inventor installed.
+The same documentation file backs the `inventor_api_lookup` tool, which selects the file that matches the connected
+session's release. A lookup answered from the 2027 file would name members that do not exist in 2025.
+
+### Only the add-in is version bound
+
+The server never references interop and the contract is pure data, so supporting 2025, 2026 and 2027 means building
+one thin assembly three times, not three servers. `AutodeskVersion` in `Directory.Build.props` drives everything
+that follows from the release:
+
+| Inventor | Software version | Target framework | Isolation |
+| --- | --- | --- | --- |
+| 2025 | 29 | `net8.0-windows` | `InventorMcp.AddIn.Loader` |
+| 2026 | 30 | `net8.0-windows` | `InventorMcp.AddIn.Loader` |
+| 2027 | 31 | `net10.0-windows` | Inventor's own, through `UseInventorAssemblyContext` |
+
+An add-in loads into Inventor's already running CLR, so the target framework is a hard requirement.
+
+The add-in builds to `bin\<configuration>\<version>`. With a shared output path the three builds overwrite each
+other, and a manifest then loads a build made for a different runtime, which fails inside `Activate` with a type
+load error that does not name the cause.
+
+One bundle holds every release. Each manifest carries `SupportedSoftwareVersionEqualTo`, so every installed Inventor
+reads all three and loads only its own. `PackageContents.xml` is not needed: Inventor discovers `.addin` manifests
+under `ApplicationPlugins` directly, as Autodesk's own Vault bundles do.
+
+The server does not search for a session. The first Inventor to start owns the fixed pipe name, and the handshake
+reports its release year. Running two releases side by side would need a versioned pipe alias; build that only when
+a real need appears.
+
+**Inventor 2023 and 2024 are out of scope.** They run on .NET Framework 4.8, which has no `AssemblyLoadContext`.
+One `AppDomain` binds one version of each assembly name, so iLogic's Roslyn and the execution tools' Roslyn cannot
+both load. Measure whether the execution tools can work there at all before promising support.
+
+#### When Inventor 2025 and 2026 move to .NET 10
+
+Autodesk plans this for later in 2026. Confirm the host runtime first, rather than going by the release note:
+
+```csharp
+Log(System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+```
+
+Then:
+
+1. Delete the `AddInTargetFramework` rows from the `Choose` block in `Directory.Build.props`.
+2. Delete the explicit `net8.0` from `InventorMcp.Contracts.csproj`, so it inherits `net10.0` again.
+3. Delete the `Lock` alias in `GlobalUsings.cs`, which maps `System.Threading.Lock` to `object` below .NET 9.
+
+Keep the vendored interop per release and keep the loader.
+`UseInventorAssemblyContext` is an Inventor 2027 feature, not a runtime feature, so 2025 and 2026 still ignore it.
 
 ## Behaviours worth knowing
 
@@ -98,12 +157,19 @@ Inventor answers a suppressed dialog with its default, which is a real behaviour
 
 The manifest sets `UseInventorAssemblyContext` to `0`, which isolates the add-in's dependencies.
 
-This is not precautionary. Inventor loads Roslyn 4.13 because iLogic is built on it, while this add-in's scripting
-brings 4.14, and both are loaded at once in separate contexts. Isolation is what keeps them from having to agree.
+This is not precautionary. iLogic is built on Roslyn, so Inventor loads 4.6 on 2025 and 4.13 on 2026 and 2027,
+while this add-in's scripting brings 4.14. Both are loaded at once in separate contexts.
+Isolation is what keeps them from having to agree.
 
 Inventor 2025 and 2026 ignore that element, so `InventorMcp.AddIn.Loader` does the same job there. It must leave no
 copy of the add-in in the default context, because Roslyn resolves a script's globals type from the default context
-first. See `Docs/Tasks/Multi-Version-Support.md`.
+first.
+
+A self isolating add-in, which reloads its own DLL into a second context, was tried first and failed for exactly
+that reason: its forwarding copy stays in the default context, so `inventor_eval_csharp` failed with
+`InventorScriptGlobals from context "InventorMcp.AddIn" cannot be cast to InventorScriptGlobals from context "Default"`.
+The loader instead sits alone at its level and loads the add-in from an `App\` subfolder, so exactly one copy of the
+add-in exists in the process.
 
 ### Units
 

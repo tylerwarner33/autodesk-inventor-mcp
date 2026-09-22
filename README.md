@@ -10,9 +10,10 @@ Claude Code
     | stdio
 InventorMcp.Server            net10.0    every MCP tool lives here
     | named pipe  InventorMcp.Bridge     restricted to the current Windows user
-InventorMcp.AddIn             net10.0    thin bridge: pipe listener, dispatch, main-thread marshaling
+InventorMcp.AddIn             net8.0-windows (2025, 2026) or net10.0-windows (2027)
+    |                                    thin bridge: pipe listener, dispatch, main-thread marshaling
     | in-process COM on Inventor's main thread
-Inventor.exe 2027
+Inventor.exe 2025, 2026 or 2027
 ```
 
 The add-in stays thin on purpose.
@@ -23,9 +24,11 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | Path | Audience |
 | --- | --- |
 | `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
+| `Docs/Plugin-Development-Loop.md` | Plugin developers: running and iterating on a plugin in a live session, and making a plugin ready for it |
 | `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
-| `Docs/Tasks/` | Outstanding work, one document per item |
-| `.claude/CLAUDE.md` | Claude: the Inventor behaviours and repository rules to work by |
+| `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
+| `.claude/CLAUDE.md` | Claude: the working principles, and an index of the rules to load on demand |
+| `.claude/rules/` | Claude: the Inventor behaviours and repository rules, one topic per file |
 
 ## Projects
 
@@ -35,14 +38,15 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `Source/InventorMcp.AddIn` | The Inventor add-in. Owns the pipe listener and main thread dispatch only. |
 | `Source/InventorMcp.AddIn.Loader` | Isolates the add-in on Inventor 2025 and 2026, which cannot do it themselves. Unused on 2027. |
 | `Source/InventorMcp.Server` | The MCP server. Owns every tool. |
-| `Libs/Inventor/<version>` | The vendored Inventor interop assembly per release, so a build agent without Inventor can still build. |
+| `Libs/Inventor/<version>` | The vendored Inventor interop assembly per release, so a machine without Inventor can still build. |
 
 ## Requirements
 
 - .NET 10 SDK
 - Autodesk Inventor 2025, 2026 or 2027 to run. Not needed to build, because the interop assemblies are vendored under `Libs`.
 
-The Inventor release is set once, by `AutodeskVersion` in `Directory.Build.props`.
+The Inventor release is chosen per build with `-p:AutodeskVersion=<year>`. The default, 2027, is in `Directory.Build.props`.
+Only the add-in is built per release. The server and the contract are built once.
 
 ## Setup
 
@@ -56,6 +60,7 @@ dotnet build Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj -p:AutodeskVersio
 The second command writes `InventorMcp.AddIn.addin` to `%APPDATA%\Autodesk\Inventor 2027\Addins`.
 `AutodeskVersion` selects the release and defaults to 2027. Supported: 2025, 2026, 2027.
 The manifest points at the build output, so later rebuilds need no redeployment.
+Building a release does not install it. Run the deploy command once for each release you use.
 
 Restart Inventor.
 Confirm the bridge started by checking `%LOCALAPPDATA%\InventorMcp\addin.log`.
@@ -132,6 +137,9 @@ The manifest sets `UseInventorAssemblyContext` to `0`, which loads the add-in in
 The element names whether to use *Inventor's* context, so `0` is the isolated mode.
 This keeps the add-in's dependencies from clashing with the versions Inventor and other vendors' add-ins load into the same process.
 
+Inventor 2025 and 2026 ignore that element.
+There, the manifest names `InventorMcp.AddIn.Loader`, which loads the add-in from an `App\` subfolder into an isolated context.
+
 The `Autodesk.Inventor.Interop` reference must stay `Private=false` for this to work.
 The interop has to resolve from Inventor itself, while the add-in's own packages resolve from its output folder.
 
@@ -154,6 +162,8 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | `inventor_run_ilogic` | Run an iLogic rule body, in VB.NET, against a document |
 | `inventor_api_lookup` | Search Autodesk's Inventor API documentation. Works with Inventor closed. |
 | `inventor_orientation` | Resolve each ViewCube face to a world direction for the active document |
+| `inventor_run_plugin` | Run a method from a plugin's build output, loaded fresh each call, so a code change needs no restart |
+| `inventor_drawing_layout` | Measure a drawing's views, balloons, dimensions and tables, and report collisions |
 
 ## Executing code
 
@@ -163,6 +173,11 @@ everything the narrower tools do not, such as creating sketches, features, and g
 The snippet is Roslyn script code rather than a full class.
 `Application` and `Document` are in scope, `System`, `System.Collections.Generic`, `System.Linq` and `Inventor`
 are imported, and `Log(...)` records a line for the caller.
+`Document` is null when no document is open, and the snippet still runs, so it can create documents or run a
+plugin that opens its own. `inventor_run_ilogic` still needs a document, because an iLogic rule is attached to one.
+
+The same tool can run a plugin under development inside the live session, with no Inventor restart per change.
+`inventor_run_plugin` packages that loop as one call. See `Docs/Plugin-Development-Loop.md`.
 
 `inventor_api_lookup` answers what a member is called and what it takes, before a snippet is written.
 It reads the vendored documentation file, so it needs no Inventor session.
@@ -202,4 +217,6 @@ Inventor answers a suppressed dialog with its own default, which is a real behav
 | Path | Contents |
 | --- | --- |
 | `%LOCALAPPDATA%\InventorMcp\addin.log` | Add-in lifecycle and handler failures |
+| `%LOCALAPPDATA%\InventorMcp\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
 | `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity |
+| `%LOCALAPPDATA%\InventorMcp\executed-code.log` | Every snippet run through the execution tools |

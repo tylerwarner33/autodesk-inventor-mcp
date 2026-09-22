@@ -15,15 +15,8 @@
   </Folder>
   <Folder Name="/Solution Items/Docs/">
     <File Path="Docs/Architecture.md" />
+    <File Path="Docs/Plugin-Development-Loop.md" />
     <File Path="Docs/Setup-and-Usage-Guide.md" />
-  </Folder>
-  <Folder Name="/Solution Items/Pipelines/">
-    <File Path="Pipelines/Build.yml" />
-  </Folder>
-  <Folder Name="/Solution Items/Docs/Tasks/">
-    <File Path="Docs/Tasks/Busy-Inventor-Call-Rejection.md" />
-    <File Path="Docs/Tasks/Feature-Error-Messages.md" />
-    <File Path="Docs/Tasks/Release-Pipeline-With-IMAGINiT-Templates.md" />
   </Folder>
   <Project Path="Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj" />
   <Project Path="Source/InventorMcp.AddIn.Loader/InventorMcp.AddIn.Loader.csproj" />
