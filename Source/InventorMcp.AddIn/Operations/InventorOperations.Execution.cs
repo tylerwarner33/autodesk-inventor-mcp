@@ -45,7 +45,8 @@ internal sealed partial class InventorOperations
 			// Roslyn's scripting host owns its own assembly loader and, left alone, loads a second copy of this
 			// add-in from the same path into its own context. The globals object then fails to cast, because the
 			// two InventorScriptGlobals types have different identities.
-			// Registering the already loaded assemblies makes Roslyn reuse them instead.
+			// Registering the already loaded assemblies makes Roslyn reuse them instead, but only as a fallback:
+			// Roslyn asks the default context first, so this add-in must never be loaded there.
 			// EnterContextualReflection does not help here: the scripting host does not consult it.
 			using InteractiveAssemblyLoader assemblyLoader = new();
 			assemblyLoader.RegisterDependency(typeof(InventorScriptGlobals).Assembly);

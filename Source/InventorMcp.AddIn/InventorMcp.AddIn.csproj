@@ -1,8 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<!-- Inventor 2027 loads managed add-ins on net10.0; the -windows suffix is needed for the COM interop surface. -->
-		<TargetFramework>net10.0-windows</TargetFramework>
+		<!-- Selected by AutodeskVersion. The -windows suffix is needed for the COM interop surface. -->
+		<TargetFramework>$(AddInTargetFramework)</TargetFramework>
+
+		<!--
+			Three releases build from one project, so the output path must separate them.
+			Sharing a folder would let the last build win, and a manifest would then point at an assembly
+			built for a runtime other than the one that loaded it.
+		-->
+		<AddInVersionOutputDir>$(ProjectDir)bin\$(Configuration)\$(AutodeskVersion)\</AddInVersionOutputDir>
+
+		<!-- With the loader, the add-in sits one level below it, out of reach of the default context. -->
+		<OutputPath Condition="'$(UseAddInLoader)' == 'true'">$(AddInVersionOutputDir)App\</OutputPath>
+		<OutputPath Condition="'$(UseAddInLoader)' != 'true'">$(AddInVersionOutputDir)</OutputPath>
+
+		<!-- The assembly the manifest names: the loader where one is used, otherwise the add-in itself. -->
+		<ManifestAssemblyFileName Condition="'$(UseAddInLoader)' == 'true'">InventorMcp.AddIn.Loader.dll</ManifestAssemblyFileName>
+		<ManifestAssemblyFileName Condition="'$(UseAddInLoader)' != 'true'">InventorMcp.AddIn.dll</ManifestAssemblyFileName>
+
 		<RootNamespace>InventorMcp.AddIn</RootNamespace>
 		<AssemblyName>InventorMcp.AddIn</AssemblyName>
 		<AssemblyTitle>Inventor MCP Bridge</AssemblyTitle>
@@ -32,6 +48,11 @@
 		<ProjectReference Include="..\InventorMcp.Contracts\InventorMcp.Contracts.csproj" />
 	</ItemGroup>
 
+	<!-- Build order only. The loader must never be a compile time reference, or it would load beside the add-in. -->
+	<ItemGroup Condition="'$(UseAddInLoader)' == 'true'">
+		<ProjectReference Include="..\InventorMcp.AddIn.Loader\InventorMcp.AddIn.Loader.csproj" ReferenceOutputAssembly="false" Private="false" />
+	</ItemGroup>
+
 	<!--
 		Private=false is load bearing, not tidiness.
 		Under an isolated AssemblyLoadContext the interop must always resolve from Inventor itself,
@@ -50,24 +71,48 @@
 
 	<ItemGroup>
 		<None Include="InventorMcp.AddIn.addin.template" />
-		<None Include="PackageContents.xml" />
 	</ItemGroup>
 
 	<PropertyGroup>
-		<!-- Per user, version dependent. The same location both reference samples use. -->
+		<!-- Per user, version dependent. Serves only the release being built. -->
 		<InventorAddinsDir>$(AppData)\Autodesk\Inventor $(AutodeskVersion)\Addins</InventorAddinsDir>
-		<InventorBundleDir>$(InventorAddinsDir)\$(AssemblyName).bundle</InventorBundleDir>
+
+		<!--
+			Per user, version independent. One folder holds every release's build, and Inventor discards the
+			manifests that do not match its own version before touching an assembly.
+		-->
+		<InventorBundleDir>$(AppData)\Autodesk\ApplicationPlugins\$(AssemblyName)</InventorBundleDir>
+		<InventorBundleContentsDir>$(InventorBundleDir)\Contents\$(AutodeskVersion)</InventorBundleContentsDir>
 	</PropertyGroup>
+
+	<!--
+		Places the loader beside App\, and removes anything else from that level.
+		A stale add-in DLL beside the loader could load into the default context and defeat the isolation.
+	-->
+	<Target Name="StageAddInLoader" AfterTargets="Build" Condition="'$(UseAddInLoader)' == 'true'">
+		<PropertyGroup>
+			<LoaderOutputDir>$(ProjectDir)..\InventorMcp.AddIn.Loader\bin\$(Configuration)\$(AutodeskVersion)\</LoaderOutputDir>
+		</PropertyGroup>
+		<ItemGroup>
+			<StaleLoaderLevelFile Include="$(AddInVersionOutputDir)*.*" Exclude="$(AddInVersionOutputDir)$(ManifestAssemblyFileName)" />
+		</ItemGroup>
+		<Delete Files="@(StaleLoaderLevelFile)" />
+		<Copy SourceFiles="$(LoaderOutputDir)$(ManifestAssemblyFileName)" DestinationFolder="$(AddInVersionOutputDir)" />
+	</Target>
 
 	<!--
 		Development deployment. Opt in with -p:DeployAddIn=true.
 		The manifest is written outside the repository, so it must never happen on an ordinary build.
 		It points straight at the build output, so a rebuild needs no redeployment.
+		The output path carries the version, so several releases can be installed at once.
 	-->
-	<Target Name="DeployAddInManifest" AfterTargets="Build" Condition="'$(DeployAddIn)' == 'true'">
+	<Target Name="DeployAddInManifest" AfterTargets="Build;StageAddInLoader" Condition="'$(DeployAddIn)' == 'true'">
+		<Warning
+			Condition="'$(IsInventorInstalled)' != 'true'"
+			Text="Inventor $(AutodeskVersion) is not installed at $(InventorInstallDir). The manifest was still written, and it will be ignored until that release is installed." />
 		<PropertyGroup>
-			<AddInAssemblyPath>$([System.IO.Path]::GetFullPath('$(ProjectDir)$(OutputPath)$(AssemblyName).dll'))</AddInAssemblyPath>
-			<AddInManifestText>$([System.IO.File]::ReadAllText('$(ProjectDir)InventorMcp.AddIn.addin.template').Replace('ASSEMBLY_PATH', '$(AddInAssemblyPath)'))</AddInManifestText>
+			<AddInAssemblyPath>$([System.IO.Path]::GetFullPath('$(AddInVersionOutputDir)$(ManifestAssemblyFileName)'))</AddInAssemblyPath>
+			<AddInManifestText>$([System.IO.File]::ReadAllText('$(ProjectDir)InventorMcp.AddIn.addin.template').Replace('ASSEMBLY_PATH', '$(AddInAssemblyPath)').Replace('SOFTWARE_VERSION', '$(InventorSoftwareVersion)'))</AddInManifestText>
 		</PropertyGroup>
 		<MakeDir Directories="$(InventorAddinsDir)" />
 		<WriteLinesToFile
@@ -75,35 +120,41 @@
 			Lines="$(AddInManifestText)"
 			Overwrite="true"
 			WriteOnlyWhenDifferent="true" />
-		<Message Importance="high" Text="Deployed add-in manifest to $(InventorAddinsDir), pointing at $(AddInAssemblyPath)" />
+		<Message Importance="high" Text="Deployed the Inventor $(AutodeskVersion) add-in manifest to $(InventorAddinsDir), pointing at $(AddInAssemblyPath)" />
 	</Target>
 
 	<!--
 		Release deployment. Opt in with -p:DeployBundle=true.
-		Produces the self contained bundle layout an installer would ship,
-		rather than a manifest pointing back into a build folder.
+		Produces the self contained bundle layout an installer would ship.
+		Run once per release: each run adds its own manifest and Contents subfolder, leaving the others alone.
 	-->
-	<Target Name="DeployAddInBundle" AfterTargets="Build" Condition="'$(DeployBundle)' == 'true'">
+	<Target Name="DeployAddInBundle" AfterTargets="Build;StageAddInLoader" Condition="'$(DeployBundle)' == 'true'">
 		<PropertyGroup>
-			<BundleManifestText>$([System.IO.File]::ReadAllText('$(ProjectDir)InventorMcp.AddIn.addin.template').Replace('ASSEMBLY_PATH', '$(AssemblyName).dll'))</BundleManifestText>
+			<!-- Relative to the manifest at the bundle root, the form Autodesk's own bundles use. -->
+			<BundleAssemblyPath>.\Contents\$(AutodeskVersion)\$(ManifestAssemblyFileName)</BundleAssemblyPath>
+			<BundleManifestText>$([System.IO.File]::ReadAllText('$(ProjectDir)InventorMcp.AddIn.addin.template').Replace('ASSEMBLY_PATH', '$(BundleAssemblyPath)').Replace('SOFTWARE_VERSION', '$(InventorSoftwareVersion)'))</BundleManifestText>
 		</PropertyGroup>
 		<ItemGroup>
-			<BundlePayload Include="$(TargetDir)**\*.*" Exclude="$(TargetDir)**\*.msi" />
+			<BundlePayload Include="$(AddInVersionOutputDir)**\*.*" Exclude="$(AddInVersionOutputDir)**\*.msi" />
 		</ItemGroup>
-		<MakeDir Directories="$(InventorBundleDir)\Contents" />
-		<Copy SourceFiles="$(ProjectDir)PackageContents.xml" DestinationFolder="$(InventorBundleDir)" />
-		<Copy SourceFiles="@(BundlePayload)" DestinationFolder="$(InventorBundleDir)\Contents\%(RecursiveDir)" />
+		<!-- No PackageContents.xml: Inventor discovers .addin manifests under ApplicationPlugins directly. -->
+		<!-- Replaced whole, so a file from an earlier layout cannot linger beside the loader. -->
+		<RemoveDir Directories="$(InventorBundleContentsDir)" />
+		<MakeDir Directories="$(InventorBundleContentsDir)" />
+		<Copy SourceFiles="@(BundlePayload)" DestinationFolder="$(InventorBundleContentsDir)\%(RecursiveDir)" />
 		<WriteLinesToFile
-			File="$(InventorBundleDir)\Contents\$(AssemblyName).addin"
+			File="$(InventorBundleDir)\$(AssemblyName).$(AutodeskVersion).addin"
 			Lines="$(BundleManifestText)"
 			Overwrite="true"
 			WriteOnlyWhenDifferent="true" />
-		<Message Importance="high" Text="Deployed add-in bundle to $(InventorBundleDir)" />
+		<Message Importance="high" Text="Deployed the Inventor $(AutodeskVersion) build to $(InventorBundleContentsDir)" />
 	</Target>
 
+	<!-- Removes only this release's share, so cleaning 2025 leaves the 2027 build in the same bundle. -->
 	<Target Name="CleanAddInDeployment" AfterTargets="Clean">
 		<Delete Files="$(InventorAddinsDir)\$(AssemblyName).addin" />
-		<RemoveDir Directories="$(InventorBundleDir)" />
+		<Delete Files="$(InventorBundleDir)\$(AssemblyName).$(AutodeskVersion).addin" />
+		<RemoveDir Directories="$(InventorBundleContentsDir)" />
 	</Target>
 
 </Project>

@@ -15,7 +15,12 @@
 	<LoadOnStartUp>1</LoadOnStartUp>
 	<UserUnloadable>1</UserUnloadable>
 	<Hidden>0</Hidden>
-	<SupportedSoftwareVersionGreaterThan>30..</SupportedSoftwareVersionGreaterThan>
+
+	<!--
+		Gates this manifest to one Inventor release, which is what lets every release share one bundle folder.
+		2025 reports 29, 2026 reports 30, 2027 reports 31. Substituted by the deployment targets.
+	-->
+	<SupportedSoftwareVersionEqualTo>SOFTWARE_VERSION..</SupportedSoftwareVersionEqualTo>
 	<DataVersion>1</DataVersion>
 	<OSType>Win64</OSType>
 
@@ -23,8 +28,10 @@
 		The element names whether to use Inventor's assembly load context, so 0 is the isolated mode.
 		Isolation keeps this add-in's dependencies, notably the Roslyn scripting assemblies, from clashing
 		with the versions Inventor and other vendors' add-ins load into the same process.
-		Inventor 2026 and earlier ignore the element.
-		The Autodesk.Inventor.Interop reference must stay Private=false so the interop still resolves from Inventor.
+
+		Inventor 2026 and earlier ignore the element, so one template serves every release.
+		Those releases get the same isolation from IsolatedApplicationAddInServer instead.
+		The Autodesk.Inventor.Interop reference must stay Private=false so the interop resolves from Inventor.
 	-->
 	<UseInventorAssemblyContext>0</UseInventorAssemblyContext>
 </Addin>

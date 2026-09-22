@@ -23,6 +23,14 @@ internal sealed class BridgeClient(ILogger<BridgeClient> logger) : IAsyncDisposa
 	private readonly ILogger<BridgeClient> _logger = logger;
 	private readonly SemaphoreSlim _gate = new(1, 1);
 
+	/// <summary>
+	/// 	Inventor release last seen on the pipe, ex. 2025, or null until a session call has succeeded.
+	/// </summary>
+	/// <remarks>
+	/// 	Lets version specific data, such as the API documentation, follow whichever session answered.
+	/// </remarks>
+	public int? ReleaseYear { get; private set; }
+
 	private NamedPipeClientStream? _pipe;
 	private StreamReader? _reader;
 	private StreamWriter? _writer;
@@ -52,9 +60,11 @@ internal sealed class BridgeClient(ILogger<BridgeClient> logger) : IAsyncDisposa
 		try
 		{
 			// A dropped pipe surfaces only on use, so one reconnect and retry is expected rather than exceptional.
+			TResult result;
+
 			try
 			{
-				return await SendAsync<TResult>(operation, payload, cancellationToken).ConfigureAwait(false);
+				result = await SendAsync<TResult>(operation, payload, cancellationToken).ConfigureAwait(false);
 			}
 			catch (IOException exception)
 			{
@@ -62,8 +72,13 @@ internal sealed class BridgeClient(ILogger<BridgeClient> logger) : IAsyncDisposa
 
 				await CloseAsync().ConfigureAwait(false);
 
-				return await SendAsync<TResult>(operation, payload, cancellationToken).ConfigureAwait(false);
+				result = await SendAsync<TResult>(operation, payload, cancellationToken).ConfigureAwait(false);
 			}
+
+			if (result is Contracts.Models.SessionInfo session)
+				ReleaseYear = session.ReleaseYear;
+
+			return result;
 		}
 		finally
 		{
@@ -121,7 +136,7 @@ internal sealed class BridgeClient(ILogger<BridgeClient> logger) : IAsyncDisposa
 
 			throw new InventorBridgeException(
 				BridgeErrorCodes.NotRunning,
-				"No Inventor session is hosting the MCP bridge. Start Inventor 2027 and make sure the Inventor MCP Bridge add-in is loaded.");
+				"No Inventor session is hosting the MCP bridge. Start Inventor and make sure the Inventor MCP Bridge add-in is loaded.");
 		}
 
 		_pipe = pipe;
@@ -133,17 +148,34 @@ internal sealed class BridgeClient(ILogger<BridgeClient> logger) : IAsyncDisposa
 
 	private async Task CloseAsync()
 	{
-		if (_writer is not null)
-			await _writer.DisposeAsync().ConfigureAwait(false);
+		// Disposing the writer flushes, which throws on a pipe whose Inventor has closed.
+		// Closing must still succeed, or the reconnect after it never runs.
+		try
+		{
+			if (_writer is not null)
+				await _writer.DisposeAsync().ConfigureAwait(false);
+		}
+		catch (IOException)
+		{
+		}
 
 		_reader?.Dispose();
 
-		if (_pipe is not null)
-			await _pipe.DisposeAsync().ConfigureAwait(false);
+		try
+		{
+			if (_pipe is not null)
+				await _pipe.DisposeAsync().ConfigureAwait(false);
+		}
+		catch (IOException)
+		{
+		}
 
 		_writer = null;
 		_reader = null;
 		_pipe = null;
+
+		// The next connection may be a different Inventor release.
+		ReleaseYear = null;
 	}
 
 	public async ValueTask DisposeAsync()

@@ -24,12 +24,63 @@
 	</PropertyGroup>
 
 	<!--
-		One knob for the Inventor release this repository targets.
-		The interop assembly is vendored under Libs so a build agent, which has no Inventor installed, can still build the add-in.
+		The Inventor release being built. Override with -p:AutodeskVersion=2025.
+		The interop is vendored under Libs so an agent with no Inventor installed can still build.
+		Only the add-in is version bound; the server is built once.
 	-->
 	<PropertyGroup>
-		<AutodeskVersion>2027</AutodeskVersion>
+		<AutodeskVersion Condition="'$(AutodeskVersion)' == ''">2027</AutodeskVersion>
+
+		<!-- Every supported release, so one command can loop them. -->
+		<SupportedAutodeskVersions>2025;2026;2027</SupportedAutodeskVersions>
+	</PropertyGroup>
+
+	<!--
+		Everything that follows from the release.
+		AddInTargetFramework is Inventor's hosted runtime, not a preference.
+		InventorSoftwareVersion is what the .addin manifest filters on, not the release year.
+		UseAddInLoader marks releases that ignore UseInventorAssemblyContext, so InventorMcp.AddIn.Loader isolates the add-in.
+		See Docs/Tasks/Multi-Version-Support.md.
+	-->
+	<Choose>
+		<When Condition="'$(AutodeskVersion)' == '2025'">
+			<PropertyGroup>
+				<AddInTargetFramework>net8.0-windows</AddInTargetFramework>
+				<InventorSoftwareVersion>29</InventorSoftwareVersion>
+				<UseAddInLoader>true</UseAddInLoader>
+			</PropertyGroup>
+		</When>
+		<When Condition="'$(AutodeskVersion)' == '2026'">
+			<PropertyGroup>
+				<AddInTargetFramework>net8.0-windows</AddInTargetFramework>
+				<InventorSoftwareVersion>30</InventorSoftwareVersion>
+				<UseAddInLoader>true</UseAddInLoader>
+			</PropertyGroup>
+		</When>
+		<When Condition="'$(AutodeskVersion)' == '2027'">
+			<PropertyGroup>
+				<AddInTargetFramework>net10.0-windows</AddInTargetFramework>
+				<InventorSoftwareVersion>31</InventorSoftwareVersion>
+			</PropertyGroup>
+		</When>
+		<Otherwise>
+			<PropertyGroup>
+				<!-- Still a valid framework, so the failure is the error below and not a confusing SDK message. -->
+				<AddInTargetFramework>net10.0-windows</AddInTargetFramework>
+				<UnsupportedAutodeskVersion>true</UnsupportedAutodeskVersion>
+			</PropertyGroup>
+		</Otherwise>
+	</Choose>
+
+	<PropertyGroup>
 		<InventorInstallDir>$(ProgramFiles)\Autodesk\Inventor $(AutodeskVersion)</InventorInstallDir>
 		<InventorInteropDir>$(RepoRootDir)Libs\Inventor\$(AutodeskVersion)</InventorInteropDir>
+
+		<!-- Read by the development deployment target, which writes to a version specific folder. -->
+		<IsInventorInstalled Condition="Exists('$(InventorInstallDir)\Bin\Inventor.exe')">true</IsInventorInstalled>
 	</PropertyGroup>
+
+	<Target Name="ValidateAutodeskVersion" BeforeTargets="PrepareForBuild" Condition="'$(UnsupportedAutodeskVersion)' == 'true'">
+		<Error Text="AutodeskVersion '$(AutodeskVersion)' is not supported. Supported releases: $(SupportedAutodeskVersions)." />
+	</Target>
 </Project>

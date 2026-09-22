@@ -19,10 +19,15 @@
 
 	<!--
 		Autodesk's own documentation for the interop assembly, used by inventor_api_lookup.
-		It is copied here so the server can answer API questions with Inventor closed.
+		Every supported release ships, because the server is built once and serves whichever session answers.
+		Copied here so the server can answer API questions with Inventor closed.
 	-->
 	<ItemGroup>
-		<Content Include="$(InventorInteropDir)\Autodesk.Inventor.Interop.xml" Link="InventorApi.xml">
+		<InventorApiRelease Include="$(SupportedAutodeskVersions.Split(';'))">
+			<Release>%(Identity)</Release>
+		</InventorApiRelease>
+		<Content Include="@(InventorApiRelease->'$(RepoRootDir)Libs\Inventor\%(Release)\Autodesk.Inventor.Interop.xml')"
+		         Link="InventorApi\%(Release).xml">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>

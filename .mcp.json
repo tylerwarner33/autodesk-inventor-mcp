@@ -6,5 +6,12 @@
 			"command": "Source\\InventorMcp.Server\\bin\\Debug\\InventorMcp.Server.exe",
 			"args": []
 		}
+	},
+	"mcpServers": {
+		"autodesk-inventor-mcp-server": {
+			"type": "stdio",
+			"command": "Source\\InventorMcp.Server\\bin\\Debug\\InventorMcp.Server.exe",
+			"args": []
+		}
 	}
 }

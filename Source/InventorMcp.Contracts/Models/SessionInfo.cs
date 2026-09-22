@@ -6,6 +6,9 @@ namespace InventorMcp.Contracts.Models;
 /// <param name="Version">
 /// 	Inventor software version, ex. "2027 (Build 310000)".
 /// </param>
+/// <param name="ReleaseYear">
+/// 	Inventor release the session is, ex. 2025. The server selects version specific data with it.
+/// </param>
 /// <param name="ProcessId">
 /// 	Process identifier of the host Inventor.exe.
 /// </param>
@@ -23,6 +26,7 @@ namespace InventorMcp.Contracts.Models;
 /// </param>
 public sealed record SessionInfo(
 	string Version,
+	int ReleaseYear,
 	int ProcessId,
 	int BridgeVersion,
 	DocumentInfo? ActiveDocument,

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -12,14 +13,14 @@ namespace InventorMcp.Server.Services;
 /// <remarks>
 /// 	The source is the vendored Autodesk.Inventor.Interop.xml, which ships beside the interop assembly.
 /// 	It is roughly 12 MB, far more than fits in a model's context, so it is indexed once and queried on demand.
+/// 	One file ships per supported release, because a member added in a later release does not exist in an
+/// 	earlier one, and a confident answer about a member that is not there is the worst result this tool can give.
 /// 	Nothing here talks to Inventor, so lookups work with Inventor closed.
 /// </remarks>
 internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> logger)
 {
 	private readonly ILogger<ApiReferenceService> _logger = logger;
-	private readonly Lock _gate = new();
-
-	private List<ApiMember>? _members;
+	private readonly ConcurrentDictionary<int, List<ApiMember>> _indexes = new();
 
 	/// <summary>
 	/// 	Finds documented API members matching a query.
@@ -33,12 +34,15 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 	/// <param name="maxResults">
 	/// 	Cap on the number of members returned.
 	/// </param>
+	/// <param name="releaseYear">
+	/// 	Inventor release to answer for, ex. 2025. Null falls back to the newest documentation that shipped.
+	/// </param>
 	/// <returns>
 	/// 	The matches, best first.
 	/// </returns>
-	public IReadOnlyList<ApiMember> Search(string query, string? kind, int maxResults)
+	public IReadOnlyList<ApiMember> Search(string query, string? kind, int maxResults, int? releaseYear)
 	{
-		List<ApiMember> members = EnsureIndex();
+		List<ApiMember> members = EnsureIndex(ResolveReleaseYear(releaseYear));
 
 		if (string.IsNullOrWhiteSpace(query))
 			return [];
@@ -78,24 +82,51 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 		return 0;
 	}
 
-	private List<ApiMember> EnsureIndex()
+	/// <summary>
+	/// 	Picks the documentation to answer from: the connected release, or the newest that shipped.
+	/// </summary>
+	/// <param name="releaseYear">
+	/// 	Release the caller asked for, or null when no session has been reached.
+	/// </param>
+	/// <returns>
+	/// 	The release whose documentation will be read.
+	/// </returns>
+	private int ResolveReleaseYear(int? releaseYear)
 	{
-		if (_members is not null)
-			return _members;
+		string directory = Path.Combine(AppContext.BaseDirectory, "InventorApi");
 
-		lock (_gate)
+		if (releaseYear is int requested && File.Exists(Path.Combine(directory, $"{requested}.xml")))
+			return requested;
+
+		int[] available = Directory.Exists(directory)
+			? [.. Directory.EnumerateFiles(directory, "*.xml")
+				.Select(static file => int.TryParse(Path.GetFileNameWithoutExtension(file), out int year) ? year : 0)
+				.Where(static year => year > 0)
+				.OrderDescending()]
+			: [];
+
+		if (available.Length is 0)
+			return releaseYear ?? 0;
+
+		if (releaseYear is int missing)
 		{
-			if (_members is not null)
-				return _members;
-
-			_members = BuildIndex();
-			return _members;
+			_logger.LogWarning(
+				"No API reference shipped for Inventor {Requested}. Answering from {Fallback} instead.",
+				missing,
+				available[0]);
 		}
+
+		return available[0];
 	}
 
-	private List<ApiMember> BuildIndex()
+	private List<ApiMember> EnsureIndex(int releaseYear)
 	{
-		string path = Path.Combine(AppContext.BaseDirectory, "InventorApi.xml");
+		return _indexes.GetOrAdd(releaseYear, BuildIndex);
+	}
+
+	private List<ApiMember> BuildIndex(int releaseYear)
+	{
+		string path = Path.Combine(AppContext.BaseDirectory, "InventorApi", $"{releaseYear}.xml");
 
 		if (File.Exists(path) is false)
 		{

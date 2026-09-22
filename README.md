@@ -1,6 +1,6 @@
 # Autodesk Inventor MCP Server
 
-An MCP server that lets Claude inspect and drive a live Autodesk Inventor 2027 session.
+An MCP server that lets Claude inspect and drive a live Autodesk Inventor session, 2025 through 2027.
 It is built for developing Inventor plugins and automation, so Claude can see what a running automation loop creates, in order, as it runs.
 
 ## Architecture
@@ -23,7 +23,8 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | Path | Audience |
 | --- | --- |
 | `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
-| `Docs/Tasks/` | The plan, the reference repository findings, and the verification record |
+| `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
+| `Docs/Tasks/` | Outstanding work, one document per item |
 | `.claude/CLAUDE.md` | Claude: the Inventor behaviours and repository rules to work by |
 
 ## Projects
@@ -32,13 +33,14 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | --- | --- |
 | `Source/InventorMcp.Contracts` | The pipe wire contract. Holds no Inventor interop, so the server builds without Inventor installed. |
 | `Source/InventorMcp.AddIn` | The Inventor add-in. Owns the pipe listener and main thread dispatch only. |
+| `Source/InventorMcp.AddIn.Loader` | Isolates the add-in on Inventor 2025 and 2026, which cannot do it themselves. Unused on 2027. |
 | `Source/InventorMcp.Server` | The MCP server. Owns every tool. |
-| `Libs/Inventor/2027` | The vendored Inventor interop assembly, so a build agent without Inventor can still build. |
+| `Libs/Inventor/<version>` | The vendored Inventor interop assembly per release, so a build agent without Inventor can still build. |
 
 ## Requirements
 
 - .NET 10 SDK
-- Autodesk Inventor 2027 to run. Not needed to build, because the interop assembly is vendored under `Libs`.
+- Autodesk Inventor 2025, 2026 or 2027 to run. Not needed to build, because the interop assemblies are vendored under `Libs`.
 
 The Inventor release is set once, by `AutodeskVersion` in `Directory.Build.props`.
 
@@ -48,10 +50,11 @@ Build everything and deploy the add-in manifest:
 
 ```
 dotnet build InventorMcp.slnx
-dotnet build Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj -p:DeployAddIn=true
+dotnet build Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj -p:AutodeskVersion=2027 -p:DeployAddIn=true
 ```
 
 The second command writes `InventorMcp.AddIn.addin` to `%APPDATA%\Autodesk\Inventor 2027\Addins`.
+`AutodeskVersion` selects the release and defaults to 2027. Supported: 2025, 2026, 2027.
 The manifest points at the build output, so later rebuilds need no redeployment.
 
 Restart Inventor.
@@ -92,7 +95,7 @@ Claude cannot start Inventor. Every tool returns a readable `inventor-not-runnin
 
 ```
 No Inventor session is hosting the MCP bridge.
-Start Inventor 2027 and make sure the Inventor MCP Bridge add-in is loaded.
+Start Inventor and make sure the Inventor MCP Bridge add-in is loaded.
 ```
 
 The MCP server itself still starts and lists its tools, so the connection stays healthy while Inventor is closed.
@@ -115,10 +118,12 @@ Every line in it costs a CAD restart to change, while the server's tools can be 
 For a release style install, which does not point back into a build folder:
 
 ```
-dotnet build Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj -c Release -p:DeployBundle=true
+dotnet build Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj -c Release -p:AutodeskVersion=2027 -p:DeployBundle=true
 ```
 
-This writes a self contained `InventorMcp.AddIn.bundle` with its `PackageContents.xml` to the same add-ins folder.
+This writes a self contained bundle to `%APPDATA%\Autodesk\ApplicationPlugins\InventorMcp.AddIn`, which is version
+independent. Run it once per release: each adds its own manifest and `Contents` subfolder, and every Inventor loads
+only the manifest gated to its own version.
 Use one form or the other, not both, or Inventor loads the add-in twice.
 
 ### Assembly isolation

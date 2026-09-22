@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		The only assembly Inventor 2025 and 2026 load into the default context.
+		It loads the real add-in from App\ into an isolated context, so the add-in exists once in the process.
+		Inventor 2027 isolates the add-in itself through the manifest and does not use this.
+		Delete this project when 2025 and 2026 support ends.
+	-->
+	<PropertyGroup>
+		<TargetFramework>$(AddInTargetFramework)</TargetFramework>
+		<OutputPath>$(ProjectDir)bin\$(Configuration)\$(AutodeskVersion)\</OutputPath>
+		<RootNamespace>InventorMcp.AddIn.Loader</RootNamespace>
+		<AssemblyName>InventorMcp.AddIn.Loader</AssemblyName>
+
+		<EnableComHosting>false</EnableComHosting>
+		<ComVisible>false</ComVisible>
+	</PropertyGroup>
+
+	<!-- BCL and interop only. Anything more would load into the default context and could conflict. -->
+	<ItemGroup>
+		<Reference Include="Autodesk.Inventor.Interop">
+			<HintPath>$(InventorInteropDir)\Autodesk.Inventor.Interop.dll</HintPath>
+			<EmbedInteropTypes>false</EmbedInteropTypes>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+
+</Project>
