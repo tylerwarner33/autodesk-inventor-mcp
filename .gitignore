@@ -423,8 +423,7 @@ FodyWeavers.xsd
 /VaultDataMcp.Client/appsettings.Development.json
 
 # Claude files
-.claude/*
-!.claude/CLAUDE.md
+.claude/**/*.local.*
 
 # NuGet packages
 *.nupkg
