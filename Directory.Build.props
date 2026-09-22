@@ -40,7 +40,7 @@
 		AddInTargetFramework is Inventor's hosted runtime, not a preference.
 		InventorSoftwareVersion is what the .addin manifest filters on, not the release year.
 		UseAddInLoader marks releases that ignore UseInventorAssemblyContext, so InventorMcp.AddIn.Loader isolates the add-in.
-		See Docs/Tasks/Multi-Version-Support.md.
+		See Docs/Architecture.md.
 	-->
 	<Choose>
 		<When Condition="'$(AutodeskVersion)' == '2025'">

@@ -5,7 +5,7 @@
 # If someone repoints the reference back at Program Files, this pipeline is what catches it.
 #
 # No signing or installer steps: this is a local developer tool with no distribution story yet.
-# See Docs/Tasks/Reference-Repo-Findings.md, finding 11.
+# See Docs/Tasks/Release-Pipeline-With-IMAGINiT-Templates.md.
 
 trigger:
   branches:
@@ -60,7 +60,7 @@ steps:
         --configuration $(buildConfiguration)
         --no-restore
         -p:DeployBundle=true
-        -p:InventorAddinsDir="$(Build.ArtifactStagingDirectory)/Addins"
+        -p:InventorBundleDir="$(Build.ArtifactStagingDirectory)/Addins"
 
   - task: CopyFiles@2
     displayName: 'Stage the MCP server'

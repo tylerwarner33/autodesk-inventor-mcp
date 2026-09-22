@@ -12,7 +12,7 @@
 			so the shared contract has to sit at or below that. The net10.0 server references it happily.
 			Not netstandard2.0: that only earns its place when net48 is a target, and it never is here.
 			Delete this line when Inventor 2025 and 2026 move to .NET 10, so the project inherits
-			TargetFramework from Directory.Build.props again. See Docs/Tasks/Multi-Version-Support.md.
+			TargetFramework from Directory.Build.props again. See Docs/Architecture.md.
 		-->
 		<TargetFramework>net8.0</TargetFramework>
 	</PropertyGroup>

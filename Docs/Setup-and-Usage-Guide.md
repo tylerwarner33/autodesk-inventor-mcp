@@ -26,6 +26,7 @@ dotnet build Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj -p:AutodeskVersio
 
 The second command registers the add-in with Inventor by writing a manifest to
 `%APPDATA%\Autodesk\Inventor 2027\Addins`. Change `AutodeskVersion` to install for 2025 or 2026.
+Run it once for each release you use. Building a release does not install it.
 
 Restart Inventor, then confirm the bridge started:
 
@@ -71,8 +72,9 @@ Start Inventor and make sure the Inventor MCP Bridge add-in is loaded.
 
 The MCP connection itself stays healthy, so you can close and reopen Inventor without restarting Claude.
 
-Only one Inventor session can host the bridge, whatever its version. A second instance logs the conflict and does not
-compete for it. Other Inventor versions cannot load the add-in at all.
+Only one Inventor session can host the bridge, whatever its version. The first session to start owns it.
+A second session, of the same release or another, logs the conflict and does not compete for it.
+`inventor_session` reports which release is connected.
 
 ## What you can ask for
 
@@ -85,6 +87,7 @@ compete for it. Other Inventor versions cannot load the add-in at all.
 | Activity | "What did my automation just do?" |
 | Geometry | "Add four holes on the top face", "Fillet the vertical edges" |
 | API help | "What arguments does `AddDrilledByDistanceExtent2` take?" |
+| Plugin development | "Run my plugin's build against these payloads", "Measure the balloons on that drawing" |
 
 Geometry and anything else the named tools do not cover is done by Claude writing and running a C# snippet
 against the Inventor API.
@@ -125,6 +128,8 @@ Inventor answers a suppressed dialog with its default, which is a real behaviour
 | Symptom | Cause |
 | --- | --- |
 | "No Inventor session is hosting the MCP bridge" | Inventor is closed, or the add-in is not loaded |
+| The add-in is missing from **Tools > Add-Ins** | The manifest was never deployed for that release. Run the install command with its `AutodeskVersion`. |
+| `addin.log` has no entry for today on 2025 or 2026 | The loader failed before the add-in started. Read `addin-startup.log`. |
 | "Inventor rejected the call because it is busy" | A command or modal dialog is running. Finish it and retry. |
 | A tool reports success but the model looks wrong | Ask for a health check. An API call can succeed while the feature cuts nothing. |
 | Changes to the add-in do not take effect | Inventor must be closed to rebuild it. Unloading the add-in is not enough. |
@@ -134,5 +139,6 @@ Inventor answers a suppressed dialog with its default, which is a real behaviour
 | Path | Contents |
 | --- | --- |
 | `%LOCALAPPDATA%\InventorMcp\addin.log` | Add-in lifecycle and failures |
+| `%LOCALAPPDATA%\InventorMcp\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
 | `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity |
 | `%LOCALAPPDATA%\InventorMcp\executed-code.log` | Every snippet run against your session |

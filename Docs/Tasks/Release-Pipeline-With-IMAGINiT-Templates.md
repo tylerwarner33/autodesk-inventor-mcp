@@ -133,19 +133,26 @@ Decide before writing `Product.wxs`:
 - Does the MSI install both pieces, or only the add-in, leaving the server to be run from a build folder?
 - Does it write the Claude Desktop `claude_desktop_config.json` entry, or only print the path for the user?
 	Editing another application's configuration file is intrusive and easy to get wrong when several MCP servers exist.
-- Per user or per machine? The add-in currently deploys per user and version dependent, matching both samples.
+- Per user or per machine? The bundle currently deploys per user, to the version independent
+	`%APPDATA%\Autodesk\ApplicationPlugins\InventorMcp.AddIn`, with one manifest per release.
 
 A reasonable first version installs the add-in bundle per user, places the server beside it, and shows the
 configuration snippet at the end rather than editing anything.
 
 ## Build targets that already exist
 
-`-p:DeployBundle=true` on the add-in project already produces the bundle layout an installer would ship,
-including `PackageContents.xml`. `Product.wxs` can harvest that output rather than describing files by hand.
+`-p:DeployBundle=true` on the add-in project already produces the bundle layout an installer would ship.
+Each run adds one release's manifest and `Contents\<version>` folder, so a release build runs it three times, once
+per `AutodeskVersion`. There is no `PackageContents.xml`: Inventor discovers the manifests directly.
+`Product.wxs` can harvest that output rather than describing files by hand.
+
+This changes the template steps above. `AutodeskVersion` is no longer one value per installer, so the
+`Signed Installers/Inventor/$(AutodeskVersion)` folder and the `Release/Inventor-$(AutodeskVersion)` branch name
+should drop the release year. One installer covers 2025, 2026 and 2027.
 
 ## Open questions
 
 - Is signing actually required for an internal developer tool, or is an unsigned MSI enough?
 - Should the server be published self contained, so an end user does not need the .NET 10 runtime?
 - Does the repository want `Signed Installers/` committed, as the reference repositories do,
-	given this one already commits a 16 MB vendored interop assembly?
+	given this one already commits three 16 MB vendored interop folders, one per release?
