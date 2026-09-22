@@ -68,11 +68,16 @@ internal static partial class InventorTool
 
 		Query by type name, member name, or 'Type.Member', ex. 'ExtrudeFeatures', 'AddByDistanceExtent', or
 		'HoleFeatures.AddDrilledByThroughAllExtent'. Reads a local file, so it works with Inventor closed.
+
+		Answers for the connected Inventor release once inventor_session has been called, and for the newest
+		release shipped before that. Pass inventorRelease to ask about a different one.
 		""")]
 	public static IReadOnlyList<ApiMember> ApiLookup(
 		ApiReferenceService apiReference,
+		BridgeClient bridge,
 		[Description("Type name, member name, or 'Type.Member'.")] string query,
 		[Description("Restrict to one of: type, method, property, event, field. Omit for all kinds.")] string? kind = null,
-		[Description("Maximum members to return. Default 20.")] int maxResults = 20) =>
-		apiReference.Search(query, kind, maxResults <= 0 ? 20 : maxResults);
+		[Description("Maximum members to return. Default 20.")] int maxResults = 20,
+		[Description("Inventor release to answer for, ex. 2025. Omit to follow the connected session.")] int? inventorRelease = null) =>
+		apiReference.Search(query, kind, maxResults <= 0 ? 20 : maxResults, inventorRelease ?? bridge.ReleaseYear);
 }

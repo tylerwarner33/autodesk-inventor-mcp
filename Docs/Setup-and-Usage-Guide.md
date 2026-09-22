@@ -4,7 +4,7 @@ How to install the Inventor MCP server and use it from Claude.
 
 ## What it does
 
-It lets Claude see and drive a running Autodesk Inventor 2027 session: read the open documents, parameters,
+It lets Claude see and drive a running Autodesk Inventor session, 2025 through 2027: read the open documents, parameters,
 iProperties and feature health, watch what an automation loop is doing as it runs, and change or create geometry.
 
 It is built for developing Inventor plugins and automation, where the useful thing is having Claude look at the same
@@ -12,20 +12,20 @@ live session you are working in.
 
 ## Requirements
 
-- Autodesk Inventor 2027
+- Autodesk Inventor 2025, 2026 or 2027
 - .NET 10 SDK
 
-Inventor is needed to run, but not to build. The interop assembly is kept in `Libs/Inventor/2027`.
+Inventor is needed to run, but not to build. The interop assemblies are kept in `Libs/Inventor/<version>`.
 
 ## Install
 
 ```
 dotnet build InventorMcp.slnx
-dotnet build Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj -p:DeployAddIn=true
+dotnet build Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj -p:AutodeskVersion=2027 -p:DeployAddIn=true
 ```
 
 The second command registers the add-in with Inventor by writing a manifest to
-`%APPDATA%\Autodesk\Inventor 2027\Addins`.
+`%APPDATA%\Autodesk\Inventor 2027\Addins`. Change `AutodeskVersion` to install for 2025 or 2026.
 
 Restart Inventor, then confirm the bridge started:
 
@@ -66,12 +66,12 @@ With Inventor closed, tools return a readable message rather than failing:
 
 ```
 No Inventor session is hosting the MCP bridge.
-Start Inventor 2027 and make sure the Inventor MCP Bridge add-in is loaded.
+Start Inventor and make sure the Inventor MCP Bridge add-in is loaded.
 ```
 
 The MCP connection itself stays healthy, so you can close and reopen Inventor without restarting Claude.
 
-Only one Inventor session can host the bridge. A second Inventor 2027 instance logs the conflict and does not
+Only one Inventor session can host the bridge, whatever its version. A second instance logs the conflict and does not
 compete for it. Other Inventor versions cannot load the add-in at all.
 
 ## What you can ask for

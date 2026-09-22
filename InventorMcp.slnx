@@ -26,6 +26,7 @@
     <File Path="Docs/Tasks/Release-Pipeline-With-IMAGINiT-Templates.md" />
   </Folder>
   <Project Path="Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj" />
+  <Project Path="Source/InventorMcp.AddIn.Loader/InventorMcp.AddIn.Loader.csproj" />
   <Project Path="Source/InventorMcp.Contracts/InventorMcp.Contracts.csproj" />
   <Project Path="Source/InventorMcp.Server/InventorMcp.Server.csproj" />
 </Solution>

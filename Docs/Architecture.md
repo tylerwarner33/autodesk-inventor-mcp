@@ -19,6 +19,7 @@ Inventor.exe 2027
 | --- | --- |
 | `InventorMcp.Contracts` | The wire contract. Holds no Inventor interop, so the server builds without Inventor installed. |
 | `InventorMcp.AddIn` | Runs inside Inventor. Owns the pipe listener and main thread dispatch only. |
+| `InventorMcp.AddIn.Loader` | Inventor 2025 and 2026 only. The one assembly loaded into the default context; loads the add-in from `App\` in isolation. |
 | `InventorMcp.Server` | Owns every tool. |
 | `Libs/Inventor/2027` | The vendored interop assembly, so a build agent without Inventor can still build. |
 
@@ -99,6 +100,10 @@ The manifest sets `UseInventorAssemblyContext` to `0`, which isolates the add-in
 
 This is not precautionary. Inventor loads Roslyn 4.13 because iLogic is built on it, while this add-in's scripting
 brings 4.14, and both are loaded at once in separate contexts. Isolation is what keeps them from having to agree.
+
+Inventor 2025 and 2026 ignore that element, so `InventorMcp.AddIn.Loader` does the same job there. It must leave no
+copy of the add-in in the default context, because Roslyn resolves a script's globals type from the default context
+first. See `Docs/Tasks/Multi-Version-Support.md`.
 
 ### Units
 

@@ -17,6 +17,8 @@ internal sealed partial class InventorOperations
 
 		return new SessionInfo(
 			_inventor.SoftwareVersion.DisplayName,
+			// Major is the internal version, ex. 29 for Inventor 2025.
+			_inventor.SoftwareVersion.Major + 1996,
 			// Fully qualified: Inventor.Environment is the ribbon environment type, so the name collides.
 			System.Environment.ProcessId,
 			BridgeProtocol.Version,
