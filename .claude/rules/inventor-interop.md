@@ -53,7 +53,7 @@ System.ComponentModel.Win32Exception (1816): Not enough quota is available to pr
 ```
 
 It shows in the Windows Application event log as a `.NET Runtime` event 1026, and `addin.log` has no
-`Bridge stopping` line for that process. It is not a busy rejection (`Docs/Tasks/Busy-Inventor-Call-Rejection.md`):
+`Bridge stopping` line for that process. It is not a busy rejection:
 every call was accepted.
 
 Keep each call under about 10 s and split a loop that creates or edits sketches, views or documents over several
@@ -68,7 +68,8 @@ user interface heavily can still fill the queue.
 - `HealthStatusEnum` has no warning member. The real members include `kCannotComputeHealth`,
 	`kInconsistentHealth` and `kRedundantHealth`.
 - `ErrorManager` exposes no entry collection. It offers `AllMessages` as one text blob plus `HasErrors` and
-	`HasWarnings`, so there is no genuine per entry severity. See `Docs/Tasks/Feature-Error-Messages.md`.
+	`HasWarnings`, so there is no genuine per entry severity.
+	So `inventor_health` reports which features are sick, but not why.
 - `Transaction.DisplayName` carries the command name behind each modelling operation, which is what makes the
 	activity feed readable.
 - `PartFeature` carries no failure text, only `HealthStatus`.

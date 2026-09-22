@@ -26,7 +26,7 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
 | `Docs/Plugin-Development-Loop.md` | Plugin developers: running and iterating on a plugin in a live session, and making a plugin ready for it |
 | `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
-| `Docs/Tasks/` | Outstanding work, one document per item |
+| `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
 | `.claude/CLAUDE.md` | Claude: the working principles, and an index of the rules to load on demand |
 | `.claude/rules/` | Claude: the Inventor behaviours and repository rules, one topic per file |
 

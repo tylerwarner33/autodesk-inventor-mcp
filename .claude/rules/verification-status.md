@@ -36,5 +36,12 @@ The server's warning on an execution result over 20 s was built then too, but no
 Not yet run: the plugin loop on Inventor 2027.
 
 Not yet exercised: the ring buffer's `droppedEntries` counter, which needs more than 2000 buffered events.
-Two known gaps have their own task documents in `Docs/Tasks/`:
-`Busy-Inventor-Call-Rejection.md` and `Feature-Error-Messages.md`.
+
+Not yet exercised: the `inventor-busy` result for `RPC_E_CALL_REJECTED` and `RPC_E_SERVERCALL_RETRYLATER`.
+The dispatcher queues each call on Inventor's main thread, so no call has been rejected yet.
+To test it, open a modal dialog (ex. Parameters) or start a large rebuild, then call any tool except
+`inventor_activity`. A hang or an unhandled `COMException` is a defect. If rejections occur, add a retry in
+`BridgeClient` first, because that needs no add-in rebuild.
+
+Not yet exercised: a non-empty `errors` list from `inventor_health`, and `FeatureHealth.Message`, which is always
+empty. To make a sick feature, drill a hole away from the solid, which gives `kDriverLostHealth`.
