@@ -58,8 +58,32 @@ Validating `"width / 4"` against it always fails. Use `Document.UnitsOfMeasure`.
 
 ### Inventor type names collide with the BCL
 
-`Inventor.Environment`, `Inventor.File`, `Inventor.Path`, `Inventor.Attribute` and others shadow their
-`System` counterparts. Fully qualify the `System` one inside the add-in.
+`Inventor.Environment`, `Inventor.File`, `Inventor.Path` and others shadow their `System` counterparts.
+Fully qualify the `System` one inside the add-in.
+
+### Some COM members cannot be C# properties
+
+When the COM getter and setter have different types, the language cannot form a property and the accessor must be
+called directly. Known cases:
+
+| Member | Call instead |
+| --- | --- |
+| `Parameter.Units` | `parameter.get_Units()` |
+| `iLogicAutomation.Rules` | `iLogic.get_Rules(document)` |
+
+Expect more. The compiler error names the accessor to use, so read it rather than working around it.
+
+### Other interop facts that are not obvious
+
+- `Parameter._Value` is the database unit double. `Parameter.Value` is typed as `object` and boxes the same number.
+- `HealthStatusEnum` has no warning member. The real members include `kCannotComputeHealth`,
+	`kInconsistentHealth` and `kRedundantHealth`.
+- `ErrorManager` exposes no entry collection. It offers `AllMessages` as one text blob plus `HasErrors` and
+	`HasWarnings`, so there is no genuine per entry severity. See `Docs/Tasks/Feature-Error-Messages.md`.
+- `Transaction.DisplayName` carries the command name behind each modelling operation, which is what makes the
+	activity feed readable.
+- `PartFeature` carries no failure text, only `HealthStatus`.
+- Assembly feature collections can hold entries that do not expose `PartFeature`; those are skipped.
 
 ## Working on this repository
 
@@ -86,6 +110,41 @@ Use it to confirm a member exists and what it takes before writing a snippet.
 
 An Inventor API call can succeed while the model is wrong.
 Check `inventor_health` after any write, and count geometry when a feature is meant to cut material.
+
+### Assembly isolation is load bearing
+
+The manifest sets `UseInventorAssemblyContext` to `0`, which loads the add-in in its own `AssemblyLoadContext`.
+The element names whether to use *Inventor's* context, so `0` is the isolated mode.
+
+This is absorbing a real conflict, not a precaution.
+Measured in a live session: the process holds 273 assemblies across 19 load contexts, and
+`Microsoft.CodeAnalysis` is loaded twice, 4.13.0.0 in the default context because iLogic is built on Roslyn,
+and 4.14.0.0 in this add-in's context.
+
+Two consequences:
+
+- `Autodesk.Inventor.Interop` must stay `Private=false`, so Inventor's types resolve from Inventor while the
+	add-in's own packages resolve from its output folder.
+- Roslyn scripting needs `InteractiveAssemblyLoader.RegisterDependency` for the globals and interop assemblies.
+	Without it Roslyn loads a second copy of the add-in into its own context and the globals object fails to cast.
+	`EnterContextualReflection` does not help, because the scripting host does not consult it.
+
+## What is verified, and what is not
+
+Everything below was checked against a live Inventor 2027 session, including a production assembly with
+23 open documents, 91 parameters and eight iLogic rules.
+
+Verified: the pipe and main thread dispatcher, the activity feed, parameter reads and writes across numeric, text
+and boolean kinds, expression evaluation, iProperty reads and writes, the assembly tree including suppressed
+occurrences and the node and depth budget, health reporting including a genuinely sick feature, document targeting
+by name, the error paths for a missing document and a wrong document type, `inventor_update`, both execution tools,
+the API lookup, and assembly isolation.
+
+Not yet exercised: the ring buffer's `droppedEntries` counter, which needs more than 2000 buffered events.
+Two known gaps have their own task documents, `Busy-Inventor-Call-Rejection.md` and `Feature-Error-Messages.md`.
+
+Note that `inventor_update` marks a clean document dirty even when the rebuild changes nothing,
+so it is not a read only call.
 
 ## Build and test
 

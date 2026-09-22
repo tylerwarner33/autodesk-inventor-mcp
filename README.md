@@ -23,7 +23,8 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | Path | Audience |
 | --- | --- |
 | `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
-| `Docs/Tasks/` | The plan, the reference repository findings, and the verification record |
+| `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
+| `Docs/Tasks/` | Outstanding work, one document per item |
 | `.claude/CLAUDE.md` | Claude: the Inventor behaviours and repository rules to work by |
 
 ## Projects
