@@ -133,13 +133,27 @@ internal sealed class BridgeClient(ILogger<BridgeClient> logger) : IAsyncDisposa
 
 	private async Task CloseAsync()
 	{
-		if (_writer is not null)
-			await _writer.DisposeAsync().ConfigureAwait(false);
+		// Disposing the writer flushes, which throws on a pipe whose Inventor has closed.
+		// Closing must still succeed, or the reconnect after it never runs.
+		try
+		{
+			if (_writer is not null)
+				await _writer.DisposeAsync().ConfigureAwait(false);
+		}
+		catch (IOException)
+		{
+		}
 
 		_reader?.Dispose();
 
-		if (_pipe is not null)
-			await _pipe.DisposeAsync().ConfigureAwait(false);
+		try
+		{
+			if (_pipe is not null)
+				await _pipe.DisposeAsync().ConfigureAwait(false);
+		}
+		catch (IOException)
+		{
+		}
 
 		_writer = null;
 		_reader = null;
