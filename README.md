@@ -5,16 +5,29 @@ It is built for developing Inventor plugins and automation, so Claude can see wh
 
 ## Architecture
 
+```mermaid
+graph LR
+    Client["MCP Client<br/>(ex. Claude Code)"]
+    Server["MCP Server<br/>(InventorMcp.Server)"]
+
+    subgraph "Inventor.exe (2025, 2026 or 2027)"
+        AddIn["Add-in<br/>(InventorMcp.AddIn)"]
+        Api["Inventor API<br/>(COM)"]
+    end
+
+    Client ---|"stdio"| Server
+    Server ---|"Named pipe"| AddIn
+    AddIn ---|"Main thread"| Api
 ```
-Claude Code, Claude Desktop, Visual Studio or Visual Studio Code
-    | stdio, through dotnet tool exec
-InventorMcp.Server            net10.0    every MCP tool lives here
-    | named pipe  InventorMcp.Bridge     restricted to the current Windows user
-InventorMcp.AddIn             net8.0-windows (2025, 2026) or net10.0-windows (2027)
-    |                                    thin bridge: pipe listener, dispatch, main-thread marshaling
-    | in-process COM on Inventor's main thread
-Inventor.exe 2025, 2026 or 2027
-```
+
+| Hop | Transport | Notes |
+| --- | --- | --- |
+| Client to server | stdio | Claude Code, Claude Desktop, Visual Studio or Visual Studio Code starts the server with `dotnet tool exec`. |
+| Server to add-in | Named pipe `InventorMcp.Bridge` | Only the current Windows user can connect. |
+| Add-in to Inventor | In-process COM | Every call runs on Inventor's main thread. |
+
+The server targets `net10.0`. The add-in targets `net8.0-windows` on Inventor 2025 and 2026, and `net10.0-windows` on 2027.
+The server holds every MCP tool. The add-in is only a thin bridge: pipe listener, dispatch, and main thread marshaling.
 
 The add-in stays thin on purpose.
 Changing it costs an Inventor restart, while the tool surface changes constantly during development.
