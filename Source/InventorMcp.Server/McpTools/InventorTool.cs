@@ -18,7 +18,7 @@ internal static partial class InventorTool
 	/// 	Run time on Inventor's main thread above which an execution result carries a warning.
 	/// </summary>
 	/// <remarks>
-	/// 	See <c>.claude/rules/inventor-interop.md</c>, "A long snippet can terminate Inventor".
+	/// 	See <c>.agents/rules/inventor-interop.md</c>, "A long snippet can terminate Inventor".
 	/// </remarks>
 	private static readonly TimeSpan _longExecutionWarningThreshold = TimeSpan.FromSeconds(20);
 

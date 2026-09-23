@@ -6,8 +6,8 @@ It is built for developing Inventor plugins and automation, so Claude can see wh
 ## Architecture
 
 ```
-Claude Code
-    | stdio
+Claude Code, Claude Desktop, Visual Studio or Visual Studio Code
+    | stdio, through dotnet tool exec
 InventorMcp.Server            net10.0    every MCP tool lives here
     | named pipe  InventorMcp.Bridge     restricted to the current Windows user
 InventorMcp.AddIn             net8.0-windows (2025, 2026) or net10.0-windows (2027)
@@ -27,8 +27,22 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `Docs/Plugin-Development-Loop.md` | Plugin developers: running and iterating on a plugin in a live session, and making a plugin ready for it |
 | `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
 | `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
-| `.claude/CLAUDE.md` | Claude: the working principles, and an index of the rules to load on demand |
-| `.claude/rules/` | Claude: the Inventor behaviours and repository rules, one topic per file |
+| `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
+| `.agents/rules/` | Coding agents: the Inventor behaviours and repository rules, one topic per file |
+
+### Which coding agents read `AGENTS.md`
+
+`AGENTS.md` sits at the repository root, where each agent that supports it looks.
+
+| Agent | Reads the root `AGENTS.md` |
+| --- | --- |
+| Claude Code | Yes, from v2.1.277, when no `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists in the working folder or above it. Not in a session with telemetry disabled, on a third-party provider (ex. Amazon Bedrock), or in the first session after an upgrade. |
+| GitHub Copilot in Visual Studio Code | Yes, through the setting `chat.useAgentsMdFile`. |
+| GitHub Copilot in Visual Studio | No. It reads `.github/copilot-instructions.md`, which this repository does not have. |
+
+The name `.agents/` has no special meaning to any tool. It is only a neutral folder that keeps the agent rules apart
+from `Docs/`, which is written for people. No agent reads `.agents/` by itself: `AGENTS.md` lists each rule with its
+trigger, and an agent opens a rule only when a task matches it. So the rules cost no context until they are needed.
 
 ## Projects
 
@@ -62,49 +76,316 @@ The second command writes `InventorMcp.AddIn.addin` to `%APPDATA%\Autodesk\Inven
 The manifest points at the build output, so later rebuilds need no redeployment.
 Building a release does not install it. Run the deploy command once for each release you use.
 
+The Debug build of the server also adds a tool package to `%LOCALAPPDATA%\InventorMcp\Feed`, which the development
+setup of every client starts the server from. The feed is empty until the first build, so build before you connect
+a client. See "Connecting a client".
+
 Restart Inventor.
 Confirm the bridge started by checking `%LOCALAPPDATA%\InventorMcp\addin.log`.
 
-## Connecting Claude
+## Connecting a client
 
-The server is a stdio MCP server, so Claude starts it. There is nothing to leave running and no port.
+The server is a stdio MCP server, so the client starts it. There is nothing to leave running and no port.
+Claude Code, Claude Desktop, and GitHub Copilot Chat in Visual Studio and in Visual Studio Code can all use it.
 
-It is started as the built executable rather than through `dotnet run`, because MSBuild writes to standard output and would corrupt the protocol stream.
+Each client is configured **machine wide**, in its own user configuration file, so the server is available in every
+folder, repository and solution. The repository holds no client configuration.
+
+### How a client starts the server
+
+Every client runs the server as a .NET tool:
+
+```
+dotnet tool exec InventorMcp.Server [--prerelease] --source <feed> --yes
+```
+
+with `DOTNET_NOLOGO=1` and `DOTNET_CLI_TELEMETRY_OPTOUT=1` in the environment.
+
+- NuGet extracts each package version to its own cache folder and the server runs from there. No client runs the
+	build output, so a rebuild succeeds while clients are connected.
+- With no version given, `dotnet tool exec` runs the newest package in the feed. A client picks up a new version
+	when it restarts the server.
+- `--source` makes the feed the only source for that call, so a package of the same name on nuget.org is never used.
+- `--yes` removes a confirmation prompt that nobody can answer, because the client owns stdin.
+- `DOTNET_NOLOGO` stops the first run banner, which `dotnet` writes to stdout and which would corrupt the protocol.
+
+The server sends the modelling rules (named faces, units, extent direction, health checks, call length) in its
+`initialize` response, so every client gets them. The text is `Source/InventorMcp.Server/ServerInstructions.md`.
+
+### Two setups
+
+| | Using the server | Developing the server |
+| --- | --- | --- |
+| Who | Anyone who uses the tools, ex. a team member | Anyone who changes the server in this repository |
+| Feed | A team feed: a file share or an internal NuGet feed | `%LOCALAPPDATA%\InventorMcp\Feed`, filled by each Debug build |
+| Versions | Releases (ex. `0.1.0`), so no `--prerelease` | `0.1.0-dev.<UTC time>`, so `--prerelease` |
+| New version | When a release is published to the feed | After every build that changes the server |
+| Needs the repository | No | Yes |
+
+Both setups need the Inventor add-in installed for each release in use. See "Setup" and "Bundle deployment".
+
+No team feed and no release pipeline exist yet. The "Using the server" examples show where the team feed goes.
+`<team feed>` is its path or URL, ex. `\\server\share\InventorMcp` or
+`https://pkgs.dev.azure.com/<organisation>/_packaging/<feed>/nuget/v3/index.json`. A feed that needs a sign-in also
+needs a NuGet credential provider on each machine.
+Write a UNC path with doubled backslashes inside JSON, ex. `\\\\server\\share\\InventorMcp`.
+
+The team feed is the same text on every machine, so each "Using the server" entry needs no variable.
+The local feed differs per user, and the four clients differ in how they name a per user folder:
+
+| Client | Configuration file | Local feed in the development setup |
+| --- | --- | --- |
+| Claude Code | `~/.claude.json`, user scope | `${LOCALAPPDATA}/InventorMcp/Feed` |
+| Claude Desktop | `%APPDATA%\Claude\claude_desktop_config.json` | Absolute path. No variables. |
+| Visual Studio | `%USERPROFILE%\.mcp.json` | Absolute path. It passes `${env:...}` through as text. |
+| Visual Studio Code | `%APPDATA%\Code\User\mcp.json` | `${env:LOCALAPPDATA}\\InventorMcp\\Feed` |
+
+In the examples, replace `<you>` with your Windows user name.
 
 ### Claude Code
 
-`.mcp.json` in the repository root is picked up when Claude Code runs in this directory.
-Nothing else is needed. If the relative command path does not resolve, replace it with the full path to
-`Source\InventorMcp.Server\bin\Debug\InventorMcp.Server.exe`.
+Add the server at user scope from any terminal. It is then available in every folder.
+
+**Using the server:**
+
+```
+claude mcp add-json autodesk-inventor-mcp-server -s user '{"type":"stdio","command":"dotnet","args":["tool","exec","InventorMcp.Server","--source","<team feed>","--yes"],"env":{"DOTNET_NOLOGO":"1","DOTNET_CLI_TELEMETRY_OPTOUT":"1"}}'
+```
+
+**Developing the server:**
+
+```
+claude mcp add-json autodesk-inventor-mcp-server -s user '{"type":"stdio","command":"dotnet","args":["tool","exec","InventorMcp.Server","--prerelease","--source","${LOCALAPPDATA}/InventorMcp/Feed","--yes"],"env":{"DOTNET_NOLOGO":"1","DOTNET_CLI_TELEMETRY_OPTOUT":"1"}}'
+```
+
+- To change an entry, run `claude mcp remove autodesk-inventor-mcp-server -s user` first, then add it again.
+- In Git Bash, `claude mcp add-json` rejected JSON with escaped backslashes. Forward slashes in a path worked.
+- Check it with `claude mcp list`, which starts each server and reports Connected or Failed.
+- After a server change, run `/mcp` and Reconnect. A change inside an existing tool then appears. A new or changed
+	tool can need a new session.
+- An entry of the same name at another scope (ex. a project `.mcp.json`) must be the same text, or `/mcp` reports
+	"Conflicting scopes".
+- An entry that still runs `bin\Debug\InventorMcp.Server.exe` locks the build output. Replace it.
 
 ### Claude Desktop
 
-Claude Desktop does not read `.mcp.json`. Add the server to `claude_desktop_config.json` with an absolute path:
+Open Settings, Developer, Edit Config. That opens the correct file, also for a Microsoft Store installation, which
+keeps it in a different folder. Add the entry to `mcpServers`.
+
+**Using the server:**
 
 ```json
 {
 	"mcpServers": {
 		"autodesk-inventor": {
-			"command": "C:\\repos\\_MyProjects\\autodesk-inventor-mcp\\Source\\InventorMcp.Server\\bin\\Debug\\InventorMcp.Server.exe",
-			"args": []
+			"command": "dotnet",
+			"args": [
+				"tool", "exec", "InventorMcp.Server",
+				"--source", "<team feed>",
+				"--yes"
+			],
+			"env": {
+				"DOTNET_NOLOGO": "1",
+				"DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+			}
 		}
 	}
 }
 ```
 
-## Inventor must already be running
+**Developing the server:**
+
+```json
+{
+	"mcpServers": {
+		"autodesk-inventor": {
+			"command": "dotnet",
+			"args": [
+				"tool", "exec", "InventorMcp.Server",
+				"--prerelease",
+				"--source", "C:\\Users\\<you>\\AppData\\Local\\InventorMcp\\Feed",
+				"--yes"
+			],
+			"env": {
+				"DOTNET_NOLOGO": "1",
+				"DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+			}
+		}
+	}
+}
+```
+
+- Quit Claude Desktop from the tray and start it again after each change, including a server change. Closing the
+	window leaves it running.
+- Settings, Developer shows the server as Running when it started.
+- Claude Desktop starts two servers from one entry, one for chat and one for agent mode. Each uses a pipe connection
+	once it calls Inventor. See "More than one client".
+- A failed start is logged in `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log`.
+
+### Visual Studio
+
+Needs Visual Studio 2022 17.14 or later, or Visual Studio 2026, with Copilot Chat in **Agent** mode.
+Ask mode does not call tools.
+
+Add the entry to `servers` in `%USERPROFILE%\.mcp.json`, which Visual Studio reads for every solution. Create the file
+if it does not exist. Keep any servers already in it.
+
+**Using the server:**
+
+```json
+{
+	"servers": {
+		"autodesk-inventor-mcp-server": {
+			"type": "stdio",
+			"command": "dotnet",
+			"args": [
+				"tool", "exec", "InventorMcp.Server",
+				"--source", "<team feed>",
+				"--yes"
+			],
+			"env": {
+				"DOTNET_NOLOGO": "1",
+				"DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+			}
+		}
+	}
+}
+```
+
+**Developing the server:**
+
+```json
+{
+	"servers": {
+		"autodesk-inventor-mcp-server": {
+			"type": "stdio",
+			"command": "dotnet",
+			"args": [
+				"tool", "exec", "InventorMcp.Server",
+				"--prerelease",
+				"--source", "C:\\Users\\<you>\\AppData\\Local\\InventorMcp\\Feed",
+				"--yes"
+			],
+			"env": {
+				"DOTNET_NOLOGO": "1",
+				"DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+			}
+		}
+	}
+}
+```
+
+- Visual Studio does not expand variables in this file. `${env:LOCALAPPDATA}` reaches `dotnet` as text, relative to
+	the solution folder, so the feed path must be absolute.
+- Trust the server when asked, then turn its tools on in the tools picker. Visual Studio adds them turned off.
+- After a server change, restart the server from the CodeLens in `%USERPROFILE%\.mcp.json`.
+- From 18.7, Visual Studio asks for trust again when the server's instructions or tools change.
+- If the tools picker shows no MCP servers, check the organisation policy "MCP servers in Copilot" first.
+- The log is in `%TEMP%\VSGitHubCopilotLogs\`. A failed start there quotes the server's stderr.
+
+### Visual Studio Code
+
+Needs GitHub Copilot Chat in **Agent** mode. Ask mode does not call tools.
+
+Run "MCP: Open User Configuration", which opens `%APPDATA%\Code\User\mcp.json`, and add the entry to `servers`.
+It is then available in every folder and workspace.
+
+**Using the server:**
+
+```json
+{
+	"servers": {
+		"autodesk-inventor-mcp-server": {
+			"type": "stdio",
+			"command": "dotnet",
+			"args": [
+				"tool", "exec", "InventorMcp.Server",
+				"--source", "<team feed>",
+				"--yes"
+			],
+			"env": {
+				"DOTNET_NOLOGO": "1",
+				"DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+			}
+		}
+	}
+}
+```
+
+**Developing the server:**
+
+```json
+{
+	"servers": {
+		"autodesk-inventor-mcp-server": {
+			"type": "stdio",
+			"command": "dotnet",
+			"args": [
+				"tool", "exec", "InventorMcp.Server",
+				"--prerelease",
+				"--source", "${env:LOCALAPPDATA}\\InventorMcp\\Feed",
+				"--yes"
+			],
+			"env": {
+				"DOTNET_NOLOGO": "1",
+				"DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+			}
+		}
+	}
+}
+```
+
+- After a server change, restart the server from "MCP: List Servers".
+- Automatic restart (`dev.watch`) works only from a workspace file (`.vscode/mcp.json`) with a path relative to the
+	workspace, ex. `"watch": "Source/InventorMcp.Server/obj/Debug/LocalFeed.stamp"`, which the build touches after it
+	packs. In the user file it did not fire, neither with `${workspaceFolder}` nor with an absolute path. The
+	repository commits no workspace file. A developer who wants the automatic restart can add one locally, but it then
+	defines a second entry beside the user entry.
+- Trust the server on its first start.
+- "MCP: List Servers" starts, stops and restarts the server, and "Show Output" opens its log with the server's stderr.
+- "MCP: Reset Cached Tools" clears the tool list Visual Studio Code keeps. Use it when a new tool does not appear.
+- The tools picker lists the server as `InventorMcp.Server`, the name the server reports about itself.
+- If `chat.mcp.discovery.enabled` includes `claude-desktop`, Visual Studio Code also lists the server from the
+	Claude Desktop configuration, and each copy starts its own server.
+
+### More than one client
+
+Each client starts its own server, and Claude Desktop starts two. A server opens a pipe connection on its first
+Inventor call. The add-in accepts 16 connections at once and runs every call on Inventor's main thread, so a call
+from one client waits while another client's call runs, then succeeds.
+
+- Every client sees the same `inventor_activity` feed. Each keeps its own cursor (`nextSequence`), and reading
+	removes nothing.
+- A server that finds every connection in use waits 3 s, then returns `inventor-not-running` with a message that
+	says Inventor is running and not to call `inventor_start`.
+
+## Inventor must be running
 
 The add-in hosts the named pipe, so the bridge exists only while Inventor is open with the add-in loaded.
 
-Claude cannot start Inventor. Every tool returns a readable `inventor-not-running` result instead:
+With Inventor closed, every tool returns a readable `inventor-not-running` result:
 
 ```
-No Inventor session is hosting the MCP bridge.
-Start Inventor and make sure the Inventor MCP Bridge add-in is loaded.
+No Inventor session is hosting the MCP bridge. Ask the user whether to start Inventor, then call inventor_start.
+If Inventor is already open, make sure the Inventor MCP Bridge add-in is loaded.
 ```
 
 The MCP server itself still starts and lists its tools, so the connection stays healthy while Inventor is closed.
 That is the reason for the two process design.
+
+### Starting Inventor from Claude
+
+`inventor_start` starts Inventor, only when you ask for it. It offers only releases that have the add-in deployed.
+
+- One such release: it starts with no question.
+- More than one: Claude Code shows a form with "Autodesk Inventor 2025", "2026" and "2027".
+	A client that cannot show a form returns `version-required`, and Claude asks you instead.
+- An Inventor already running, with or without the bridge: nothing starts.
+
+Inventor starts with Explorer as its parent, so closing Claude does not close Inventor.
+The call waits up to 45 s for the add-in. After that it returns `still-starting`, because a sign-in or recovery
+dialog can hold Inventor, and `inventor_session` connects later.
+Set `INVENTOR_MCP_RELEASES` (ex. `2025`) on the server to limit the releases it considers.
 
 ### Debugging the add-in
 
@@ -148,6 +429,7 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | Tool | Purpose |
 | --- | --- |
 | `inventor_session` | Is Inventor reachable, which version, which document is active |
+| `inventor_start` | Start Inventor when no session hosts the bridge, asking which release when several can |
 | `inventor_documents` | Every open document with path, type, and unsaved state |
 | `inventor_assembly_tree` | Occurrence tree with suppression, visibility, and referenced files |
 | `inventor_parameters` | Parameters with kind, expression, display value, and internal value |
@@ -220,3 +502,4 @@ Inventor answers a suppressed dialog with its own default, which is a real behav
 | `%LOCALAPPDATA%\InventorMcp\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
 | `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity |
 | `%LOCALAPPDATA%\InventorMcp\executed-code.log` | Every snippet run through the execution tools |
+| `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log` | Claude Desktop: a server that failed to start |

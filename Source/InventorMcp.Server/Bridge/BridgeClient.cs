@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 
 using InventorMcp.Contracts;
+using InventorMcp.Server.Services;
 
 using Microsoft.Extensions.Logging;
 
@@ -86,6 +87,39 @@ internal sealed class BridgeClient(ILogger<BridgeClient> logger) : IAsyncDisposa
 		}
 	}
 
+	/// <summary>
+	/// 	Connects to the pipe without sending a request.
+	/// </summary>
+	/// <remarks>
+	/// 	A connection proves the add-in is hosting the bridge.
+	/// 	A request could block on a dialog that holds Inventor's main thread at startup, so none is sent.
+	/// </remarks>
+	/// <param name="cancellationToken">
+	/// 	Cancels the attempt.
+	/// </param>
+	/// <returns>
+	/// 	True when the pipe is connected.
+	/// </returns>
+	public async Task<bool> TryConnectAsync(CancellationToken cancellationToken)
+	{
+		await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+		try
+		{
+			await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
+
+			return true;
+		}
+		catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
+		{
+			return false;
+		}
+		finally
+		{
+			_ = _gate.Release();
+		}
+	}
+
 	private async Task<TResult> SendAsync<TResult>(string operation, object? payload, CancellationToken cancellationToken)
 	{
 		await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
@@ -134,9 +168,17 @@ internal sealed class BridgeClient(ILogger<BridgeClient> logger) : IAsyncDisposa
 		{
 			await pipe.DisposeAsync().ConfigureAwait(false);
 
+			// The code stays NotRunning even with Inventor open, because inventor_start polls on it while Inventor loads.
+			// Only the message tells the model not to start a second Inventor.
 			throw new InventorBridgeException(
 				BridgeErrorCodes.NotRunning,
-				"No Inventor session is hosting the MCP bridge. Start Inventor and make sure the Inventor MCP Bridge add-in is loaded.");
+				InventorInstallations.FindRunning().Count > 0
+					? "Inventor is running, but its MCP bridge accepted no connection within " +
+						$"{ConnectTimeout.TotalSeconds:0} s. The add-in may still be loading or may not be loaded, or every bridge " +
+						"connection may be in use by other MCP clients. Do not call inventor_start. Retry shortly, and if it " +
+						"persists, ask the user to check Tools > Add-Ins in Inventor or to close another MCP client."
+					: "No Inventor session is hosting the MCP bridge. Ask the user whether to start Inventor, then call " +
+						"inventor_start. If Inventor is already open, make sure the Inventor MCP Bridge add-in is loaded.");
 		}
 
 		_pipe = pipe;

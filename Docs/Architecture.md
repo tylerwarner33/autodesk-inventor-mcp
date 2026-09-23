@@ -6,8 +6,8 @@ For installing and using it, see `Setup-and-Usage-Guide.md`.
 ## Shape
 
 ```
-Claude
-    | stdio
+MCP client (Claude Code, Claude Desktop, Visual Studio, Visual Studio Code)
+    | stdio, through dotnet tool exec from a local feed
 InventorMcp.Server            net10.0    every MCP tool lives here
     | named pipe  InventorMcp.Bridge     restricted to the current Windows user
 InventorMcp.AddIn             net8.0-windows (2025, 2026) or net10.0-windows (2027)
@@ -48,10 +48,146 @@ That matters here because the endpoint can execute arbitrary code inside the CAD
 The pipe name is fixed, so the server connects with no discovery step.
 Only one Inventor session can host it; a second logs the conflict rather than competing.
 
+The add-in serves up to 16 connections (`MaxPipeInstances`), one for each server. Each MCP client starts its own
+server and Claude Desktop starts two, so four clients already made six to seven servers. The ACL admits only the
+current user, so the limit guards resources, not access. With every instance in use, the accept loop waits for a
+connection to end before it creates another pipe, and it pauses 1 s after any failed accept.
+
+The limit was four until 2026-09-23. Then, with four clients connected on Inventor 2025, creating a fifth instance
+failed at once with "All pipe instances are busy", and the loop retried with no pause: 466,356 log lines in about
+4.5 minutes, up to 2,000 a second, and a 40 MB `addin.log`. A fifth server meanwhile timed out and reported
+`inventor-not-running`, which told the model to start Inventor although it was running. After the fix, 16
+connections each connected in about 40 ms, the 17th and 18th got a readable message, and the loop wrote no lines.
+
+A server that cannot connect within 3 s keeps the code `inventor-not-running`, because `inventor_start` polls on
+it while Inventor loads. When an Inventor process is running, the message says so and tells the model not to call
+`inventor_start`.
+
 ### stdio rather than HTTP to Claude
 
 A single user developer tool, with the pipe already carrying the trust boundary.
 stdio means Claude starts the server itself: no port, no token, no URL to keep in sync.
+
+### Clients run the server as a .NET tool from a local feed
+
+A client holds the server process open for its whole session, and Windows does not let a build overwrite a running
+executable or a loaded DLL. When clients ran `bin\Debug\InventorMcp.Server.exe`, a rebuild failed with MSB3027 while
+any client was open, and with two or three clients one nearly always was.
+
+So nothing runs from `bin\Debug`. Three locations have three jobs:
+
+```
+Source\InventorMcp.Server\bin\Debug\            the build writes here; nothing runs here
+%LOCALAPPDATA%\InventorMcp\Feed\                the build adds a package here; nothing runs here
+%USERPROFILE%\.nuget\packages\inventormcp.server\<version>\   NuGet extracts here; the server runs here
+```
+
+The Debug build packs a tool package with a new version, `0.1.0-dev.<UTC yyyyMMddHHmmss>`, into the feed.
+Every client runs `dotnet tool exec InventorMcp.Server --prerelease --source <feed> --yes`, which selects the highest
+version in the feed and runs it from its own cache folder. This is the pattern `npx`, `uvx` and `dnx` give published
+servers, and Microsoft's own route for .NET MCP servers. `LocalFeed.targets` holds the build side.
+
+- A new version for each build, because NuGet does not extract a version it already has again.
+	`PackageVersion` is set rather than `VersionSuffix`, because `Directory.Build.props` sets `Version`.
+- Incremental through a stamp file, not `GeneratePackageOnBuild`, which packs on every build and so would add a
+	package for a build with no change.
+- Old versions are removed from the feed and the cache, keeping the newest five. A cache folder is renamed before it
+	is deleted, and never deleted file by file, because a running server reads its `InventorApi` XML only when a
+	lookup comes in. Windows refuses the rename while a server runs from the folder, so that folder waits for a later
+	build. The new name starts with `_deleting-`, because a suffix such as `.deleting` would still parse as a version.
+- `dotnet`, not `dnx`: `dnx` is `dnx.cmd`, and some clients start a `.cmd` file only through `cmd /c`.
+- `--prerelease` because every development version is a prerelease, `--yes` because the client owns stdin and
+	nobody can answer the prompt, and `DOTNET_NOLOGO=1` because the first `dotnet` call after an SDK install writes
+	its banner to stdout, which corrupts the protocol stream.
+- `--source` replaces every configured source for that call, so a package on nuget.org can never be picked by
+	accident. The feed is on the local disk only. Sharing the package is a separate decision.
+- The server targets `net10.0`, not `net10.0-windows`, because `PackAsTool` rejects a platform target framework
+	(NETSDK1146). An assembly level `SupportedOSPlatform("windows")` satisfies CA1416 instead. It is what the SDK
+	generates for `net10.0-windows`. `SupportedOSPlatformVersion` does not replace it, because on `net10.0` the SDK
+	ignores that property.
+- The `InventorApi` XML is marked `Pack="false"`. Without that, a content item goes into the package three times
+	(`content/`, `contentFiles/` and `tools/net10.0/any/`). The copy beside the tool's DLL stays.
+- `PackageType` is `McpServer`, the shape of the .NET MCP server template. `PackAsTool` adds `DotnetTool` itself.
+
+`dotnet tool exec` starts the server as a child process inside a job object that kills its processes when the job
+closes, so a client that kills only the process it started still stops the server, and no server keeps a pipe
+connection. That makes `DetachedProcess` more important, see below.
+
+Measured on 2026-09-23 with the real server on SDK 10.0.401:
+
+- The package holds each `InventorApi\<release>.xml` once, under `tools/net10.0/any/`, and `inventor_api_lookup`
+	answered from the cache folder.
+- Stdout held nothing before the first MCP message, on a first extraction and with the version cached.
+- From process start to the answer of a fourth request (`initialize`, `tools/list`, `inventor_api_lookup`,
+	`inventor_session`) took 0.8 to 2.2 s on a first extraction and 0.8 s with the version cached.
+- A second build with no change added no package.
+- With one session on an old version and one version kept, the build kept that cache folder
+	("a server runs from it") and removed it on the first build after the session ended.
+- A new session ran the newest version while an older session kept its own.
+- `taskkill /F` of the `dotnet tool exec` process stopped the server too.
+
+Considered and not selected:
+
+- **A launcher that runs build snapshots.** It needed a second project, Native AOT, a snapshot target, atomic folder
+	renames, a hash check, a cleanup, and `ProcessStartInfo.KillOnParentExit`, which only .NET 11 has. NuGet already
+	gives each part: the versioned cache folder is the snapshot, and "highest version" is "newest snapshot". Only the
+	cleanup is ours.
+- **Renaming locked files before the build.** Windows allows a rename of a running executable, but the rename of a
+	loaded DLL is not proven, antivirus can block it, and renamed files collect in `bin`. No MSBuild task does it.
+- **A hot swap proxy** that restarts the server inside a session and sends `tools/list_changed`. Claude Code,
+	Claude Desktop and Cursor do not reliably act on `list_changed`, so only changes inside a tool carry over, and a
+	reconnect gives that already. reloaderoo shows it can be done if it is needed later.
+- **`dotnet watch`.** Each client would run its own watcher on the same `obj` folder, and a restart ends the session.
+
+Every client is configured machine wide, in its own user file, and the repository holds no client configuration.
+Repository files (`.mcp.json`, `.vscode/mcp.json`) applied only with this repository open, served only people who
+build the server, and made Visual Studio Code and Claude Code see a second entry of the same name beside the user
+entry. So they were removed on 2026-09-23. `README.md`, "Connecting a client", holds a "Using the server" setup
+against a team feed and a "Developing the server" setup against the local feed, for each client.
+
+A team feed names the same path on every machine, so its entries need no variable. The local feed is per user, and
+the clients differ in how they name it:
+
+| Client | File | Local feed path |
+| --- | --- | --- |
+| Claude Code | `~/.claude.json`, user scope | `${LOCALAPPDATA}/InventorMcp/Feed` |
+| Visual Studio Code | `%APPDATA%\Code\User\mcp.json` | `${env:LOCALAPPDATA}\InventorMcp\Feed` |
+| Visual Studio | `%USERPROFILE%\.mcp.json` | Absolute. It does not expand variables (measured 2026-09-23). |
+| Claude Desktop | `claude_desktop_config.json` | Absolute. |
+
+A team entry keeps `--source`, so a package of the same id on nuget.org, where the id is not reserved, is never used.
+
+A server change now costs a reconnect in the client. The add-in is unaffected: Inventor loads it into a context
+that is not collectible, so rebuilding it still needs Inventor closed.
+
+### The modelling rules travel in the initialize response
+
+The rules that stop wrong geometry (the ViewCube face mapping, centimetres and radians, sketch relative extent
+direction, `inventor_health` after a write, the time limit for each call, looking the API up first) used to reach only
+a coding agent working in this repository, through its rule files (now `.agents/rules/`). A client used elsewhere,
+ex. Claude Desktop, never reads them.
+
+So the server sends them in the MCP `instructions` field (`ServerInstructions` in `Program.cs`), which every client in
+scope reads. The text is an embedded resource, `ServerInstructions.md`, so it travels inside the DLL and the tool
+package with no extra step, and `.agents/rules/inventor-modeling.md` points at it. It is loaded into every
+conversation, so it holds only rules whose violation gives a wrong model or a lost session.
+
+Visual Studio 2026 18.7 and later asks the user to trust the server again when its instructions change.
+
+Measured on 2026-09-23 with "Put a 10 mm hole through the center of the top face", in clients that never read
+the repository's agent instructions: every client called `inventor_orientation` first, so the instructions arrive. Following the rest varies
+by model. Claude Desktop (Opus 5.5) caught its own wrong direction. Sonnet 5 in Visual Studio at first read
+`DriverLost` on a hole that cut nothing as benign. GPT-5.3-Codex never called `inventor_health`.
+
+So text alone is not enough where a model must interpret a result. `inventor_health` now explains `DriverLost` in
+the feature's message, because Inventor records no failure text and an unexplained status invites a guess. With
+that, Sonnet 5 corrected the direction itself. A model that never calls the tool is not reached by either, and a
+server check after every write would be the only remedy. It is not built, because current models call the tool.
+
+Visual Studio Code's `dev.watch` restarts a server on a file change, but only from a workspace file with a path
+relative to the workspace. From the user file it never fired, with `${workspaceFolder}` or an absolute path, and the
+documentation does not say either way. Machine wide entries therefore have no `dev`, and Visual Studio Code is
+restarted by hand like the other clients.
 
 ### The add-in stays thin
 
@@ -77,6 +213,43 @@ literals built by `CSharpLiteral`, never as pasted text, because a composed snip
 
 `inventor_run_plugin` copies a plugin's build output and loads the copy into a new collectible context on every call,
 so the build output is never locked and a code change needs no Inventor restart. See `Plugin-Development-Loop.md`.
+
+### The server may start Inventor, with Explorer as its parent
+
+`inventor_start` starts Inventor, only on an explicit call and never as a side effect of another tool.
+Starting Inventor is heavy and visible, so the tool description and the `inventor-not-running` message both tell the
+model to ask the user first.
+
+The server is a child of the MCP client. On Windows a process does not die with its parent, but two things can kill
+one: a job object with `KILL_ON_JOB_CLOSE`, and a tree kill such as `taskkill /T`, which walks parent process IDs.
+Measured on 2026-09-22, every process checked was in a job, including Claude Code, the server, and Inventor started
+from Explorer. The innermost job under Claude Code had `BREAKAWAY_OK` and `SILENT_BREAKAWAY_OK` and no
+`KILL_ON_JOB_CLOSE`, but outer jobs cannot be queried, and other clients may differ.
+
+So `DetachedProcess` starts Inventor with `PROC_THREAD_ATTRIBUTE_PARENT_PROCESS` set to the shell's Explorer.
+Inventor takes Explorer's job and token and has Explorer as its parent, the same as a Start menu launch, whatever the
+client does. The server still holds the process handle, so it has the process ID and exit code. No handle is
+inherited, because the server's standard output carries the MCP protocol, and the environment is built fresh for
+the user rather than copied from the client. If the parent attribute fails, the tool starts nothing.
+
+Rejected: `Process.Start` and `CREATE_BREAKAWAY_FROM_JOB` both leave Inventor a child of the server, so a tree kill
+reaches it. `explorer.exe "<path>"` escapes both but returns no process ID or exit code.
+
+Verified on 2026-09-22: Inventor 2025 started this way had Explorer as its parent, survived the server's normal exit,
+and survived `taskkill /T /F` of the server.
+
+Since clients run the server through `dotnet tool exec`, the server sits inside a job object that kills its processes
+when the job closes. Explorer as the parent keeps Inventor out of that job too. Do not change `DetachedProcess`
+without testing again that Inventor survives a kill of `dotnet tool exec`.
+
+The release is resolved before anything starts. The tool offers only installed releases with a deployed manifest,
+because Inventor without the add-in never opens the pipe. When several qualify it asks through MCP elicitation, which
+2026-07-28 carries as a Multi Round-Trip Request: the tool throws `InputRequiredException`, the client retries with the
+answer, and the retry repeats every check. The client's capabilities must be read from the request's server, because
+2026-07-28 declares them per request. A client without elicitation gets `version-required` and the model asks instead.
+
+After the start the tool only connects to the pipe and sends no request, because a request can block on a sign-in or
+recovery dialog, and a cancelled read would leave the stream out of step.
 
 ### The interop assembly is vendored
 

@@ -18,7 +18,20 @@ namespace InventorMcp.AddIn.Bridge;
 /// </remarks>
 internal sealed class BridgeServer : IDisposable
 {
-	private const int MaxPipeInstances = 4;
+	/// <summary>
+	/// 	Connections served at once.
+	/// </summary>
+	/// <remarks>
+	/// 	Each MCP client starts its own server, and Claude Desktop starts two, so a normal setup already exceeds four.
+	/// 	The pipe ACL admits only the current user, so the limit guards resources, not access.
+	/// 	See <c>Docs/Architecture.md</c>, "A named pipe rather than a local HTTP port".
+	/// </remarks>
+	private const int MaxPipeInstances = 16;
+
+	/// <summary>
+	/// 	Pause after a failed accept, so a failure that repeats cannot spin the loop and flood the log.
+	/// </summary>
+	private static readonly TimeSpan _acceptRetryDelay = TimeSpan.FromSeconds(1);
 
 	private readonly OperationDispatcher _dispatcher;
 	private readonly Action<string> _log;
@@ -49,12 +62,20 @@ internal sealed class BridgeServer : IDisposable
 		{
 			try
 			{
+				_ = connections.RemoveAll(static connection => connection.IsCompleted);
+
+				// With every instance serving a client, creating another fails at once. Wait for a slot instead.
+				if (connections.Count >= MaxPipeInstances)
+				{
+					_ = await Task.WhenAny(connections).WaitAsync(cancellationToken).ConfigureAwait(false);
+					continue;
+				}
+
 				NamedPipeServerStream pipe = CreatePipe();
 
 				await pipe.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
 
 				connections.Add(Task.Run(() => ServeConnectionAsync(pipe, cancellationToken), CancellationToken.None));
-				_ = connections.RemoveAll(static connection => connection.IsCompleted);
 			}
 			catch (OperationCanceledException)
 			{
@@ -62,8 +83,17 @@ internal sealed class BridgeServer : IDisposable
 			}
 			catch (IOException exception)
 			{
-				// A client that disconnects mid handshake lands here. Keep listening.
+				// A client that disconnects mid handshake lands here. Keep listening, but never retry at once.
 				_log($"Pipe accept failed: {exception.Message}");
+
+				try
+				{
+					await Task.Delay(_acceptRetryDelay, cancellationToken).ConfigureAwait(false);
+				}
+				catch (OperationCanceledException)
+				{
+					return;
+				}
 			}
 			catch (UnauthorizedAccessException exception)
 			{

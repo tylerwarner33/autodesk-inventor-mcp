@@ -33,9 +33,22 @@ builder.Services.AddSingleton<BridgeClient>();
 // Singleton because it indexes a 12 MB documentation file once and holds the result.
 builder.Services.AddSingleton<ApiReferenceService>();
 
+builder.Services.AddSingleton<InventorInstallations>();
+
+// The modelling rules go to every client in the initialize response, not only to agents that read .agents/rules.
 _ = builder.Services
-	.AddMcpServer()
+	.AddMcpServer(static options => options.ServerInstructions = ReadServerInstructions())
 	.WithStdioServerTransport()
 	.WithToolsFromAssembly();
 
 await builder.Build().RunAsync();
+
+static string ReadServerInstructions()
+{
+	using Stream stream = typeof(BridgeClient).Assembly.GetManifestResourceStream("InventorMcp.Server.ServerInstructions.md")
+		?? throw new InvalidOperationException("The embedded resource ServerInstructions.md is missing.");
+
+	using StreamReader reader = new(stream);
+
+	return reader.ReadToEnd();
+}

@@ -22,6 +22,28 @@ Run the bundle command once per release: each adds its own manifest and `Content
 version independent bundle, and Inventor loads only the manifest matching its own version.
 See `Docs/Architecture.md`.
 
+## The server runs from a local feed, never from bin
+
+The Debug build of `InventorMcp.Server` adds a tool package to `%LOCALAPPDATA%\InventorMcp\Feed` with a new
+version, `0.1.0-dev.<UTC yyyyMMddHHmmss>`. Every client starts `dotnet tool exec InventorMcp.Server --prerelease
+--source <feed> --yes`, which runs the newest version from its own NuGet cache folder. So a client never locks
+`bin\Debug`, and a server rebuild succeeds with clients connected. `LocalFeed.targets` holds all of it.
+
+- `-p:PackToLocalFeed=false` turns the pack off. It is off for Release by default.
+- The target is incremental through `obj\Debug\LocalFeed.stamp`. A build with no change adds no package.
+	Delete the stamp to force a new package.
+- The same target keeps the newest `LocalFeedVersionsKept` (default 5) versions in the feed and in
+	`%USERPROFILE%\.nuget\packages\inventormcp.server`. A cache folder is renamed to `_deleting-<version>` before it is
+	deleted. Windows refuses the rename while a server runs from it, so a folder in use stays until a later build.
+- A running session keeps its version. Restart the server in the client to run a new build.
+- The repository holds no client configuration. Each client has one machine wide entry, listed in `README.md`,
+	"Connecting a client". An entry anywhere that still runs `bin\Debug\InventorMcp.Server.exe` locks the build again.
+- The build touches `obj\Debug\LocalFeed.stamp` only after the package exists. A Visual Studio Code workspace file
+	can watch it with `dev.watch` (relative path only) to restart the server on each build.
+
+The server targets `net10.0`, not `net10.0-windows`, because `PackAsTool` rejects a platform target framework.
+An assembly level `SupportedOSPlatform("windows")` keeps CA1416 satisfied.
+
 ## Changing the add-in costs an Inventor restart
 
 Rebuilding `InventorMcp.AddIn` requires **Inventor closed**.
@@ -36,6 +58,7 @@ because Inventor's assembly load context is not collectible, so the build still 
 | `%LOCALAPPDATA%\InventorMcp\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
 | `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity |
 | `%LOCALAPPDATA%\InventorMcp\executed-code.log` | Every snippet run through the execution tools |
+| `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log` | Claude Desktop: a server that failed to start |
 
 ## Driving the server by hand
 
@@ -43,7 +66,9 @@ The server is stdio, so a test client must **hold standard input open**.
 Closing it immediately makes the transport reach end of input before the host starts: handlers run, but responses
 go nowhere. The log gives it away, with "transport completed reading messages" appearing before "Application started".
 
-A server process whose stdin never closes stays alive and locks `InventorMcp.Server.exe`, which then blocks a rebuild.
+Drive it the way a client does, through `dotnet tool exec` with `DOTNET_NOLOGO=1`. Stdout then holds nothing before
+the first MCP message. Running `bin\Debug\InventorMcp.Server.exe` directly also works, but that process locks the
+build output again, and one whose stdin never closes blocks every rebuild until it is stopped.
 
 ## A closed Inventor session must not wedge the server
 
