@@ -10,8 +10,16 @@
     <File Path="nuget.config" />
     <File Path="README.md" />
   </Folder>
-  <Folder Name="/Solution Items/.claude/">
-    <File Path=".claude/CLAUDE.md" />
+  <Folder Name="/Solution Items/.agents/">
+    <File Path="AGENTS.md" />
+  </Folder>
+  <Folder Name="/Solution Items/.agents/rules/">
+    <File Path=".agents/rules/addin-isolation.md" />
+    <File Path=".agents/rules/build.md" />
+    <File Path=".agents/rules/inventor-interop.md" />
+    <File Path=".agents/rules/inventor-modeling.md" />
+    <File Path=".agents/rules/plugin-loop.md" />
+    <File Path=".agents/rules/verification-status.md" />
   </Folder>
   <Folder Name="/Solution Items/Docs/">
     <File Path="Docs/Architecture.md" />

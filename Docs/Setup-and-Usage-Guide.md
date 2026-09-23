@@ -39,24 +39,35 @@ A line reading `Bridge started on pipe 'InventorMcp.Bridge' in process <id>` mea
 If it is missing, open **Tools > Add-Ins** in Inventor and check that **Inventor MCP Bridge** is loaded,
 with **Load Automatically** ticked.
 
-## Connect Claude
+## Connect a client
 
-There is no connector to add and no port to open. Claude starts the server itself.
+There is no connector to add and no port to open. The client starts the server itself.
+Claude Code, Claude Desktop, and GitHub Copilot Chat in Visual Studio and in Visual Studio Code can all use it.
 
-**Claude Code** reads `.mcp.json` from the repository root, so running Claude Code in this folder is enough.
+Add the server once to each client's own user configuration. It is then available in every folder, repository and
+solution. Each client starts it from a package feed with `dotnet tool exec`.
 
-**Claude Desktop** needs an entry in `claude_desktop_config.json` using the full path:
+There are two setups, and `README.md`, "Connecting a client", has the full entry for each client in both:
 
-```json
-{
-	"mcpServers": {
-		"autodesk-inventor": {
-			"command": "C:\\repos\\_MyProjects\\autodesk-inventor-mcp\\Source\\InventorMcp.Server\\bin\\Debug\\InventorMcp.Server.exe",
-			"args": []
-		}
-	}
-}
-```
+- **Using the server** starts it from a team feed. You need no copy of the repository.
+- **Developing the server** starts it from `%LOCALAPPDATA%\InventorMcp\Feed`, which each Debug build fills.
+	Build once before you connect a client. After a build that changes the server, restart the server in the client.
+
+| Client | Where the entry goes | After a change |
+| --- | --- | --- |
+| Claude Code | `claude mcp add-json ... -s user` | `/mcp`, then Reconnect |
+| Claude Desktop | Settings, Developer, Edit Config | Quit from the tray and start again |
+| Visual Studio 2022 17.14 or later, or 2026 | `%USERPROFILE%\.mcp.json` | Restart from the CodeLens in that file |
+| Visual Studio Code | "MCP: Open User Configuration" | Restart from "MCP: List Servers" |
+
+In Visual Studio and Visual Studio Code, use Copilot Chat in **Agent** mode, trust the server when asked, and turn
+its tools on in the tools picker. Visual Studio needs an absolute feed path, because it does not expand variables.
+
+Every client gets the same modelling rules from the server, so each one asks Inventor which face is "top" before
+it draws on it.
+
+Several clients can be connected at once (up to 16 server connections, and Claude Desktop uses two). Their calls
+queue on Inventor's main thread.
 
 ## Inventor must be running
 
@@ -142,6 +153,9 @@ Inventor answers a suppressed dialog with its default, which is a real behaviour
 | "Inventor rejected the call because it is busy" | A command or modal dialog is running. Finish it and retry. |
 | A tool reports success but the model looks wrong | Ask for a health check. An API call can succeed while the feature cuts nothing. |
 | Changes to the add-in do not take effect | Inventor must be closed to rebuild it. Unloading the add-in is not enough. |
+| The client cannot start the server | The feed is empty. Run `dotnet build` once. |
+| Changes to the server do not take effect | The session still runs the old version. Restart the server in the client. |
+| Copilot shows no MCP tools | Copilot Chat is in Ask mode, or the organisation policy "MCP servers in Copilot" is off. |
 
 ## Logs
 
@@ -151,3 +165,4 @@ Inventor answers a suppressed dialog with its default, which is a real behaviour
 | `%LOCALAPPDATA%\InventorMcp\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
 | `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity |
 | `%LOCALAPPDATA%\InventorMcp\executed-code.log` | Every snippet run against your session |
+| `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log` | Claude Desktop: a server that failed to start |

@@ -33,7 +33,7 @@ internal static partial class InventorTool
 			cancellationToken));
 
 	[McpServerTool(Name = "inventor_activity")]
-	[Description("Drains the feed of Inventor events recorded since a cursor: documents opened or saved, and every committed transaction with the command name behind it. Use this to see what an automation loop actually did, in order. Pass the nextSequence from the previous call.")]
+	[Description("Reads the feed of Inventor events recorded since a cursor: documents opened or saved, and every committed transaction with the command name behind it. Use this to see what an automation loop actually did, in order. Pass the nextSequence from the previous call. Reading removes nothing, so other clients see the same events.")]
 	public static Task<object> Activity(
 		BridgeClient bridge,
 		[Description("Return events after this sequence number. Pass 0 for everything still buffered.")] long sinceSequence = 0,

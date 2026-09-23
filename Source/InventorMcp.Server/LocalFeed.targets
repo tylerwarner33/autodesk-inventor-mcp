@@ -1,0 +1,130 @@
+<Project>
+
+	<!--
+		The Debug build adds a tool package to a local folder feed, and every client starts the server with
+		dotnet tool exec from that feed. NuGet extracts each version to its own cache folder and the server runs there,
+		so a rebuild never meets a locked file in bin. See Docs/Architecture.md.
+
+		Each build that changes the server needs a new version, because NuGet does not extract a version it already has.
+		PackageVersion is set, not VersionSuffix, because Directory.Build.props sets Version, which overrides both.
+
+		Turn it off with -p:PackToLocalFeed=false.
+	-->
+	<PropertyGroup>
+		<PackToLocalFeed Condition="'$(PackToLocalFeed)' == '' and '$(Configuration)' == 'Debug'">true</PackToLocalFeed>
+		<LocalFeedDirectory Condition="'$(LocalFeedDirectory)' == ''">$(LOCALAPPDATA)\InventorMcp\Feed\</LocalFeedDirectory>
+		<LocalFeedVersionsKept Condition="'$(LocalFeedVersionsKept)' == ''">5</LocalFeedVersionsKept>
+	</PropertyGroup>
+
+	<!--
+		Incremental through the stamp file, so a build with no change adds no package.
+		Not GeneratePackageOnBuild: that packs on every build, and with a version from the clock every build would add one.
+	-->
+	<Target Name="PackToLocalFeed"
+	        AfterTargets="Build"
+	        Condition="'$(PackToLocalFeed)' == 'true' and '$(DesignTimeBuild)' != 'true'"
+	        Inputs="$(TargetPath);@(ReferenceCopyLocalPaths);@(Content);$(MSBuildProjectFullPath);$(MSBuildThisFileFullPath)"
+	        Outputs="$(IntermediateOutputPath)LocalFeed.stamp">
+		<PropertyGroup>
+			<_LocalFeedVersion>$(Version)-dev.$([System.DateTime]::UtcNow.ToString('yyyyMMddHHmmss'))</_LocalFeedVersion>
+		</PropertyGroup>
+
+		<!-- PackAsTool publishes before it packs. PublishDir keeps that copy out of bin. -->
+		<MSBuild Projects="$(MSBuildProjectFullPath)"
+		         Targets="Pack"
+		         Properties="NoBuild=true;PackToLocalFeed=false;PackageVersion=$(_LocalFeedVersion);PackageOutputPath=$(LocalFeedDirectory);PublishDir=$(ProjectDir)$(IntermediateOutputPath)LocalFeed\" />
+
+		<!-- Touched only after the package exists. The Visual Studio Code entry watches it to restart the server. -->
+		<Touch Files="$(IntermediateOutputPath)LocalFeed.stamp" AlwaysCreate="true" />
+
+		<Message Importance="high" Text="$(PackageId) $(_LocalFeedVersion) -> $(LocalFeedDirectory)" />
+
+		<PruneLocalFeed FeedDirectory="$(LocalFeedDirectory)"
+		                PackageCacheDirectory="$(NuGetPackageRoot)$(PackageId.ToLowerInvariant())"
+		                VersionsKept="$(LocalFeedVersionsKept)" />
+	</Target>
+
+	<!--
+		Removes all but the newest development versions from the feed and from the NuGet cache.
+		Only versions of the form <version>-dev.<14 digit UTC time> are touched, and the time orders them.
+
+		A cache folder is renamed first and deleted only when the rename succeeds. Windows refuses the rename while a
+		server runs from the folder, so a folder in use is kept for a later build. Never delete it file by file:
+		a running server reads its InventorApi XML only when a lookup comes in.
+		The new name must not parse as a version, or NuGet would list it.
+	-->
+	<UsingTask TaskName="PruneLocalFeed"
+	           TaskFactory="RoslynCodeTaskFactory"
+	           AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+		<ParameterGroup>
+			<FeedDirectory ParameterType="System.String" Required="true" />
+			<PackageCacheDirectory ParameterType="System.String" Required="true" />
+			<VersionsKept ParameterType="System.Int32" Required="true" />
+		</ParameterGroup>
+		<Task>
+			<Using Namespace="System.Text.RegularExpressions" />
+			<Code Type="Fragment" Language="cs"><![CDATA[
+				const string trashPrefix = "_deleting-";
+				Regex developmentVersion = new Regex(@"-dev\.(\d{14})$", RegexOptions.IgnoreCase);
+
+				Func<IEnumerable<string>, Func<string, string>, List<string>> selectStale = (paths, versionOf) => paths
+					.Select(path => new KeyValuePair<string, Match>(path, developmentVersion.Match(versionOf(path))))
+					.Where(pair => pair.Value.Success)
+					.OrderByDescending(pair => pair.Value.Groups[1].Value, StringComparer.Ordinal)
+					.Skip(VersionsKept)
+					.Select(pair => pair.Key)
+					.ToList();
+
+				if (Directory.Exists(FeedDirectory))
+				{
+					foreach (string package in selectStale(Directory.EnumerateFiles(FeedDirectory, "*.nupkg"), Path.GetFileNameWithoutExtension))
+					{
+						try
+						{
+							File.Delete(package);
+							Log.LogMessage(MessageImportance.Normal, "Removed {0}.", package);
+						}
+						catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
+						{
+							Log.LogMessage(MessageImportance.High, "Kept {0} for a later build: {1}", package, exception.Message);
+						}
+					}
+				}
+
+				if (Directory.Exists(PackageCacheDirectory))
+				{
+					List<string> trash = Directory.EnumerateDirectories(PackageCacheDirectory, trashPrefix + "*").ToList();
+
+					foreach (string version in selectStale(Directory.EnumerateDirectories(PackageCacheDirectory), Path.GetFileName))
+					{
+						string renamed = Path.Combine(PackageCacheDirectory, trashPrefix + Path.GetFileName(version));
+
+						try
+						{
+							Directory.Move(version, renamed);
+							trash.Add(renamed);
+						}
+						catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
+						{
+							Log.LogMessage(MessageImportance.High, "Kept {0} for a later build, because a server runs from it.", version);
+						}
+					}
+
+					foreach (string folder in trash)
+					{
+						try
+						{
+							Directory.Delete(folder, true);
+							Log.LogMessage(MessageImportance.Normal, "Removed {0}.", folder);
+						}
+						catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
+						{
+							Log.LogMessage(MessageImportance.High, "Kept {0} for a later build: {1}", folder, exception.Message);
+						}
+					}
+				}
+			]]></Code>
+		</Task>
+	</UsingTask>
+
+</Project>

@@ -12,6 +12,9 @@ triggers:
 These were each learned by getting them wrong against a live session.
 They are not style preferences.
 
+Every client gets a short form of these rules from the server, in the `initialize` response.
+That text is `Source/InventorMcp.Server/ServerInstructions.md`. Change it when a rule here changes.
+
 ### A named face means the ViewCube face, and the mapping must be queried
 
 When a user says "the top face", they mean the face labelled on the Inventor ViewCube.
@@ -46,3 +49,9 @@ Do the conversion once at the top of a script so every literal below reads in th
 
 An Inventor API call can succeed while the model is wrong.
 Check `inventor_health` after any write, and count geometry when a feature is meant to cut material.
+Do not report the work as done until both checks pass.
+
+### Use the feature the request names
+
+A request for a hole means a `HoleFeature`, not an extrude cut of a circle.
+Both give the same geometry, but the user edits the model through its features, so the wrong kind is a wrong model.

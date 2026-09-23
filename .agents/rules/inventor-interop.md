@@ -72,6 +72,7 @@ user interface heavily can still fill the queue.
 	So `inventor_health` reports which features are sick, but not why.
 - `Transaction.DisplayName` carries the command name behind each modelling operation, which is what makes the
 	activity feed readable.
-- `PartFeature` carries no failure text, only `HealthStatus`.
+- `PartFeature` carries no failure text, only `HealthStatus`. The server adds an explanation for a status whose
+	cause is measured (`AddHealthHints`), so far only `DriverLost`.
 - Assembly feature collections can hold entries that do not expose `PartFeature`; those are skipped.
 - `inventor_update` marks a clean document dirty even when the rebuild changes nothing, so it is not a read only call.

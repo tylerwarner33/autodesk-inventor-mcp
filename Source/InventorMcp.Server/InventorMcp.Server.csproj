@@ -6,12 +6,27 @@
 		<AssemblyName>InventorMcp.Server</AssemblyName>
 
 		<!--
-			The server reads the registry and starts Inventor through Windows APIs, and already depends on a Windows named
-			pipe. On net10.0 the platform analyzer would fail every such call, because warnings are errors.
-			The output path carries no framework, so .mcp.json is unaffected.
+			Clients run the server as a .NET tool, so no client locks the build output. See Docs/Architecture.md.
+			PackageType McpServer is the shape of the .NET MCP server template. PackAsTool adds DotnetTool by itself.
 		-->
-		<TargetFramework>net10.0-windows</TargetFramework>
+		<PackAsTool>true</PackAsTool>
+		<ToolCommandName>inventor-mcp</ToolCommandName>
+		<PackageId>InventorMcp.Server</PackageId>
+		<PackageType>McpServer</PackageType>
+		<Description>MCP server for a live Autodesk Inventor session.</Description>
 	</PropertyGroup>
+
+	<!--
+		The server reads the registry and starts Inventor through Windows APIs, and already depends on a Windows named
+		pipe. It targets net10.0, not net10.0-windows, because PackAsTool rejects a platform target framework (NETSDK1146).
+		This is the attribute the SDK generates for net10.0-windows, and it keeps the platform analyzer satisfied.
+		SupportedOSPlatformVersion does not replace it: on net10.0 the SDK ignores that property.
+	-->
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+			<_Parameter1>windows</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Hosting" />
@@ -24,19 +39,28 @@
 		<ProjectReference Include="..\InventorMcp.Contracts\InventorMcp.Contracts.csproj" />
 	</ItemGroup>
 
+	<!-- The modelling rules sent to every client in the initialize response. .agents/rules points here. -->
+	<ItemGroup>
+		<EmbeddedResource Include="ServerInstructions.md" LogicalName="InventorMcp.Server.ServerInstructions.md" />
+	</ItemGroup>
+
 	<!--
 		Autodesk's own documentation for the interop assembly, used by inventor_api_lookup.
 		Every supported release ships, because the server is built once and serves whichever session answers.
 		Copied here so the server can answer API questions with Inventor closed.
+		Pack="false" keeps only the copy beside the tool's DLL. Without it the package holds the XML three times.
 	-->
 	<ItemGroup>
 		<InventorApiRelease Include="$(SupportedAutodeskVersions.Split(';'))">
 			<Release>%(Identity)</Release>
 		</InventorApiRelease>
 		<Content Include="@(InventorApiRelease->'$(RepoRootDir)Libs\Inventor\%(Release)\Autodesk.Inventor.Interop.xml')"
-		         Link="InventorApi\%(Release).xml">
+		         Link="InventorApi\%(Release).xml"
+		         Pack="false">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
+
+	<Import Project="LocalFeed.targets" />
 
 </Project>

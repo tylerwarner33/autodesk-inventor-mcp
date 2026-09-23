@@ -84,10 +84,39 @@ internal static partial class InventorTool
 		BridgeClient bridge,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(() => bridge.InvokeAsync<Contracts.Models.HealthInfo>(
+		SafeAsync(async () => AddHealthHints(await bridge.InvokeAsync<Contracts.Models.HealthInfo>(
 			BridgeOperations.Health,
 			new DocumentScopedRequest(documentName),
-			cancellationToken));
+			cancellationToken).ConfigureAwait(false)));
+
+	/// <summary>
+	/// 	Explains a sick feature whose meaning is known, because Inventor records no failure text for a feature.
+	/// </summary>
+	/// <remarks>
+	/// 	A model read an unexplained <c>DriverLost</c> on a new hole as benign and reported a hole that cut nothing.
+	/// 	Add a status here only when its cause is measured. See <c>.agents/rules/inventor-modeling.md</c>.
+	/// </remarks>
+	/// <param name="health">
+	/// 	The health read from the add-in.
+	/// </param>
+	/// <returns>
+	/// 	The same health, with an explanation for each known status that has no message.
+	/// </returns>
+	private static Contracts.Models.HealthInfo AddHealthHints(Contracts.Models.HealthInfo health)
+	{
+		const string driverLostHint =
+			"Not benign. On a feature just created, DriverLost usually means its extent points away from the solid, so " +
+			"it removed no material. Count the faces it should have made (ex. cylindrical faces for a hole). If there are " +
+			"none, delete the feature and create it again in the other direction.";
+
+		return health with
+		{
+			SickFeatures = [.. health.SickFeatures.Select(static feature =>
+				feature.HealthStatus is "DriverLost" && string.IsNullOrEmpty(feature.Message)
+					? feature with { Message = driverLostHint }
+					: feature)],
+		};
+	}
 
 	[McpServerTool(Name = "inventor_update")]
 	[Description("Rebuilds a document. This changes the user's model and can take a long time on a large assembly.")]
