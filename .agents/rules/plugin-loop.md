@@ -2,7 +2,7 @@
 name: Plugin Development Loop
 description: Running and iterating on a plugin inside a live Inventor session with inventor_run_plugin and inventor_drawing_layout
 triggers:
-  - Running, testing, or iterating on a plugin (ex. StrobicConfigurator) inside a live Inventor session
+  - Running, testing, or iterating on a plugin (ex. a Design Automation plugin) inside a live Inventor session
   - Validating generated drawings or layout values against a set of payloads
   - Editing InventorTool.PluginLoop.cs or InventorTool.DrawingLayout.cs
   - Making another plugin loop-ready
@@ -13,8 +13,8 @@ globs:
 
 ## Plugin development loop
 
-`Docs/Plugin-Development-Loop.md` is the full guide: how a call works, how to set up a new plugin, and the
-StrobicConfigurator worked example with its staging, payload set and exact call. Read it before a first run.
+`Docs/Plugin-Development-Loop.md` is the full guide: how a call works, how to set up a new plugin, and a worked
+example of a Design Automation plugin with its staging, payload set and call. Read it before a first run.
 
 ### Use the tools, not hand-written loaders
 
@@ -36,11 +36,8 @@ StrobicConfigurator worked example with its staging, payload set and exact call.
 - **Hide documents unless the run is for watching.** Visible documents cost about twice the run time.
 - **Verify the content, not only the code.** A stale part produces a drawing with no error and a missing feature.
 
-### StrobicConfigurator specifics
+### A specific plugin
 
-- Load `Cincinnati.InventorPlugin.McpServerLoop\bin\Debug`, type `Cincinnati.InventorPlugin.McpServerLoop.EntryPoint`,
-	method `Run`. Build that project: its output holds the DA project and the core too.
-- Pass `logFilePath` as `%LOCALAPPDATA%\Cincinnati\Cincinnati.InventorPlugin.McpServerLoop\Logs\log-.txt`. The log is
-	shared by every run, and the tool reports only the lines the call wrote.
-- Stage each case with a junction to LocalDebug's `InputFiles\content`, never `Published Content (New)\content`.
-- Its side of the loop is documented in its `Docs/Inventor/Development/MCP-Server-Loop.md`.
+A plugin that uses the loop documents its own call in its own repository: the build output to load, the entry point,
+the log path, and how to stage a case. Read that document before running the plugin, and keep plugin specific
+details there, not in this repository.
