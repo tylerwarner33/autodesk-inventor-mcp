@@ -33,6 +33,17 @@ binding works against a plugin built with embedded interop types, where `Type` i
 through eleven live calls against StrobicConfigurator's shared rolling log.
 The server's warning on an execution result over 20 s was built then too, but no call has run that long since.
 
+`inventor_start` was verified on 2026-09-22 on Inventor 2025, with Inventor closed, by driving the server by hand
+over stdio as a 2025-11-25 client. Verified: `already-running`, `version-not-installed`, `version-required` for a
+client with no elicitation, the form offering 2025, 2026 and 2027 (the SDK carried it as `elicitation/create`),
+`cancelled` on decline, `version-not-offered` for an answer outside the form, a start through the form, a start
+through the one release branch with `INVENTOR_MCP_RELEASES=2025`, Explorer as Inventor's parent, and Inventor
+surviving both the server's exit and `taskkill /T /F` of the server. The start reached `started` in about 7 s.
+
+Not yet exercised for `inventor_start`: the form inside Claude Code itself, a native 2026-07-28 MRTR client, closing
+Claude Code while Inventor runs, `inventor-starting-or-no-bridge`, `addin-not-deployed`, `inventor-exited`,
+`still-starting` and `start-failed`. To see `still-starting`, start with a recovery dialog pending.
+
 Not yet run: the plugin loop on Inventor 2027.
 
 Not yet exercised: the ring buffer's `droppedEntries` counter, which needs more than 2000 buffered events.

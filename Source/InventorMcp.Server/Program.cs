@@ -33,6 +33,8 @@ builder.Services.AddSingleton<BridgeClient>();
 // Singleton because it indexes a 12 MB documentation file once and holds the result.
 builder.Services.AddSingleton<ApiReferenceService>();
 
+builder.Services.AddSingleton<InventorInstallations>();
+
 _ = builder.Services
 	.AddMcpServer()
 	.WithStdioServerTransport()

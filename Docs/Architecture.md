@@ -78,6 +78,39 @@ literals built by `CSharpLiteral`, never as pasted text, because a composed snip
 `inventor_run_plugin` copies a plugin's build output and loads the copy into a new collectible context on every call,
 so the build output is never locked and a code change needs no Inventor restart. See `Plugin-Development-Loop.md`.
 
+### The server may start Inventor, with Explorer as its parent
+
+`inventor_start` starts Inventor, only on an explicit call and never as a side effect of another tool.
+Starting Inventor is heavy and visible, so the tool description and the `inventor-not-running` message both tell the
+model to ask the user first.
+
+The server is a child of the MCP client. On Windows a process does not die with its parent, but two things can kill
+one: a job object with `KILL_ON_JOB_CLOSE`, and a tree kill such as `taskkill /T`, which walks parent process IDs.
+Measured on 2026-09-22, every process checked was in a job, including Claude Code, the server, and Inventor started
+from Explorer. The innermost job under Claude Code had `BREAKAWAY_OK` and `SILENT_BREAKAWAY_OK` and no
+`KILL_ON_JOB_CLOSE`, but outer jobs cannot be queried, and other clients may differ.
+
+So `DetachedProcess` starts Inventor with `PROC_THREAD_ATTRIBUTE_PARENT_PROCESS` set to the shell's Explorer.
+Inventor takes Explorer's job and token and has Explorer as its parent, the same as a Start menu launch, whatever the
+client does. The server still holds the process handle, so it has the process ID and exit code. No handle is
+inherited, because the server's standard output carries the MCP protocol, and the environment is built fresh for
+the user rather than copied from the client. If the parent attribute fails, the tool starts nothing.
+
+Rejected: `Process.Start` and `CREATE_BREAKAWAY_FROM_JOB` both leave Inventor a child of the server, so a tree kill
+reaches it. `explorer.exe "<path>"` escapes both but returns no process ID or exit code.
+
+Verified on 2026-09-22: Inventor 2025 started this way had Explorer as its parent, survived the server's normal exit,
+and survived `taskkill /T /F` of the server.
+
+The release is resolved before anything starts. The tool offers only installed releases with a deployed manifest,
+because Inventor without the add-in never opens the pipe. When several qualify it asks through MCP elicitation, which
+2026-07-28 carries as a Multi Round-Trip Request: the tool throws `InputRequiredException`, the client retries with the
+answer, and the retry repeats every check. The client's capabilities must be read from the request's server, because
+2026-07-28 declares them per request. A client without elicitation gets `version-required` and the model asks instead.
+
+After the start the tool only connects to the pipe and sends no request, because a request can block on a sign-in or
+recovery dialog, and a cancelled read would leave the stream out of step.
+
 ### The interop assembly is vendored
 
 `Autodesk.Inventor.Interop.dll` and its documentation live in `Libs/Inventor/<version>` rather than being referenced

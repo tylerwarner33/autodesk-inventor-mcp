@@ -61,14 +61,23 @@ There is no connector to add and no port to open. Claude starts the server itsel
 ## Inventor must be running
 
 The bridge lives inside Inventor, so it exists only while Inventor is open with the add-in loaded.
-Claude cannot start Inventor for you.
 
 With Inventor closed, tools return a readable message rather than failing:
 
 ```
-No Inventor session is hosting the MCP bridge.
-Start Inventor and make sure the Inventor MCP Bridge add-in is loaded.
+No Inventor session is hosting the MCP bridge. Ask the user whether to start Inventor, then call inventor_start.
+If Inventor is already open, make sure the Inventor MCP Bridge add-in is loaded.
 ```
+
+Claude can start Inventor for you. Say "start Inventor", or agree when Claude asks.
+
+- If one release has the add-in, it starts with no question.
+- If several have, Claude Code shows a form where you pick, ex. "Autodesk Inventor 2025".
+	Other clients ask you in the conversation instead.
+- If Inventor is already running, nothing starts.
+
+Inventor starts as if you had started it from the Start menu, so closing Claude does not close it.
+If a sign-in or recovery dialog appears, answer it. Claude connects once Inventor is ready.
 
 The MCP connection itself stays healthy, so you can close and reopen Inventor without restarting Claude.
 
@@ -80,7 +89,7 @@ A second session, of the same release or another, logs the conflict and does not
 
 | Area | Examples |
 | --- | --- |
-| Session | "What is Inventor working on?", "Which documents are open?" |
+| Session | "Start Inventor", "What is Inventor working on?", "Which documents are open?" |
 | Parameters | "List the parameters", "Set width to 6 in", "What does `width / 4 + 10 mm` evaluate to?" |
 | Properties | "Show the iProperties", "Set the part number" |
 | Health | "Is anything sick?", "Why did that feature fail?" |

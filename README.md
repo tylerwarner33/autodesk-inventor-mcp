@@ -92,19 +92,33 @@ Claude Desktop does not read `.mcp.json`. Add the server to `claude_desktop_conf
 }
 ```
 
-## Inventor must already be running
+## Inventor must be running
 
 The add-in hosts the named pipe, so the bridge exists only while Inventor is open with the add-in loaded.
 
-Claude cannot start Inventor. Every tool returns a readable `inventor-not-running` result instead:
+With Inventor closed, every tool returns a readable `inventor-not-running` result:
 
 ```
-No Inventor session is hosting the MCP bridge.
-Start Inventor and make sure the Inventor MCP Bridge add-in is loaded.
+No Inventor session is hosting the MCP bridge. Ask the user whether to start Inventor, then call inventor_start.
+If Inventor is already open, make sure the Inventor MCP Bridge add-in is loaded.
 ```
 
 The MCP server itself still starts and lists its tools, so the connection stays healthy while Inventor is closed.
 That is the reason for the two process design.
+
+### Starting Inventor from Claude
+
+`inventor_start` starts Inventor, only when you ask for it. It offers only releases that have the add-in deployed.
+
+- One such release: it starts with no question.
+- More than one: Claude Code shows a form with "Autodesk Inventor 2025", "2026" and "2027".
+	A client that cannot show a form returns `version-required`, and Claude asks you instead.
+- An Inventor already running, with or without the bridge: nothing starts.
+
+Inventor starts with Explorer as its parent, so closing Claude does not close Inventor.
+The call waits up to 45 s for the add-in. After that it returns `still-starting`, because a sign-in or recovery
+dialog can hold Inventor, and `inventor_session` connects later.
+Set `INVENTOR_MCP_RELEASES` (ex. `2025`) on the server to limit the releases it considers.
 
 ### Debugging the add-in
 
@@ -148,6 +162,7 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | Tool | Purpose |
 | --- | --- |
 | `inventor_session` | Is Inventor reachable, which version, which document is active |
+| `inventor_start` | Start Inventor when no session hosts the bridge, asking which release when several can |
 | `inventor_documents` | Every open document with path, type, and unsaved state |
 | `inventor_assembly_tree` | Occurrence tree with suppression, visibility, and referenced files |
 | `inventor_parameters` | Parameters with kind, expression, display value, and internal value |

@@ -4,6 +4,13 @@
 		<OutputType>Exe</OutputType>
 		<RootNamespace>InventorMcp.Server</RootNamespace>
 		<AssemblyName>InventorMcp.Server</AssemblyName>
+
+		<!--
+			The server reads the registry and starts Inventor through Windows APIs, and already depends on a Windows named
+			pipe. On net10.0 the platform analyzer would fail every such call, because warnings are errors.
+			The output path carries no framework, so .mcp.json is unaffected.
+		-->
+		<TargetFramework>net10.0-windows</TargetFramework>
 	</PropertyGroup>
 
 	<ItemGroup>
