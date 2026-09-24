@@ -39,6 +39,7 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
 | `Docs/Plugin-Development-Loop.md` | Plugin developers: running and iterating on a plugin in a live session, and making a plugin ready for it |
 | `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
+| `Docs/Research/` | Maintainers: findings and measurements that tasks and decisions come from. Kept after the task is done. |
 | `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
 | `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
 | `.agents/rules/` | Coding agents: the Inventor behaviours and repository rules, one topic per file |

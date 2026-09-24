@@ -2,9 +2,10 @@
 
 Created: 2026-09-24
 
-Status: **open.** Real usage of the server from 2026-09-21 to 2026-09-24 found traps, missing tools and knowledge
-that does not reach the clients. This document records the findings, where each one should go, and how the
-Skills over MCP extension fits.
+Status: **research.** Real usage of the server from 2026-09-21 to 2026-09-24 found traps, missing tools and
+knowledge that does not reach the clients. This document records the findings, where each one should go, and how
+the Skills over MCP extension fits. The work that comes from it is in
+`Docs/Tasks/Usage-Findings-Implementation-Plan.md`.
 
 ## Source of the findings
 
@@ -373,7 +374,8 @@ conventions, its deployment settings, the defects in its CAD content, and the st
 	every client. It was tested from outside this repository.
 - Rules that cost context in every session stay out of it. They load on demand (`AGENTS.md` and `.agents/rules/`,
 	which are tool neutral and not in the automatically loaded `.claude/rules/`).
-- `Docs/` is for permanent documentation. `Docs/Tasks/` is for action items and is deleted when done.
+- `Docs/` is for permanent documentation. `Docs/Research/` keeps the evidence that tasks and decisions come from.
+	`Docs/Tasks/` is for action items and is deleted when done.
 - Code remarks say what a change needs, plus a pointer. Dates, measurements and history go in `Docs/` or the rules.
 - Nothing specific to one client project goes in this repository.
 - Paths use variables such as `%LOCALAPPDATA%`, not a user's own path.
@@ -481,12 +483,12 @@ extension.
 A Claude Code plugin with the same `SKILL.md` files is a third route, but it reaches only Claude Code, and the
 team also uses Claude Desktop, Visual Studio and Visual Studio Code.
 
-## Before you delete this document
+## Where the results go
 
-`AGENTS.md` says that evidence does not go in `Docs/Tasks/`. This document holds evidence because it collects the
-findings in one place. When the tasks are done:
+This document stays in `Docs/Research/` as the evidence for the plan. It is not deleted with the plan.
+When the plan is done:
 
-- Move the measured facts that stay true (durations, failure classes, the iLogic trigger measurements, the log
-	facts) to `.agents/rules/inventor-interop.md` or `verification-status.md`.
-- Move the decision about skills, tools and instructions to `Docs/Architecture.md`.
+- Move the decisions about tools, instructions and skills to `Docs/Architecture.md`.
+- Move the facts that an agent on this repository needs to `.agents/rules/inventor-interop.md` or
+	`verification-status.md`.
 - The guide content in section 3 then lives in the skill files themselves.

@@ -25,6 +25,7 @@ which runs inside `Inventor.exe` and calls the COM API on Inventor's main thread
 - **Verify against the model, not the return value.** Check `inventor_health` after any write.
 - **Keep evidence out of code comments.** A remark says what a change to the code needs, plus a pointer.
 	Dates, measurements and what was tried go in `Docs/` or `.agents/rules/`, never in `Docs/Tasks/`, which is deleted.
+	Evidence that a task comes from goes in `Docs/Research/`, and the task points to it.
 
 ## On-Demand Rules
 
