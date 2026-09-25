@@ -33,6 +33,11 @@ internal sealed class BridgeServer : IDisposable
 	/// </summary>
 	private static readonly TimeSpan _acceptRetryDelay = TimeSpan.FromSeconds(1);
 
+	/// <summary>
+	/// 	One line per accept failure message a minute, with the count of the ones held back.
+	/// </summary>
+	private readonly LogThrottle _acceptFailureLog = new(TimeProvider.System, TimeSpan.FromMinutes(1));
+
 	private readonly OperationDispatcher _dispatcher;
 	private readonly Action<string> _log;
 	private readonly CancellationTokenSource _shutdown = new();
@@ -84,7 +89,8 @@ internal sealed class BridgeServer : IDisposable
 			catch (IOException exception)
 			{
 				// A client that disconnects mid handshake lands here. Keep listening, but never retry at once.
-				_log($"Pipe accept failed: {exception.Message}");
+				if (_acceptFailureLog.Filter(exception.Message, $"Pipe accept failed: {exception.Message}") is string line)
+					_log(line);
 
 				try
 				{

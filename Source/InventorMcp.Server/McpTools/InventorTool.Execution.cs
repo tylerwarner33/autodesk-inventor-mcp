@@ -22,9 +22,9 @@ internal static partial class InventorTool
 
 		The snippet is Roslyn script code, not a full class. 'Application' and 'Document' are already in scope, and
 		System, System.Collections.Generic, System.Linq and Inventor are imported. Call Log(...) to report progress,
-		and end with an expression or a return statement to return a value. The value is converted with ToString, so a
-		list or an object comes back as its type name: return a string, ex. string.Join("\n", lines) or
-		System.Text.Json.JsonSerializer.Serialize(rows).
+		and end with an expression or a return statement to return a value. A list, dictionary, anonymous object, record
+		or tuple of plain values comes back as JSON. Anything else, ex. an Inventor object, comes back as its ToString,
+		which is often only its type name, so return the values you need.
 
 		'Document' is null when no document is open and none is named. The snippet still runs, so it can open or
 		create its own documents, ex. Application.Documents.Add, or run a plugin that does.

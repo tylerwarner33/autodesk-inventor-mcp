@@ -248,18 +248,36 @@ that the model calls `inventor_skill` before it writes a snippet.
 Inventor must be closed for this phase, so do all of these items together. First, open
 `.agents/rules/addin-isolation.md` and `.agents/rules/inventor-interop.md`.
 
-- [ ] `executed-code.log`: write the outcome, the duration and the client name of each snippet (R1.13). The server
+- [x] `executed-code.log`: write the outcome, the duration and the client name of each snippet (R1.13). The server
 	gets the client name from the MCP `initialize` request and sends it in `ExecuteRequest`. This is a change to
-	`InventorMcp.Contracts`, so the server and the add-in must ship together.
-- [ ] `addin.log`: write handler failures (R1.13).
-- [ ] `addin.log`: limit how often it writes `All pipe instances are busy`, so that a flood of lines cannot fill
-	the log.
-- [ ] After a failed snippet, list the documents that it created (R1.2). Compare the open documents before and
-	after the snippet.
-- [ ] Move the stable helpers to `InventorScriptGlobals` if the Phase 2 measurement shows it is necessary.
-- [ ] Serialize a returned collection or object as JSON, not with `ToString()`
+	`InventorMcp.Contracts`, so the server and the add-in must ship together. A call tool filter in `Program.cs`
+	sets `BridgeClient.ClientName`, and `InvokeAsync` adds it to each `ExecuteRequest`. Both new contract members
+	are optional, so a server and an add-in of different builds still work together.
+- [x] `addin.log`: write handler failures (R1.13). One line for each failed operation.
+- [x] `addin.log`: limit how often it writes `All pipe instances are busy`, so that a flood of lines cannot fill
+	the log. `LogThrottle`: one line a minute for each message, with the count held back.
+- [x] After a failed snippet, list the documents that it created (R1.2). Compare the open documents before and
+	after the snippet. `ExecutionResult.DocumentsLeftOpen`.
+- [x] Move the stable helpers to `InventorScriptGlobals` if the Phase 2 measurement shows it is necessary. Not
+	necessary: the prelude costs 25 to 90 ms against a median call of 0.29 s, and only a snippet that calls a helper
+	gets it. The helpers stay in the server.
+- [x] Serialize a returned collection or object as JSON, not with `ToString()`
 	(`InventorOperations.Execution.cs`). A client in the Phase 5 check returned a `List` and got its type name, then
-	sent the snippet again with a joined string. Until then, the tool description and the `interop` skill say so.
+	sent the snippet again with a joined string. `ReturnValueText`: a collection, anonymous object, record or tuple of
+	plain values. A COM object keeps `ToString()`.
+
+`LogThrottle` and `ReturnValueText` use no Inventor type, so the test project compiles them from the add-in's source
+and unit tests them.
+
+Answers to decisions 9 and 10:
+
+- Decision 9: `RulesEnabled` is a setting of the session only. It was set to false, Inventor 2025 closed normally,
+	and after a start it was true. Inventor wrote no file and no registry key when the setting changed, so a crash
+	cannot keep it either. The only risk is inside the session, when a restore fails, and the result says so.
+- Decision 10: Autodesk's "iLogic Security" page says the alert displays "when you run a rule Inventor detects to be
+	potentially unsafe", and asks to trust "the contents of this rule" on "your machine". "Don't run the rule"
+	disables the rule. So the alert comes from the rule's contents, with the option "Inspect rules for malicious code",
+	not from an edit through the API. The `ilogic` skill and `inventor_ilogic_rule_set` say so.
 
 ### Phase 7 - Skills over MCP
 

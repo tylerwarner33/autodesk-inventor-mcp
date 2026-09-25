@@ -18,6 +18,15 @@
 		<Using Include="Xunit" />
 	</ItemGroup>
 
+	<!--
+		Add-in classes with no Inventor types, compiled here too, because the add-in itself needs Inventor's interop.
+		Keep the list to files that reference nothing else of the add-in.
+	-->
+	<ItemGroup>
+		<Compile Include="..\..\Source\InventorMcp.AddIn\Bridge\LogThrottle.cs" Link="AddIn\LogThrottle.cs" />
+		<Compile Include="..\..\Source\InventorMcp.AddIn\Operations\ReturnValueText.cs" Link="AddIn\ReturnValueText.cs" />
+	</ItemGroup>
+
 	<ItemGroup>
 		<ProjectReference Include="..\..\Source\InventorMcp.Server\InventorMcp.Server.csproj" />
 		<!-- Copies the fixture exe next to the tests, so DialogFixture starts it from AppContext.BaseDirectory. -->

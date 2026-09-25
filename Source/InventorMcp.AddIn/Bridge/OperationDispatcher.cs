@@ -66,22 +66,23 @@ internal sealed class OperationDispatcher
 
 			return new BridgeResponse(request.Id, true, serialized, null);
 		}
+		// Each failure is written to addin.log, so the log shows what failed and not only what started.
 		catch (BridgeFailureException failure)
 		{
-			return Failure(request, failure.Code, failure.Message, failure.Detail);
+			return Logged(request, Failure(request, failure.Code, failure.Message, failure.Detail));
 		}
 		catch (COMException comException) when (comException.HResult is RPC_E_CALL_REJECTED or RPC_E_SERVERCALL_RETRYLATER)
 		{
 			// Inventor is mid command or showing a modal dialog. This is transient, so say so rather than failing hard.
-			return Failure(request, BridgeErrorCodes.Busy, "Inventor rejected the call because it is busy. Retry once the current command finishes.", comException.Message);
+			return Logged(request, Failure(request, BridgeErrorCodes.Busy, "Inventor rejected the call because it is busy. Retry once the current command finishes.", comException.Message));
 		}
 		catch (COMException comException)
 		{
-			return Failure(request, BridgeErrorCodes.Internal, "The Inventor API rejected the call.", $"HRESULT 0x{comException.HResult:X8}: {comException.Message}");
+			return Logged(request, Failure(request, BridgeErrorCodes.Internal, "The Inventor API rejected the call.", $"HRESULT 0x{comException.HResult:X8}: {comException.Message}"));
 		}
 		catch (OperationCanceledException)
 		{
-			return Failure(request, BridgeErrorCodes.Busy, "The request was cancelled before Inventor's main thread could run it.");
+			return Logged(request, Failure(request, BridgeErrorCodes.Busy, "The request was cancelled before Inventor's main thread could run it."));
 		}
 		catch (Exception exception)
 		{
@@ -93,6 +94,14 @@ internal sealed class OperationDispatcher
 
 	private static BridgeResponse Failure(BridgeRequest request, string code, string message, string? detail = null) =>
 		new(request.Id, false, null, new BridgeError(code, message, detail));
+
+	private BridgeResponse Logged(BridgeRequest request, BridgeResponse response)
+	{
+		BridgeError error = response.Error!;
+		_log($"Operation '{request.Operation}' failed with {error.Code}: {error.Message}{(error.Detail is null ? string.Empty : $" ({error.Detail})")}");
+
+		return response;
+	}
 }
 
 /// <summary>

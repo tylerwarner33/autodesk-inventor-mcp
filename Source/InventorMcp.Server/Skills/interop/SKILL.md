@@ -95,9 +95,9 @@ E_INVALIDARG causes:
 
 ## Snippet syntax
 
-- The return value is converted with `ToString()`, so a list or an anonymous object comes back as its type name or
-  as `{ a = 1 }`. Return a string: `string.Join("\n", lines)` or `System.Text.Json.JsonSerializer.Serialize(rows)`.
-  Anonymous objects serialize well.
+- A returned list, dictionary, anonymous object, record or tuple of plain values comes back as JSON. Anything else
+  comes back as its `ToString()`, and an Inventor object then gives only its type name (`System.__ComObject`).
+  Return the values you need, ex. `new { name = part.DisplayName, dirty = part.Dirty }`.
 
 - A top level `using var` does not compile (CS1002). Use a `using (...) { }` block.
 - A `using` directive must come before any statement.

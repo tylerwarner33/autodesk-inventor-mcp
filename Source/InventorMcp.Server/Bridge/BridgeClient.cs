@@ -82,6 +82,15 @@ internal sealed class BridgeClient(
 	/// </remarks>
 	public int? InventorProcessId { get; private set; }
 
+	/// <summary>
+	/// 	The MCP client that this server serves, ex. "claude-code 2.1.282", or null before its first tool call.
+	/// </summary>
+	/// <remarks>
+	/// 	Set from the <c>initialize</c> request by the call tool filter in <c>Program.cs</c>.
+	/// 	Each client starts its own server, so one name holds for the whole process.
+	/// </remarks>
+	public string? ClientName { get; set; }
+
 	private NamedPipeClientStream? _pipe;
 	private StreamReader? _reader;
 	private StreamWriter? _writer;
@@ -120,6 +129,10 @@ internal sealed class BridgeClient(
 	/// </exception>
 	public async Task<TResult> InvokeAsync<TResult>(string operation, object? payload, CancellationToken cancellationToken)
 	{
+		// One place for the client name, so no tool that composes a request has to pass it.
+		if (payload is ExecuteRequest { ClientName: null } execute && ClientName is not null)
+			payload = execute with { ClientName = ClientName };
+
 		await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
 		try

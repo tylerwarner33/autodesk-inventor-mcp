@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 using Inventor;
 
@@ -41,8 +42,47 @@ internal sealed partial class InventorOperations
 		if (document is not null)
 			GuardUnsavedChanges(document, request.AllowUnsavedChanges);
 
-		WriteAuditEntry("csharp", document, request.Code);
+		WriteAuditEntry("csharp", document, request.Code, request.ClientName);
 
+		HashSet<string> openBefore = OpenDocumentKeys();
+		ExecutionResult result = RunScript(request, document);
+
+		if (result.Succeeded is false && result.ExceptionType != "CompilationError" && result.ExceptionType != nameof(CompilationErrorException))
+		{
+			List<string> leftOpen = [.. OpenDocumentKeys().Except(openBefore, StringComparer.OrdinalIgnoreCase)];
+
+			if (leftOpen.Count > 0)
+				result = result with { DocumentsLeftOpen = leftOpen };
+		}
+
+		WriteAuditResult(result);
+
+		return result;
+	}
+
+	/// <summary>
+	/// 	The full path of each open document, or the display name of one that was never saved.
+	/// </summary>
+	private HashSet<string> OpenDocumentKeys()
+	{
+		HashSet<string> keys = new(StringComparer.OrdinalIgnoreCase);
+
+		try
+		{
+			foreach (Document open in _inventor.Documents)
+				_ = keys.Add(string.IsNullOrEmpty(open.FullFileName) ? open.DisplayName : open.FullFileName);
+		}
+		catch (COMException exception)
+		{
+			// The list is only for the report of a failure, so a failure to read it must not change the result.
+			BridgeLog.Write($"Could not list the open documents. {exception.Message}");
+		}
+
+		return keys;
+	}
+
+	private ExecutionResult RunScript(ExecuteRequest request, Document? document)
+	{
 		InventorScriptGlobals globals = new() { Application = _inventor, Document = document };
 		Stopwatch stopwatch = Stopwatch.StartNew();
 
@@ -84,7 +124,7 @@ internal sealed partial class InventorOperations
 
 				return new ExecutionResult(
 					true,
-					state.ReturnValue?.ToString(),
+					ReturnValueText.Format(state.ReturnValue),
 					state.ReturnValue?.GetType().FullName,
 					globals.Output,
 					messages,
@@ -118,8 +158,16 @@ internal sealed partial class InventorOperations
 		Document document = ResolveDocument(request.DocumentName);
 
 		GuardUnsavedChanges(document, request.AllowUnsavedChanges);
-		WriteAuditEntry("ilogic", document, request.Code);
+		WriteAuditEntry("ilogic", document, request.Code, request.ClientName);
 
+		ExecutionResult result = RunTemporaryRule(request, document);
+		WriteAuditResult(result);
+
+		return result;
+	}
+
+	private ExecutionResult RunTemporaryRule(ExecuteRequest request, Document document)
+	{
 		Stopwatch stopwatch = Stopwatch.StartNew();
 
 		// The iLogic add-in exposes its automation object under this fixed identifier.
@@ -229,24 +277,39 @@ internal sealed partial class InventorOperations
 	/// <param name="code">
 	/// 	The snippet, recorded in full.
 	/// </param>
-	private static void WriteAuditEntry(string language, Document? document, string code)
+	/// <param name="clientName">
+	/// 	The MCP client that sent it, or null.
+	/// </param>
+	private static void WriteAuditEntry(string language, Document? document, string code, string? clientName)
+	{
+		// Fully qualified: Inventor declares its own Environment, File and Path types, which shadow the BCL ones.
+		string newLine = System.Environment.NewLine;
+
+		// Written before the run, so the log holds the snippet even when the run takes Inventor down.
+		AppendAudit(
+			$"{new string('=', 80)}{newLine}" +
+			$"{DateTimeOffset.UtcNow:O}  {language}  document='{document?.DisplayName ?? "(none)"}'  client='{clientName ?? "(unknown)"}'{newLine}" +
+			$"{new string('-', 80)}{newLine}" +
+			$"{code}{newLine}");
+	}
+
+	/// <summary>
+	/// 	Appends the outcome of the snippet that the last entry recorded.
+	/// </summary>
+	private static void WriteAuditResult(ExecutionResult result)
+	{
+		string outcome = result.Succeeded ? "succeeded" : $"failed  {result.ExceptionType}: {result.ExceptionMessage}";
+		string leftOpen = result.DocumentsLeftOpen is { Count: > 0 } documents ? $"  left open: {string.Join(", ", documents)}" : string.Empty;
+
+		AppendAudit($"{new string('-', 80)}{System.Environment.NewLine}{DateTimeOffset.UtcNow:O}  result  {outcome}  {result.ElapsedMilliseconds} ms{leftOpen}{System.Environment.NewLine}");
+	}
+
+	private static void AppendAudit(string text)
 	{
 		try
 		{
 			_ = Directory.CreateDirectory(BridgeLog.LogDirectory);
-
-			// Fully qualified: Inventor declares its own Environment, File and Path types, which shadow the BCL ones.
-			string newLine = System.Environment.NewLine;
-
-			string entry =
-				$"{new string('=', 80)}{newLine}" +
-				$"{DateTimeOffset.UtcNow:O}  {language}  document='{document?.DisplayName ?? "(none)"}'{newLine}" +
-				$"{new string('-', 80)}{newLine}" +
-				$"{code}{newLine}";
-
-			System.IO.File.AppendAllText(
-				System.IO.Path.Combine(BridgeLog.LogDirectory, "executed-code.log"),
-				entry);
+			System.IO.File.AppendAllText(System.IO.Path.Combine(BridgeLog.LogDirectory, "executed-code.log"), text);
 		}
 		catch (Exception exception)
 		{

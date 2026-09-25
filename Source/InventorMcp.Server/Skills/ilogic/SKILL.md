@@ -45,11 +45,20 @@ changed. Check `inventor_documents` before a retry. The read tools of this serve
 
 ## The Security Alert
 
-A change to rule text can make iLogic ask the user to trust the rule at its next run. This is an iLogic Security
-Alert, and it blocks Inventor until someone answers. On one machine two API edits caused no alert, so it depends on
-the iLogic security options.
+When you run a rule that iLogic detects to be potentially unsafe, it shows an iLogic Security Alert: "iLogic has
+disabled a potentially harmful rule. If you trust the contents of this rule and would like to enable it on your
+machine, click Run the rule." It blocks Inventor until someone answers.
 
-Never answer it for the user. When a call returns `blocked-by-dialog`, read the dialog with `inventor_dialogs`, tell
+- **Don't run the rule** disables the rule: it does not run again until the user enables it in the Disabled Rules
+  dialog (Tools > Options > iLogic Configuration > Security).
+- **Run the rule** accepts the rule as safe on this machine.
+
+The check is on the contents of the rule, with the security option "Inspect rules for malicious code". Autodesk
+does not list the code it flags. An example is code that opens another file or a website. An edit through the API
+does not cause the alert: two edits that added plain text opened none. A rule that is new on this machine, or an
+edit that adds such code, can. It is not confirmed whether an edit to an accepted rule makes it unknown again.
+
+Never answer it for the user: either answer changes the rule's state. When a call returns `blocked-by-dialog`, read the dialog with `inventor_dialogs`, tell
 the user, and click with `inventor_dialog_click` only the button the user chose.
 
 ## From C#

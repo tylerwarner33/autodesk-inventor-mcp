@@ -46,4 +46,13 @@ public sealed record ExecutionResult(
 	/// 	thread, and the time to open a document before the code ran.
 	/// </remarks>
 	public long? WallClockMilliseconds { get; init; }
+
+	/// <summary>
+	/// 	The documents that a failed snippet opened or created and that are still open, or null.
+	/// </summary>
+	/// <remarks>
+	/// 	Set by the add-in only after a failure, so the caller can close them or read them back before a retry.
+	/// 	Each entry is the full path, or the display name of a document that was never saved.
+	/// </remarks>
+	public IReadOnlyList<string>? DocumentsLeftOpen { get; init; }
 }

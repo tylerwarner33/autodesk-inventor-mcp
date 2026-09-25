@@ -49,7 +49,17 @@ builder.Services.AddSingleton<InventorInstallations>();
 _ = builder.Services
 	.AddMcpServer(static options => options.ServerInstructions = ReadServerInstructions())
 	.WithStdioServerTransport()
-	.WithToolsFromAssembly();
+	.WithToolsFromAssembly()
+	// The client name goes to the add-in's audit log, so each snippet there shows which client sent it.
+	.WithRequestFilters(static filters => filters.AddCallToolFilter(static next => (context, cancellationToken) =>
+	{
+		BridgeClient bridge = context.Services!.GetRequiredService<BridgeClient>();
+
+		if (bridge.ClientName is null && context.Server.ClientInfo is { } client)
+			bridge.ClientName = $"{client.Name} {client.Version}".Trim();
+
+		return next(context, cancellationToken);
+	}));
 
 IHost host = builder.Build();
 

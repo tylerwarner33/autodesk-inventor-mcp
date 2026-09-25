@@ -103,6 +103,18 @@ outside this repository, so no repository rule loaded:
 
 Not yet verified: Claude Desktop and Visual Studio.
 
+The Phase 6 add-in release was verified on 2026-09-25 on Inventor 2025.4, with the add-in built for 2025 and 2026:
+
+- `executed-code.log` has `client='<name> <version>'` in each entry header and a `result` line after the code, with
+	the outcome, the exception, the milliseconds, and the documents that a failed snippet left open.
+- A snippet that opened a part and then threw returned `documentsLeftOpen` with that part.
+- A returned `List<string>` and an anonymous object came back as JSON. `Application.Documents` (a COM object) came
+	back as `System.__ComObject`, as before.
+- `addin.log` had a line for a refused call (`not-found`).
+- The six live dialog tests passed on the new add-in (21 s).
+- Not exercised live: the throttle of `All pipe instances are busy`, which the unit tests cover. Inventor 2026 was
+	built and deployed, but not started.
+
 Not yet exercised: the `inventor-busy` result for `RPC_E_CALL_REJECTED` and `RPC_E_SERVERCALL_RETRYLATER`.
 The dispatcher queues each call on Inventor's main thread, so no call has been rejected yet.
 To test it, open a modal dialog (ex. Parameters) or start a large rebuild, then call any tool except
