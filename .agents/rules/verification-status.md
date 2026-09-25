@@ -57,6 +57,29 @@ click from two clients, and the setting off. Two runs in a row passed all six. S
 Not yet exercised: `inventor_dialogs` and `inventor_dialog_click` from a real MCP client while Inventor is blocked,
 an iLogic Security Alert, a dialog of a different process (ex. Vault), and Inventor running as administrator.
 
+The Phase 4 tools of `Docs/Tasks/Usage-Findings-Implementation-Plan.md` were verified on 2026-09-25 on Inventor
+2025.4 through the packed server, driven over stdio, on test copies in `C:\Work\_McpTest`
+(a Vault workspace project with the library paths `Designs` and `Libraries`):
+
+- `inventor_test_copy`: 28 files of a tree with suppressed components in one pass, 27 references pointed at the
+	copies, 10 library references kept, 0 problems. A second call to the same target refused. The registered
+	Apprentice was the 2025 in-process DLL, run in a child Windows PowerShell process.
+- `inventor_session`: the project, the library paths resolved from the `.ipj` folder, `iLogicRulesEnabled`, and a
+	library part as `isModifiable=false`, `readOnlyFile=true`, `library=Designs`.
+- A write to that library part through `UserParameters.AddByExpression` failed with the late-bound text "Exception
+	has been thrown by the target of an invocation", not E_FAIL. The `CONTEXT:` line named the part as not modifiable.
+- `inventor_close_documents` refused 2 dirty documents, then closed 8 under the folder and none outside it.
+- `inventor_file_info`, `inventor_features`, `inventor_pattern_elements`, `inventor_hole_check` and
+	`inventor_styles` on a sheet metal part and two drawings. The hole check found 20 holes. Without the full circle
+	rule it counted 39, because the inside of a bend and the end of a slot are also concave cylinders.
+- `inventor_export_sheet_image`: an invisible drawing rendered in 389 ms. `Camera.SaveAsBitmap` ignored the
+	camera target, so the image comes from `CreateImageWithOptions` with `IncludeEdits`.
+- `inventor_drawing_layout`: three balloons added in memory to a drawing copy, never saved. It flagged the two
+	arrowheads at one point and a tip 0.04 in from another component, which the image confirmed.
+
+Not yet exercised: the "attached to another component" check with a real case, the curve check time limit on a
+large view, and the Phase 4 tools from a real MCP client.
+
 Not yet exercised: the `inventor-busy` result for `RPC_E_CALL_REJECTED` and `RPC_E_SERVERCALL_RETRYLATER`.
 The dispatcher queues each call on Inventor's main thread, so no call has been rejected yet.
 To test it, open a modal dialog (ex. Parameters) or start a large rebuild, then call any tool except
