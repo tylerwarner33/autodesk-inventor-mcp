@@ -533,6 +533,11 @@ disabled. If it is, the server reads each dialog with UI Automation and writes i
 	`inventor_dialogs` reads it, and `inventor_dialog_click` clicks the button that the user chose.
 
 Set `INVENTORMCP_AUTOCLOSE_DIALOGS=false` on the server to close no dialog automatically.
+
+Inventor's migration dialog (**Data Format Has Changed**, `OK` and `Cancel`) asks a question, so it stays open by
+default. Set `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true` to let the server click its `OK`. A save then writes the files
+in the running release's format, which earlier releases cannot open. Leave it off when files go to an older Inventor
+(ex. a Design Automation engine).
 See `Docs/Research/Blocking-Dialog-Detection.md`.
 
 ## Logs

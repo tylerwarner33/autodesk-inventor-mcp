@@ -359,6 +359,58 @@ Findings:
 
 Not yet done: the manual check of an iLogic Security Alert (see the test plan).
 
+## The migration dialog
+
+A save of a file that an earlier release saved shows **Data Format Has Changed** ("The data format of the following
+files was migrated to the current release. Previous versions of Autodesk Inventor will not be able to open these
+files if they are saved. Continue with save?"), with `OK`, `Cancel`, `Help` and a list of the files. It opens even
+from a snippet, and it holds the main thread until a person answers. On 2026-09-25 one save held a call for 184 s.
+
+### It is a decision, so the server clicks it only when the user turns that on
+
+`OK` writes the files in the running release's format, and no earlier release can open them after that. That
+matters when files go to an older Inventor. Example: the Design Automation engine of the StrobicConfigurator project
+runs Inventor 2025.3, and a job fails with `E_INVALIDARG` before any plugin code runs when a part in its workfiles
+was saved by 2025.4. So the automatic close of information dialogs does not cover it. It is closed only when the
+user sets `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true`, and only while `INVENTORMCP_AUTOCLOSE_DIALOGS` is on too.
+The tool result then says that the files were saved in this release's format.
+
+The server acts only on a dialog that blocks one of its own calls. The same dialog after a person's own Ctrl+S is
+never touched.
+
+The catalog entry matches the title `Data Format Has Changed`, the class `#32770`, and the buttons: exactly `OK` and
+`Cancel`, with `Help` allowed. A dialog with any other button (ex. a check box that a later release adds) stays open.
+
+### UI Automation finds no button in it
+
+Measured on 2026-09-25 on Inventor 2025.4 (Build 294407000), while a save of a 2024.3 part waited:
+
+| Read | Result |
+| --- | --- |
+| UI Automation from the dialog (the test script's `Read`) | No text and no button. `Click OK` refused: 0 buttons named `OK`. |
+| UI Automation through the server's walk | The file path from the list, but no button |
+| `EnumChildWindows` | `Button` id 1 `OK`, `Button` id 2 `Cancel`, `Static` id 10228 with the message, `Button` id 9958 `Help`, `SysListView32` id 10232 (header `Migrating files`), `SysHeader32` |
+
+So when UI Automation finds no button in a `#32770` dialog, the server reads the Win32 child windows: each `Button` is
+a button with its control id, and each visible `Static` adds its text. `GetWindowText` reads a control of a different
+process without a message, the same as a title.
+
+### The click is WM_COMMAND, not BM_CLICK
+
+| Click | Result |
+| --- | --- |
+| `BM_CLICK` sent to the `OK` button from a different process | Returned, but the dialog stayed open. The dialog was not in front. |
+| `WM_COMMAND` sent to the dialog, `wParam` = 1 (`IDOK`, `BN_CLICKED`), `lParam` = the `OK` button | Closed. Inventor unblocked and the save completed: pid 67 of the part went from 2024.3 (Build 283343000, 343) to 2025.4 (Build 294407000, 407). |
+
+The server sends the button's own control id as `WM_COMMAND`, through `SendMessageTimeout` with the read time limit,
+after the same checks as the UI Automation click: the mutex, the dialog still open, the same title, and exactly one
+visible, enabled button of that name.
+
+The live tests `MigrationDialogIsClosedWhenAccepted` and `MigrationDialogStaysOpenByDefault` repeat this through the
+server on a copy of a part that `INVENTORMCP_LIVE_OLD_RELEASE_PART` names. Both passed on 2026-09-25 on Inventor 2025.4,
+together with the six earlier live tests. The fixture has no dialog that hides its buttons from UI Automation, so the
+desktop tests call the Win32 read and click directly on a real message box.
+
 ## Risks and limits
 
 - **A click is a user decision.** A dialog can ask to save or discard data. Only an information dialog with one

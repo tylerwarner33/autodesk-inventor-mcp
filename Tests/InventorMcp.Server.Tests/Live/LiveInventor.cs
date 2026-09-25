@@ -129,5 +129,67 @@ internal static class LiveInventor
 		throw new TimeoutException("No dialog blocked Inventor within 20 s.");
 	}
 
+	/// <summary>
+	/// 	The variable that names a part saved by an earlier Inventor release, for the migration dialog tests.
+	/// </summary>
+	public const string OldReleasePartVariable = "INVENTORMCP_LIVE_OLD_RELEASE_PART";
+
+	/// <summary>
+	/// 	Copies the part that <see cref="OldReleasePartVariable"/> names to a new temporary folder, or skips the test.
+	/// </summary>
+	/// <remarks>
+	/// 	A save of the copy migrates the copy only. Inventor cannot save a file in an earlier release's format, so a test
+	/// 	cannot make this part itself.
+	/// </remarks>
+	public static string CopyOldReleasePart()
+	{
+		string? source = Environment.GetEnvironmentVariable(OldReleasePartVariable)?.Trim();
+		Assert.SkipUnless(
+			source is { Length: > 0 } && File.Exists(source),
+			$"Set {OldReleasePartVariable} to a part saved by an earlier Inventor release, to run the migration dialog tests.");
+
+		string folder = Path.Combine(Path.GetTempPath(), UniqueName("InventorMcpMigration"));
+		_ = Directory.CreateDirectory(folder);
+		string copy = Path.Combine(folder, Path.GetFileName(source));
+		File.Copy(source, copy);
+
+		return copy;
+	}
+
+	/// <summary>
+	/// 	A snippet that opens a part, changes it, and saves it, which shows the migration dialog for a part of an earlier
+	/// 	release. It returns the release that last saved the part.
+	/// </summary>
+	/// <remarks>
+	/// 	The part stays open when the save fails, so the test closes it.
+	/// </remarks>
+	public static string SaveOldReleasePartSnippet(string path) => $$"""
+		bool silent = Application.SilentOperation;
+		Application.SilentOperation = false;
+		try
+		{
+			PartDocument part = (PartDocument)Application.Documents.Open(@"{{path}}", true);
+			part.ComponentDefinition.Parameters.UserParameters.AddByExpression("McpMigrationTest", "1 in", UnitsTypeEnum.kInchLengthUnits);
+			part.Save();
+			string savedBy = part.PropertySets["Design Tracking Properties"].ItemByPropId[67].Value.ToString();
+			part.Close(true);
+			return savedBy;
+		}
+		finally
+		{
+			Application.SilentOperation = silent;
+		}
+		""";
+
+	/// <summary>
+	/// 	A snippet that closes every open document from the folder, with no save.
+	/// </summary>
+	public static string CloseDocumentsUnderSnippet(string folder) => $$"""
+		foreach (Document document in Application.Documents.Cast<Document>().ToList())
+			if (document.FullFileName.StartsWith(@"{{folder}}", StringComparison.OrdinalIgnoreCase))
+				document.Close(true);
+		return null;
+		""";
+
 	public static string Describe(ExecutionResult result) => JsonSerializer.Serialize(result);
 }

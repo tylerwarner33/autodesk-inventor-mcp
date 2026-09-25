@@ -83,7 +83,11 @@ internal sealed record DialogSnapshot(
 /// <param name="IsWindowFrame">
 /// 	True for the buttons of a title bar (ex. <c>Close</c>) and of a scroll bar (ex. <c>Line down</c>).
 /// </param>
-internal sealed record DialogButton(string Name, bool IsVisible, bool IsEnabled, bool IsWindowFrame = false)
+/// <param name="ControlId">
+/// 	The Win32 control id, when the button was read from the Win32 child windows because UI Automation found no button.
+/// 	A click then sends it to the dialog as <c>WM_COMMAND</c>.
+/// </param>
+internal sealed record DialogButton(string Name, bool IsVisible, bool IsEnabled, bool IsWindowFrame = false, int? ControlId = null)
 {
 	/// <summary>
 	/// 	True when a user can see and click the button in the dialog itself.

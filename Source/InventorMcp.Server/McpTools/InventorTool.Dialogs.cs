@@ -125,7 +125,7 @@ internal static partial class InventorTool
 		buttons = dialog.ClickableButtons,
 		hiddenOrDisabledButtons = dialog.Buttons.Where(button => button.IsClickable is false && button.IsWindowFrame is false).Select(button => button.Name),
 		readError = dialog.ReadError,
-		serverWouldClose = DialogPolicy.ShouldClose(dialog, DialogPolicy.IsAutoCloseEnabled)
+		serverWouldClose = DialogPolicy.ShouldClose(dialog, DialogPolicy.IsAutoCloseEnabled, DialogPolicy.IsAcceptMigrationEnabled)
 	};
 
 	private static object NotConnected() => new
