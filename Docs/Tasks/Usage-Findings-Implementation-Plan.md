@@ -152,7 +152,7 @@ Verified on 2026-09-25 on Inventor 2025 (the user changed from 2026 during the w
 `C:\Work\_McpTest\Frame`. The copy has the 29 model files of the master
 folder, made with Apprentice `FileSaveAs` so no rule ran. Its references to the project's library paths (`Designs`
 and the Content Center, 28 files) point at the originals, which the project makes read-only. The masters were not
-changed. Delete the `_McpTest` folder when the tests are done, and do not check it into Vault.
+changed. The `_McpTest` folder was never checked into Vault, and was deleted on 2026-09-25 after the Phase 6 checks.
 
 | Measurement | Result |
 | --- | --- |
