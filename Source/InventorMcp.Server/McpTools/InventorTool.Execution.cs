@@ -39,6 +39,15 @@ internal static partial class InventorTool
 		a parameter can express.
 
 		A compile error for a member that does not exist carries a HINT with the near members of that type.
+
+		Helpers you can call:
+		- OpenOrReuseDocument(fullFileName, visible = false) returns the open copy or opens it, and
+		  CloseDocumentsOpenedHere() closes only the documents it opened, drawings first, with no save.
+		- ILogicAutomation(), ILogicRuleNames(document), ILogicRuleText(document, name),
+		  SetILogicRuleText(document, name, text) and RunILogicRule(document, name) take any document type.
+		- ToInches, FromInches, ToMillimetres, FromMillimetres (from and to centimetres), ToDegrees, FromDegrees.
+		- TryGetUserParameter(document, name, out UserParameter parameter).
+		- StartDeadline(seconds = 8) returns a guard for a loop: if (deadline.Passed) break;
 		""")]
 	public static Task<object> EvaluateCSharp(
 		BridgeClient bridge,
@@ -50,7 +59,7 @@ internal static partial class InventorTool
 		SafeAsync(async () => DiagnosticHints.Improve(
 			await bridge.InvokeAsync<Contracts.Models.ExecutionResult>(
 				BridgeOperations.EvalCSharp,
-				new ExecuteRequest(code, documentName, allowUnsavedChanges),
+				new ExecuteRequest(ScriptPrelude.Apply(code), documentName, allowUnsavedChanges),
 				cancellationToken).ConfigureAwait(false),
 			apiReference,
 			bridge.ReleaseYear));

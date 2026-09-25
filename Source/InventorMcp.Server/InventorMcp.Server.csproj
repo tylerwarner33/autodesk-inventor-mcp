@@ -53,6 +53,11 @@
 		<EmbeddedResource Include="ServerInstructions.md" LogicalName="InventorMcp.Server.ServerInstructions.md" />
 	</ItemGroup>
 
+	<!-- The helpers put before an inventor_eval_csharp snippet that calls one. Services/ScriptPrelude.cs reads it. -->
+	<ItemGroup>
+		<EmbeddedResource Include="ScriptPrelude.csx" LogicalName="InventorMcp.Server.ScriptPrelude.csx" />
+	</ItemGroup>
+
 	<!--
 		Autodesk's own documentation for the interop assembly, used by inventor_api_lookup.
 		Every supported release ships, because the server is built once and serves whichever session answers.

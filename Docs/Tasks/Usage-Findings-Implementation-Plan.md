@@ -98,18 +98,25 @@ real plugin log.
 Decisions 2 and 3. Files: a new embedded prelude in `Source/InventorMcp.Server/`, and
 `McpTools/InventorTool.Execution.cs`.
 
-- [ ] Documents: open by path or use the open copy, and record which documents the snippet opened. A second
-	helper closes only those documents, in the close order of `inventor_run_plugin`. Use the same code.
-- [ ] iLogic: get the automation object, list and read rules, set rule text and run a rule. Each takes any document
+- [x] Documents: open by path or use the open copy, and record which documents the snippet opened. A second
+	helper closes only those documents, in the close order of `inventor_run_plugin`. The same order, in the prelude,
+	because the plugin snippet is a separate composition.
+- [x] iLogic: get the automation object, list and read rules, set rule text and run a rule. Each takes any document
 	type and does the `(Document)` cast and the `dynamic` call inside.
-- [ ] Units: `ToInches`, `FromInches`, `ToMillimetres`, `FromMillimetres`, and degrees and radians.
-- [ ] Parameters: `TryGetUserParameter(document, name, out parameter)`.
-- [ ] Time guard: a deadline object that a loop can check (ex. `if (deadline.Passed) break;`).
-- [ ] Put `#line 1` after the prelude, and verify that the line numbers in a diagnostic match the snippet.
-- [ ] Measure the compile time with and without the prelude. Write the result in `Docs/Architecture.md`.
-- [ ] List the helpers in a short paragraph in the description of `inventor_eval_csharp`.
+- [x] Units: `ToInches`, `FromInches`, `ToMillimetres`, `FromMillimetres`, and degrees and radians.
+- [x] Parameters: `TryGetUserParameter(document, name, out parameter)`.
+- [x] Time guard: a deadline object that a loop can check (ex. `if (deadline.Passed) break;`).
+- [x] Put `#line 1` after the prelude, and verify that the line numbers in a diagnostic match the snippet. The
+	snippet's leading `using` directives go before the prelude, and `#line` gives the next line its own number.
+- [x] Measure the compile time with and without the prelude. Write the result in `Docs/Architecture.md`.
+- [x] List the helpers in a short paragraph in the description of `inventor_eval_csharp`.
 
 Verify: write a few model snippets from `executed-code.log` again with the helpers, and compare the results.
+
+Verified on 2026-09-25 against Inventor 2026 through the packed server: every helper, the diagnostic line number
+after a moved `using` directive, and the compile cost. The prelude is sent only with a snippet that calls a helper.
+Decision 10: an API edit of a saved rule, then a run, opened no Security Alert (a part in a temporary folder, with
+this machine's iLogic security options). The cause of the alert in the research is not known yet.
 
 ### Phase 3 - iLogic tools
 
