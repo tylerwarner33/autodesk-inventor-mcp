@@ -338,12 +338,13 @@ internal sealed class BridgeClient(
 		}
 
 		bool autoClose = DialogPolicy.IsAutoCloseEnabled;
+		bool acceptMigration = DialogPolicy.IsAcceptMigrationEnabled;
 		List<DialogSnapshot> needPerson = [];
 
 		foreach (DialogSnapshot dialog in state.Dialogs)
 		{
 			// A dialog that is still open after the server clicked it needs a person.
-			if (watch.Clicked.Contains((dialog.Handle, dialog.Title)) || DialogPolicy.ShouldClose(dialog, autoClose) is false)
+			if (watch.Clicked.Contains((dialog.Handle, dialog.Title)) || DialogPolicy.ShouldClose(dialog, autoClose, acceptMigration) is false)
 			{
 				needPerson.Add(dialog);
 				continue;
@@ -357,6 +358,9 @@ internal sealed class BridgeClient(
 
 			string action = outcome.Status switch
 			{
+				// The model must know that the save wrote the files in this release's format, which older releases cannot open.
+				ClickStatus.Clicked when DialogPolicy.Classify(dialog) == DialogPolicy.MigrationType =>
+					$"closed with {DialogPolicy.CloseButton}, so the files were saved in this release's format",
 				ClickStatus.Clicked => $"closed with {DialogPolicy.CloseButton}",
 				ClickStatus.DialogClosed => "closed by a different server or the user",
 				_ => $"left open: {outcome.Message}"

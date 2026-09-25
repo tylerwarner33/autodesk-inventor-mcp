@@ -152,6 +152,68 @@ public sealed class LiveDialogTests
 	}
 
 	[Fact]
+	public async Task MigrationDialogIsClosedWhenAccepted()
+	{
+		LiveInventor.Require();
+		string part = LiveInventor.CopyOldReleasePart();
+		await using BridgeClient client = LiveInventor.CreateClient();
+		string? previous = Environment.GetEnvironmentVariable(DialogPolicy.AcceptMigrationVariable);
+		Environment.SetEnvironmentVariable(DialogPolicy.AcceptMigrationVariable, "true");
+
+		try
+		{
+			List<DialogReport> reports = DialogReports.Begin();
+
+			ExecutionResult result = await LiveInventor.EvalAsync(client, LiveInventor.SaveOldReleasePartSnippet(part), Cancellation);
+
+			DialogReport report = Assert.Single(reports);
+			Assert.Equal(DialogPolicy.MigrationType, report.Type);
+			Assert.StartsWith("closed with OK", report.Action);
+			Assert.Contains("migrated", report.Text);
+			Assert.Contains("Cancel", report.Buttons);
+			Assert.True(result.Succeeded, LiveInventor.Describe(result));
+			TestContext.Current.SendDiagnosticMessage($"Saved by: {result.ReturnValue}. Buttons: {string.Join(", ", report.Buttons)}. Text: {report.Text}");
+		}
+		finally
+		{
+			Environment.SetEnvironmentVariable(DialogPolicy.AcceptMigrationVariable, previous);
+			_ = await LiveInventor.EvalAsync(client, LiveInventor.CloseDocumentsUnderSnippet(Path.GetDirectoryName(part)!), Cancellation);
+			Directory.Delete(Path.GetDirectoryName(part)!, recursive: true);
+		}
+	}
+
+	[Fact]
+	public async Task MigrationDialogStaysOpenByDefault()
+	{
+		LiveInventor.Require();
+		string part = LiveInventor.CopyOldReleasePart();
+		await using BridgeClient client = LiveInventor.CreateClient();
+		string? previous = Environment.GetEnvironmentVariable(DialogPolicy.AcceptMigrationVariable);
+		Environment.SetEnvironmentVariable(DialogPolicy.AcceptMigrationVariable, null);
+
+		try
+		{
+			Task<ExecutionResult> save = LiveInventor.EvalAsync(client, LiveInventor.SaveOldReleasePartSnippet(part), Cancellation);
+
+			InventorBridgeException exception = await Assert.ThrowsAsync<InventorBridgeException>(() => save.WaitAsync(TimeSpan.FromSeconds(20), Cancellation));
+			Assert.Equal(BridgeErrorCodes.BlockedByDialog, exception.Code);
+			Assert.Contains("Visible buttons: OK, Cancel", exception.Message);
+
+			// Cancel keeps the copy in its earlier release's format, through the Win32 click.
+			(int processId, DialogSnapshot dialog) = await LiveInventor.WaitForDialogAsync(client, Cancellation);
+			Assert.Equal(ClickStatus.Clicked, new BlockingDialogs().TryClick(processId, dialog, "Cancel").Status);
+			ExecutionResult next = await LiveInventor.EvalAsync(client, "return \"after the migration dialog\";", Cancellation);
+			Assert.Equal("after the migration dialog", next.ReturnValue);
+		}
+		finally
+		{
+			Environment.SetEnvironmentVariable(DialogPolicy.AcceptMigrationVariable, previous);
+			_ = await LiveInventor.EvalAsync(client, LiveInventor.CloseDocumentsUnderSnippet(Path.GetDirectoryName(part)!), Cancellation);
+			Directory.Delete(Path.GetDirectoryName(part)!, recursive: true);
+		}
+	}
+
+	[Fact]
 	public async Task SettingOffClicksNothing()
 	{
 		LiveInventor.Require();

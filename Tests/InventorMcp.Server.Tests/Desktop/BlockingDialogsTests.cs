@@ -147,6 +147,48 @@ public sealed class BlockingDialogsTests
 		Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10), $"The read took {stopwatch.Elapsed}.");
 	}
 
+	/// <summary>
+	/// 	The Win32 read that a dialog with no UI Automation buttons falls back to, on a real Win32 message box.
+	/// </summary>
+	/// <remarks>
+	/// 	The fixture has no dialog that hides its buttons from UI Automation, as Inventor's migration dialog does, so the
+	/// 	fallback is called directly. See Docs/Research/Blocking-Dialog-Detection.md, "The migration dialog".
+	/// </remarks>
+	[Fact]
+	public async Task Win32ReadFindsTheButtonsAndTheirIds()
+	{
+		using DialogFixture fixture = await DialogFixture.StartAsync("okcancel");
+
+		IReadOnlyList<DialogButton> buttons = BlockingDialogs.ReadWin32Buttons(fixture.DialogHandle);
+
+		Assert.Contains(buttons, button => button is { Name: "OK", ControlId: 1, IsClickable: true });
+		Assert.Contains(buttons, button => button is { Name: "Cancel", ControlId: 2, IsClickable: true });
+	}
+
+	[Fact]
+	public async Task Win32ClickClosesTheDialogWithTheChosenButton()
+	{
+		using DialogFixture fixture = await DialogFixture.StartAsync("okcancel");
+		DialogSnapshot dialog = Assert.Single(_detector.Detect(fixture.ProcessId).Dialogs);
+
+		ClickOutcome outcome = _detector.TryClickWin32(fixture.ProcessId, dialog, "Cancel");
+
+		Assert.Equal(ClickStatus.Clicked, outcome.Status);
+		Assert.True(fixture.WaitForExit(_exitTimeout), "The fixture did not exit, so the dialog did not close.");
+	}
+
+	[Fact]
+	public async Task Win32ClickOfAMissingButtonIsRefused()
+	{
+		using DialogFixture fixture = await DialogFixture.StartAsync("okcancel");
+		DialogSnapshot dialog = Assert.Single(_detector.Detect(fixture.ProcessId).Dialogs);
+
+		ClickOutcome outcome = _detector.TryClickWin32(fixture.ProcessId, dialog, "Retry");
+
+		Assert.Equal(ClickStatus.Refused, outcome.Status);
+		Assert.False(fixture.HasExited);
+	}
+
 	[Fact]
 	public async Task OnlyOneServerClicks()
 	{

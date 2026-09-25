@@ -152,6 +152,11 @@ Some dialogs still open (ex. the iLogic error dialog). The server finds them whi
 To close no dialog automatically, add `INVENTORMCP_AUTOCLOSE_DIALOGS` with the value `false` to the `env` of the
 server entry in your client configuration.
 
+A save of a file from an earlier release shows **Data Format Has Changed**. It stays open by default, because `OK`
+saves the files in a format that earlier releases cannot open. To let the server click `OK`, add
+`INVENTORMCP_ACCEPT_MIGRATION_DIALOG` with the value `true` to the same `env`. Leave it off when your files go to an
+older Inventor, ex. a Design Automation engine.
+
 ## Troubleshooting
 
 | Symptom | Cause |

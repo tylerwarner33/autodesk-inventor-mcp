@@ -54,6 +54,10 @@ snippet and through `inventor_run_ilogic`, a message box with OK closed, a Yes/N
 `blocked-by-dialog`, the block read by a second client with no bridge call, the next call after a question, one
 click from two clients, and the setting off. Two runs in a row passed all six. See
 `Docs/Research/Blocking-Dialog-Detection.md`, "Live test results", for what the first runs found.
+The migration dialog (`INVENTORMCP_ACCEPT_MIGRATION_DIALOG`) was verified later on 2026-09-25 on Inventor 2025.4,
+through the same live level with `INVENTORMCP_LIVE_OLD_RELEASE_PART` set to a 2024.3 part: read through the Win32
+fallback, left open by default and closed with Cancel through `WM_COMMAND`, and closed with OK when accepted. All
+eight live tests passed in that run. See `Docs/Research/Blocking-Dialog-Detection.md`, "The migration dialog".
 Not yet exercised: `inventor_dialogs` and `inventor_dialog_click` from a real MCP client while Inventor is blocked,
 an iLogic Security Alert, a dialog of a different process (ex. Vault), and Inventor running as administrator.
 
