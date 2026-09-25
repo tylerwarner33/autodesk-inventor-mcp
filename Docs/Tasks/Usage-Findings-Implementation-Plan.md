@@ -198,8 +198,10 @@ R1.2, R1.4, R1.6, R1.8 and R1.12. Canned snippets, and Win32 calls in the server
 - [x] `inventor_file_info(paths)`: iProperties for each model state, the saved version, model state names, and
 	work point and iMate names, for many paths, with paging. Close each document that the tool opened. It opens
 	with iLogic rules off, so no open trigger runs, and stops before 8 s with `nextOffset`.
-- [ ] `inventor_export_sheet_image`: a sheet, or a region of it, as an image. Return it as MCP image content, so the
+- [x] `inventor_export_sheet_image`: a sheet, or a region of it, as an image. Return it as MCP image content, so the
 	model can look at it with no PDF renderer. Use `inventor_api_lookup` to find the export member first.
+	A transient camera on the sheet, with `Camera.CreateImageWithOptions` and `IncludeEdits`, so the drawing can
+	stay invisible. `Camera.SaveAsBitmap` ignored the camera target and rendered the default camera.
 - [x] `inventor_test_copy`: copy a document tree with a prefix, clear the read-only attribute and repoint the
 	references. Apprentice in a child Windows PowerShell process (`TestCopy.ps1`, embedded), so no rule runs and
 	the native DLL never loads into the server. It walks `File.ReferencedFileDescriptors`, so it also finds
