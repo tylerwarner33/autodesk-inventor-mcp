@@ -175,26 +175,32 @@ restores it, and says so when the restore fails.
 
 R1.2, R1.4, R1.6, R1.8 and R1.12. Canned snippets, and Win32 calls in the server.
 
-- [ ] `inventor_session`: add the active `.ipj`, its workspace and its library paths, and `IsModifiable` for each
+- [x] `inventor_session`: add the active `.ipj`, its workspace and its library paths, and `IsModifiable` for each
 	open document. Add the modal dialog check from decision 6. If a dialog is open, send no bridge call. Report the
-	dialog title.
-- [ ] `inventor_eval_csharp`: on `E_FAIL`, add `IsModifiable` of the target and the project data from the step
-	above (R1.2).
-- [ ] `inventor_close_documents(under)`: close the documents under a folder, in the close order of
+	dialog title. Also `iLogicRulesEnabled` (decision 9), the read-only attribute, and the library of each document.
+	The library paths are resolved from the folder of the `.ipj`.
+- [x] `inventor_eval_csharp`: on `E_FAIL`, add `IsModifiable` of the target and the project data from the step
+	above (R1.2). As a `CONTEXT:` output line. A write to a library part gave the late-bound text "Exception has been
+	thrown by the target of an invocation", not E_FAIL, so that text also counts.
+- [x] `inventor_close_documents(under)`: close the documents under a folder, in the close order of
 	`inventor_run_plugin`. Refuse a dirty document unless the caller allows it. Never close a document outside the
-	folder.
+	folder. Visible documents first, then hidden ones. A hidden document that a document outside the folder
+	references stays open, and the result names it.
 - [ ] `inventor_features`: the name, type, suppressed flag and health of each feature. For a pattern, also the
 	count and spacing expressions, the direction entity and the parent features.
 - [ ] `inventor_pattern_elements`: the transform of each element.
 - [ ] `inventor_hole_check`: the holes by radius, with their positions, to verify a cut.
 - [ ] `inventor_drawing_layout`: add the arrowhead checks and the leader tip check, and the annotation extents for
 	each view with the gaps between view groups (R1.8).
-- [ ] `inventor_file_info(paths)`: iProperties for each model state, the saved version, model state names, and
-	work point and iMate names, for many paths, with paging. Close each document that the tool opened.
+- [x] `inventor_file_info(paths)`: iProperties for each model state, the saved version, model state names, and
+	work point and iMate names, for many paths, with paging. Close each document that the tool opened. It opens
+	with iLogic rules off, so no open trigger runs, and stops before 8 s with `nextOffset`.
 - [ ] `inventor_export_sheet_image`: a sheet, or a region of it, as an image. Return it as MCP image content, so the
 	model can look at it with no PDF renderer. Use `inventor_api_lookup` to find the export member first.
-- [ ] `inventor_test_copy`: copy a document tree with a prefix, clear the read-only attribute and repoint the
-	references.
+- [x] `inventor_test_copy`: copy a document tree with a prefix, clear the read-only attribute and repoint the
+	references. Apprentice in a child Windows PowerShell process (`TestCopy.ps1`, embedded), so no rule runs and
+	the native DLL never loads into the server. It walks `File.ReferencedFileDescriptors`, so it also finds
+	suppressed components, and copies with a plain file copy, so `ReplaceReference` accepts each copy.
 - [ ] `inventor_styles`: the styles of a document, with a diff against a second document.
 
 ### Phase 5 - Knowledge delivery

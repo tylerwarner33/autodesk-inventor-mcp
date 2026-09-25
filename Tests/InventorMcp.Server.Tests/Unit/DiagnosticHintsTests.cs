@@ -70,6 +70,24 @@ public sealed class DiagnosticHintsTests
 		Assert.Single(DiagnosticHints.Improve(result, _apiReference, 2026).Diagnostics);
 	}
 
+	[Theory]
+	[InlineData("System.Runtime.InteropServices.COMException", "Unspecified error (0x80004005 (E_FAIL))", true)]
+	// The text that a write to a library part gave on Inventor 2025.
+	[InlineData("System.Runtime.InteropServices.COMException", "Exception has been thrown by the target of an invocation.", true)]
+	[InlineData("System.Reflection.TargetInvocationException", "Exception has been thrown by the target of an invocation.", false)]
+	[InlineData("System.Runtime.InteropServices.COMException", "The parameter is incorrect. (0x80070057 (E_INVALIDARG))", false)]
+	[InlineData("System.InvalidOperationException", "No document is active.", false)]
+	public void UnspecifiedComFailureIsFound(string exceptionType, string message, bool expected)
+	{
+		ExecutionResult result = new(false, null, null, [], [], exceptionType, message, 10);
+
+		Assert.Equal(expected, DiagnosticHints.IsUnspecifiedComFailure(result));
+	}
+
+	[Fact]
+	public void SuccessIsNotAComFailure() =>
+		Assert.False(DiagnosticHints.IsUnspecifiedComFailure(new ExecutionResult(true, null, null, [], [], null, "E_FAIL", 10)));
+
 	private static ExecutionResult Result(bool succeeded, params string[] diagnostics) =>
 		new(succeeded, null, null, [], diagnostics, null, null, 10);
 }

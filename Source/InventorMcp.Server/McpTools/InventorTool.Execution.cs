@@ -61,14 +61,65 @@ internal static partial class InventorTool
 		SafeAsync(() => WithRulesSuppressedAsync(
 			bridge,
 			suppressRules,
-			async () => DiagnosticHints.Improve(
-				await bridge.InvokeAsync<Contracts.Models.ExecutionResult>(
-					BridgeOperations.EvalCSharp,
-					new ExecuteRequest(ScriptPrelude.Apply(code), documentName, allowUnsavedChanges),
-					cancellationToken).ConfigureAwait(false),
-				apiReference,
-				bridge.ReleaseYear),
+			async () => await AddFailureContextAsync(
+				bridge,
+				DiagnosticHints.Improve(
+					await bridge.InvokeAsync<Contracts.Models.ExecutionResult>(
+						BridgeOperations.EvalCSharp,
+						new ExecuteRequest(ScriptPrelude.Apply(code), documentName, allowUnsavedChanges),
+						cancellationToken).ConfigureAwait(false),
+					apiReference,
+					bridge.ReleaseYear),
+				documentName,
+				cancellationToken).ConfigureAwait(false),
 			cancellationToken));
+
+	/// <summary>
+	/// 	Adds the state of the target document and the project to a result that failed with only E_FAIL.
+	/// </summary>
+	/// <remarks>
+	/// 	E_FAIL gives no cause, and the common one is a document that is not modifiable, ex. in a library path.
+	/// 	One more bridge call, only after such a failure.
+	/// </remarks>
+	private static async Task<Contracts.Models.ExecutionResult> AddFailureContextAsync(
+		BridgeClient bridge,
+		Contracts.Models.ExecutionResult result,
+		string? documentName,
+		CancellationToken cancellationToken)
+	{
+		if (DiagnosticHints.IsUnspecifiedComFailure(result) is false)
+			return result;
+
+		JsonElement state;
+
+		try
+		{
+			state = await ReadSessionStateAsync(bridge, documentName, cancellationToken).ConfigureAwait(false);
+		}
+		catch (InventorBridgeException)
+		{
+			return result;
+		}
+
+		if (state.TryGetProperty("project", out JsonElement project) is false)
+			return result;
+
+		string target = "no document";
+
+		if (state.GetProperty("documents").EnumerateArray().FirstOrDefault() is { ValueKind: JsonValueKind.Object } document)
+		{
+			target = $"'{document.GetProperty("name").GetString()}' isModifiable={document.GetProperty("isModifiable").GetBoolean()}, " +
+				$"readOnlyFile={document.GetProperty("readOnlyFile").GetBoolean()}, " +
+				$"library={(document.GetProperty("library").GetString() ?? "none")}";
+		}
+
+		string context = $"CONTEXT: this COM error gives no cause. The target document: {target}. " +
+			$"Project '{project.GetProperty("file").GetString()}', workspace '{project.GetProperty("workspace").GetString()}'. " +
+			"A write to a document that is not modifiable (ex. in a library path, read-only, or checked in to Vault) fails with E_FAIL. " +
+			"Other causes: an object that is no longer valid, or an argument that the member does not accept.";
+
+		return result with { Output = [.. result.Output, context] };
+	}
 
 	/// <summary>
 	/// 	Runs a call with iLogic rules turned off, and turns them back on after it.

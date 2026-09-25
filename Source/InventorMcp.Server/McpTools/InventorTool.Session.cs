@@ -10,12 +10,104 @@ namespace InventorMcp.Server.McpTools;
 
 internal static partial class InventorTool
 {
+	/// <summary>
+	/// 	Reads the active project, the iLogic rule switch and the write state of each open document.
+	/// </summary>
+	/// <remarks>
+	/// 	A snippet, so the session operation of the add-in needs no change. A document in a library path, or checked
+	/// 	in to Vault, is not modifiable, and a write to it fails with only E_FAIL, so a model needs this to read the
+	/// 	failure. RulesEnabled is in the result because <c>suppressRules</c> changes it for the whole session.
+	/// </remarks>
+	private const string _sessionStateSnippet = """
+		string? only = __DOCUMENT__;
+		DesignProject project = Application.DesignProjectManager.ActiveDesignProject;
+		// A project path can be relative to the folder of the .ipj, ex. .\Designs.
+		string projectFolder = System.IO.Path.GetDirectoryName(project.FullFileName) ?? "";
+		List<(string Name, string Path)> libraries = new();
+		foreach (ProjectPath path in project.LibraryPaths)
+			libraries.Add((path.Name, path.Path.Length == 0 ? "" : System.IO.Path.GetFullPath(System.IO.Path.Combine(projectFolder, path.Path))));
+
+		string? LibraryOf(string file) =>
+			libraries.Where(library => library.Path.Length > 0 && file.StartsWith(System.IO.Path.TrimEndingDirectorySeparator(library.Path) + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+				.Select(library => library.Name)
+				.FirstOrDefault();
+
+		List<Document> documents = Application.Documents.OfType<Document>()
+			.Where(document => only is null
+				|| string.Equals(document.FullFileName, only, StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(document.DisplayName, only, StringComparison.OrdinalIgnoreCase))
+			.ToList();
+		// The active document first, so a caller that needs the target reads the first entry.
+		if (only is null && Document is Document active)
+		{
+			documents.Remove(active);
+			documents.Insert(0, active);
+		}
+
+		bool? rulesEnabled = null;
+		try { rulesEnabled = (bool)ILogicAutomation().RulesEnabled; } catch (Exception) { }
+
+		return System.Text.Json.JsonSerializer.Serialize(new
+		{
+			project = new
+			{
+				file = project.FullFileName,
+				name = project.Name,
+				type = project.ProjectType.ToString(),
+				workspace = project.WorkspacePath,
+				libraryPaths = libraries.Select(library => new { name = library.Name, path = library.Path }),
+				contentCenter = project.ContentCenterPath
+			},
+			iLogicRulesEnabled = rulesEnabled,
+			documentCount = Application.Documents.Count,
+			documents = documents.Take(__MAX__).Select(document => new
+			{
+				name = document.DisplayName,
+				path = document.FullFileName,
+				type = document.DocumentType.ToString(),
+				visible = document.Views.Count > 0,
+				dirty = document.Dirty,
+				isModifiable = document.IsModifiable,
+				readOnlyFile = document.FullFileName.Length > 0 && System.IO.File.Exists(document.FullFileName)
+					&& new System.IO.FileInfo(document.FullFileName).IsReadOnly,
+				library = document.FullFileName.Length > 0 ? LibraryOf(document.FullFileName) : null
+			})
+		});
+		""";
+
+	private const int _maxSessionDocuments = 200;
+
+	/// <summary>
+	/// 	Runs <see cref="_sessionStateSnippet"/>, for every document or for one.
+	/// </summary>
+	private static Task<JsonElement> ReadSessionStateAsync(BridgeClient bridge, string? documentName, CancellationToken cancellationToken) =>
+		RunJsonSnippetAsync(
+			bridge,
+			_sessionStateSnippet
+				.Replace("__DOCUMENT__", Services.CSharpLiteral.String(documentName), StringComparison.Ordinal)
+				.Replace("__MAX__", _maxSessionDocuments.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal),
+			cancellationToken);
+
 	[McpServerTool(Name = "inventor_session")]
-	[Description("Reports whether an Inventor session is reachable, which version it is, and which document is active. Call this first when you are unsure what Inventor is doing. If a modal dialog blocks Inventor, it returns blocked-by-dialog at once, with the dialog.")]
+	[Description("""
+		Reports whether an Inventor session is reachable, which version it is, and which document is active. Call this
+		first when you are unsure what Inventor is doing. If a modal dialog blocks Inventor, it returns blocked-by-dialog
+		at once, with the dialog, and sends nothing to Inventor.
+
+		It also gives the active project (.ipj), its workspace and library paths, whether iLogic rules are on, and for
+		each open document (up to 200) whether it is modifiable. A write to a document that is not modifiable, ex. one
+		in a library path or checked in to Vault, fails with only E_FAIL.
+		""")]
 	public static Task<object> Session(BridgeClient bridge, CancellationToken cancellationToken) =>
 		UnlessBlockedAsync(
 			bridge,
-			() => SafeAsync(() => bridge.InvokeAsync<Contracts.Models.SessionInfo>(BridgeOperations.Session, null, cancellationToken)),
+			() => SafeAsync(async () =>
+			{
+				Contracts.Models.SessionInfo session = await bridge.InvokeAsync<Contracts.Models.SessionInfo>(BridgeOperations.Session, null, cancellationToken).ConfigureAwait(false);
+				JsonElement state = await ReadSessionStateAsync(bridge, documentName: null, cancellationToken).ConfigureAwait(false);
+
+				return (object)new { session, state };
+			}),
 			cancellationToken);
 
 	[McpServerTool(Name = "inventor_documents")]

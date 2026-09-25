@@ -442,12 +442,16 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 
 | Tool | Purpose |
 | --- | --- |
-| `inventor_session` | Is Inventor reachable, which version, which document is active |
+| `inventor_session` | Is Inventor reachable, which version, which document is active, the active project, and which open documents are modifiable |
 | `inventor_start` | Start Inventor when no session hosts the bridge, asking which release when several can |
 | `inventor_documents` | Every open document with path, type, and unsaved state |
+| `inventor_close_documents` | Close the open documents under a folder, drawings first, and never one outside it |
+| `inventor_file_info` | Saved release, model states, iProperties, work points and iMates of many files, in pages |
+| `inventor_test_copy` | Copy a document tree to a test folder through Apprentice, and point the copies at each other |
 | `inventor_assembly_tree` | Occurrence tree with suppression, visibility, and referenced files |
 | `inventor_parameters` | Parameters with kind, expression, display value, and internal value |
 | `inventor_set_parameter` | Set one parameter and rebuild |
+| `inventor_set_parameters` | Set many parameters with one rebuild, optionally with iLogic rules off and one rule after |
 | `inventor_evaluate_expression` | Ask Inventor what an expression evaluates to, without writing it |
 | `inventor_properties` | iProperties, optionally limited to one set |
 | `inventor_set_property` | Set one iProperty |
@@ -455,7 +459,10 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | `inventor_update` | Rebuild a document |
 | `inventor_activity` | Ordered feed of Inventor events, including every committed transaction |
 | `inventor_eval_csharp` | Run a C# snippet against the live Inventor API |
-| `inventor_run_ilogic` | Run an iLogic rule body, in VB.NET, against a document |
+| `inventor_run_ilogic` | Run an iLogic rule body, in VB.NET, or a rule of the document by name |
+| `inventor_ilogic_rules` | The iLogic rules of a document, with the active flag and the length |
+| `inventor_ilogic_rule_get` | Read one rule, or write every rule of a document to files |
+| `inventor_ilogic_rule_set` | Change a rule at a unique anchor, with a backup and a diff |
 | `inventor_api_lookup` | Search Autodesk's Inventor API documentation. Works with Inventor closed. |
 | `inventor_orientation` | Resolve each ViewCube face to a world direction for the active document |
 | `inventor_run_plugin` | Run a method from a plugin's build output, loaded fresh each call, so a code change needs no restart |

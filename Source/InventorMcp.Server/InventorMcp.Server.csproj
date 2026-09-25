@@ -58,6 +58,11 @@
 		<EmbeddedResource Include="ScriptPrelude.csx" LogicalName="InventorMcp.Server.ScriptPrelude.csx" />
 	</ItemGroup>
 
+	<!-- The Apprentice script of inventor_test_copy, run in a child process. McpTools/InventorTool.Files.cs reads it. -->
+	<ItemGroup>
+		<EmbeddedResource Include="TestCopy.ps1" LogicalName="InventorMcp.Server.TestCopy.ps1" />
+	</ItemGroup>
+
 	<!--
 		Autodesk's own documentation for the interop assembly, used by inventor_api_lookup.
 		Every supported release ships, because the server is built once and serves whichever session answers.

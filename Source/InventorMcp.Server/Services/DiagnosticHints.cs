@@ -89,6 +89,23 @@ internal static partial class DiagnosticHints
 		return text;
 	}
 
+	/// <summary>
+	/// 	Finds a COM failure whose message says nothing about the cause: E_FAIL (0x80004005), or the text of a
+	/// 	late-bound call that failed.
+	/// </summary>
+	/// <remarks>
+	/// 	The common cause is a write to a document that is not modifiable, so the caller adds the document state.
+	/// 	A write to a library part through <c>UserParameters.AddByExpression</c> gave the late-bound text, not E_FAIL.
+	/// </remarks>
+	public static bool IsUnspecifiedComFailure(ExecutionResult result) =>
+		result.Succeeded is false
+		&& result.ExceptionMessage is string message
+		&& (message.Contains("0x80004005", StringComparison.OrdinalIgnoreCase)
+			|| message.Contains("E_FAIL", StringComparison.Ordinal)
+			|| message.StartsWith("Unspecified error", StringComparison.OrdinalIgnoreCase)
+			|| (result.ExceptionType?.EndsWith("COMException", StringComparison.Ordinal) is true
+				&& message.StartsWith("Exception has been thrown by the target of an invocation", StringComparison.Ordinal)));
+
 	private static bool IsNullableNoise(string diagnostic) => diagnostic.Contains("CS8632", StringComparison.Ordinal);
 
 	/// <summary>
