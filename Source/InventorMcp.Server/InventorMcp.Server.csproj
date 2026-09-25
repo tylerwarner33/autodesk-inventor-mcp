@@ -29,6 +29,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<!--
+			The UI Automation COM API, for the dialogs that block Inventor. Not System.Windows.Automation, which needs the
+			.NET Desktop Runtime. See Docs/Research/Blocking-Dialog-Detection.md.
+		-->
+		<PackageReference Include="Interop.UIAutomationClient" />
 		<PackageReference Include="Microsoft.Extensions.Hosting" />
 		<PackageReference Include="ModelContextProtocol" />
 		<PackageReference Include="Serilog.Extensions.Logging" />

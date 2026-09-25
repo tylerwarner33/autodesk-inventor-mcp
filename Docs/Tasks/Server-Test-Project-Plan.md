@@ -262,12 +262,14 @@ test ends with exit code 8.
 
 ### Phase 2 - Fixture and desktop tests
 
-- [ ] Write `InventorMcp.TestDialogs` with all modes.
-- [ ] Write `DialogFixture`: start, wait for `READY` with a time limit, stop.
-- [ ] Port the detection from the research appendix script into `Services/BlockingDialogs.cs`.
-- [ ] Give `BlockingDialogs` the main window test as a parameter (see "Changes to the server that make it
+- [x] Write `InventorMcp.TestDialogs` with all modes.
+- [x] Write `DialogFixture`: start, wait for `READY` with a time limit, stop.
+- [x] Port the detection from the research appendix script into `Services/BlockingDialogs.cs`.
+- [x] Give `BlockingDialogs` the main window test as a parameter (see "Changes to the server that make it
 	testable"). The desktop tests need it, because the fixture main window is not an `AfxMDIFrame` window.
-- [ ] Make the desktop tests pass.
+- [x] Make the desktop tests pass. The "one clicker" test is a desktop test, because the named mutex needs a real
+	dialog to click. The `ilogic-like` mode cannot test the text of the second tab: a WinForms tab that is not
+	selected has no window (see the research).
 
 ### Phase 3 - Unit tests with the watchdog
 

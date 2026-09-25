@@ -266,6 +266,11 @@ Findings from the test:
 - **A hidden WinForms button does not always show.** The hidden `Cancel` of a plain WinForms form was not in the
 	UI Automation tree. The DevExpress buttons of the real iLogic dialog were in the tree (see "Test results"). The
 	Win32 visibility test is still necessary for them.
+- **A standard WinForms tab that is not selected has no windows.** In the desktop test fixture, the second tab page
+	of a `TabControl` and the hidden buttons had no child window at all (checked with `EnumChildWindows`). WinForms
+	creates the controls of a tab only when it opens. So no process can read that text from outside, with UI
+	Automation or with Win32. The DevExpress `XtraTabControl` of the real iLogic dialog gave the text of its second
+	tab, so this limit does not apply to it. The live test checks it again.
 - **WPF controls have no window handle.** The `IsOffscreen` test gave the correct answer for the WPF `OK` button.
 - The WPF `OK` button showed two times: the button, and the text element inside it. Match buttons by control type.
 
