@@ -56,7 +56,7 @@ _ = builder.Services
 		BridgeClient bridge = context.Services!.GetRequiredService<BridgeClient>();
 
 		if (bridge.ClientName is null && context.Server.ClientInfo is { } client)
-			bridge.ClientName = $"{client.Name} {client.Version}".Trim();
+			bridge.ClientName = ExecutionAuditLog.OneLine($"{client.Name} {client.Version}").Trim();
 
 		return next(context, cancellationToken);
 	}));

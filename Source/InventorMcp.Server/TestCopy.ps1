@@ -26,8 +26,11 @@ function Get-CopyPath([string]$source) {
     $relative = $source.Substring($sourceFolder.Length + 1)
     $folder = Split-Path $relative -Parent
     $name = $prefix + (Split-Path $relative -Leaf)
-    if ($folder) { return Join-Path (Join-Path $target $folder) $name }
-    return Join-Path $target $name
+    $copy = if ($folder) { Join-Path (Join-Path $target $folder) $name } else { Join-Path $target $name }
+    # Normalized, so a '..' cannot pass the check below and still resolve outside the target.
+    $copy = [System.IO.Path]::GetFullPath($copy)
+    if (-not (Test-Under $copy $target)) { throw "Refusing to copy to '$copy', which is outside the target." }
+    return $copy
 }
 
 function Write-Result([object]$result) {

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 using InventorMcp.Contracts;
 using InventorMcp.Server.Bridge;
@@ -428,13 +429,20 @@ internal static partial class InventorTool
 		[Description("The time limit in seconds for the check of arrowheads against the curves of other components, 0.1 to 8. Default 6. The result says when the check stopped early.")] double curveCheckSeconds = 6,
 		CancellationToken cancellationToken = default)
 	{
-		string code = ScriptPrelude.Apply(_drawingLayoutSnippet
-			.Replace("__DRAWING_PATH__", CSharpLiteral.String(drawingPath), StringComparison.Ordinal)
-			.Replace("__BALLOON_DIAMETER__", (balloonDiameterInches ?? -1).ToString("R", CultureInfo.InvariantCulture), StringComparison.Ordinal)
-			.Replace("__DETAILS__", includeDetails ? "true" : "false", StringComparison.Ordinal)
-			.Replace("__SHEET__", CSharpLiteral.String(sheetName), StringComparison.Ordinal)
-			.Replace("__CURVE_SECONDS__", Math.Clamp(curveCheckSeconds, 0.1, 8).ToString("R", CultureInfo.InvariantCulture), StringComparison.Ordinal)
-			.Replace("__CLEARANCE__", (clearanceInches > 0 ? clearanceInches : 0.1).ToString("R", CultureInfo.InvariantCulture), StringComparison.Ordinal));
+		Dictionary<string, string> values = new(StringComparer.Ordinal)
+		{
+			["__DRAWING_PATH__"] = CSharpLiteral.String(drawingPath),
+			["__BALLOON_DIAMETER__"] = (balloonDiameterInches ?? -1).ToString("R", CultureInfo.InvariantCulture),
+			["__DETAILS__"] = includeDetails ? "true" : "false",
+			["__SHEET__"] = CSharpLiteral.String(sheetName),
+			["__CURVE_SECONDS__"] = Math.Clamp(curveCheckSeconds, 0.1, 8).ToString("R", CultureInfo.InvariantCulture),
+			["__CLEARANCE__"] = (clearanceInches > 0 ? clearanceInches : 0.1).ToString("R", CultureInfo.InvariantCulture)
+		};
+
+		// One pass, so a placeholder name inside an argument (ex. a path with '__SHEET__') is never replaced.
+		string code = ScriptPrelude.Apply(DrawingLayoutPlaceholder().Replace(
+			_drawingLayoutSnippet,
+			match => values.TryGetValue(match.Value, out string? value) ? value : match.Value));
 
 		return SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ExecutionResult>(
 			BridgeOperations.EvalCSharp,
@@ -442,4 +450,7 @@ internal static partial class InventorTool
 			new ExecuteRequest(code, DocumentName: null, AllowUnsavedChanges: true),
 			cancellationToken));
 	}
+
+	[GeneratedRegex("__[A-Z_]+__", RegexOptions.CultureInvariant)]
+	private static partial Regex DrawingLayoutPlaceholder();
 }

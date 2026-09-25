@@ -30,11 +30,27 @@ internal static class ExecutionAuditLog
 		string newLine = Environment.NewLine;
 		string entry =
 			$"{new string('=', 80)}{newLine}" +
-			$"{DateTimeOffset.UtcNow:O}  dialog-click  by={clickedBy}  button='{buttonName}'  title='{dialog.Title}'{newLine}" +
+			$"{DateTimeOffset.UtcNow:O}  dialog-click  by={OneLine(clickedBy)}  button='{OneLine(buttonName)}'  title='{OneLine(dialog.Title)}'{newLine}" +
 			$"{new string('-', 80)}{newLine}" +
 			$"{dialog.Text}{newLine}";
 
 		_ = Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
 		File.AppendAllText(_path, entry);
 	}
+
+	/// <summary>
+	/// 	Makes a value safe for a header line of the log.
+	/// </summary>
+	/// <remarks>
+	/// 	The value can come from outside the server (ex. a dialog title, or the client name in <c>initialize</c>).
+	/// 	A line break in it could write a line that looks like a new entry.
+	/// </remarks>
+	/// <param name="value">
+	/// 	The value.
+	/// </param>
+	/// <returns>
+	/// 	The value with each control character replaced by a space.
+	/// </returns>
+	public static string OneLine(string value) =>
+		string.Concat(value.Select(static character => char.IsControl(character) ? ' ' : character));
 }

@@ -263,6 +263,13 @@ internal static partial class InventorTool
 			if (Path.IsPathFullyQualified(target) is false)
 				return new { error = "invalid-arguments", message = $"'target' must be a full path, not '{target}'." };
 
+			if (sourceFolder is not null && Path.IsPathFullyQualified(sourceFolder) is false)
+				return new { error = "invalid-arguments", message = $"'sourceFolder' must be a full path, not '{sourceFolder}'." };
+
+			// The prefix goes in front of a file name, so a separator or '..' in it would put a copy outside the target.
+			if (prefix is not null && (prefix.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || prefix.Contains("..", StringComparison.Ordinal)))
+				return new { error = "invalid-arguments", message = $"'prefix' must be text for the start of a file name, with no path characters, not '{prefix}'." };
+
 			string folder = sourceFolder ?? Path.GetDirectoryName(sources[0])!;
 			string requestFile = Path.Combine(Path.GetTempPath(), $"InventorMcp.TestCopy.{Guid.NewGuid():N}.json");
 			string scriptFile = Path.ChangeExtension(requestFile, ".ps1");
@@ -275,9 +282,12 @@ internal static partial class InventorTool
 				(int exitCode, string output, string error) = await RunPowerShellAsync(scriptFile, requestFile, cancellationToken).ConfigureAwait(false);
 				string? json = output.Split('\n').Select(static line => line.Trim()).LastOrDefault(static line => line.StartsWith('{'));
 
-				return json is null
-					? new { error = "copy-failed", message = $"The copy process ended with code {exitCode} and no result.", output, detail = error }
-					: JsonDocument.Parse(json).RootElement.Clone();
+				if (json is null)
+					return new { error = "copy-failed", message = $"The copy process ended with code {exitCode} and no result.", output, detail = error };
+
+				using JsonDocument document = JsonDocument.Parse(json);
+
+				return document.RootElement.Clone();
 			}
 			finally
 			{

@@ -76,4 +76,34 @@ public sealed class RuleEditTests
 			Directory.Delete(folder, recursive: true);
 		}
 	}
+
+	[Fact]
+	public void BackupDeletesOnlyTheExpiredBackups()
+	{
+		string folder = Path.Combine(Path.GetTempPath(), "InventorMcp.Tests", Guid.NewGuid().ToString("N"));
+		string previous = RuleEdit.BackupFolder;
+		RuleEdit.BackupFolder = folder;
+
+		try
+		{
+			string expired = RuleEdit.WriteBackup(@"C:\Work\Old.iam", "Main Rule", _rule);
+			string recent = RuleEdit.WriteBackup(@"C:\Work\Recent.iam", "Main Rule", _rule);
+			string other = Path.Combine(folder, "notes.txt");
+			File.WriteAllText(other, "kept");
+			File.SetLastWriteTimeUtc(expired, DateTime.UtcNow - RuleEdit.BackupRetention - TimeSpan.FromDays(1));
+			File.SetLastWriteTimeUtc(other, DateTime.UtcNow - RuleEdit.BackupRetention - TimeSpan.FromDays(1));
+
+			string newest = RuleEdit.WriteBackup(@"C:\Work\New.iam", "Main Rule", _rule);
+
+			Assert.False(File.Exists(expired));
+			Assert.True(File.Exists(recent));
+			Assert.True(File.Exists(newest));
+			Assert.True(File.Exists(other));
+		}
+		finally
+		{
+			RuleEdit.BackupFolder = previous;
+			Directory.Delete(folder, recursive: true);
+		}
+	}
 }

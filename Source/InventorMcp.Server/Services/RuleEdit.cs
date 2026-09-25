@@ -92,7 +92,13 @@ internal static class RuleEdit
 	}
 
 	/// <summary>
-	/// 	Writes the old text of a rule to a new backup file.
+	/// 	How long a backup is kept. Older backups are deleted when a new one is written.
+	/// </summary>
+	public static TimeSpan BackupRetention { get; } = TimeSpan.FromDays(30);
+
+	/// <summary>
+	/// 	Writes the old text of a rule to a new backup file, and deletes the backups older than
+	/// 	<see cref="BackupRetention"/>.
 	/// </summary>
 	/// <returns>
 	/// 	The path of the backup.
@@ -100,6 +106,7 @@ internal static class RuleEdit
 	public static string WriteBackup(string documentPath, string ruleName, string oldText)
 	{
 		_ = Directory.CreateDirectory(BackupFolder);
+		DeleteOldBackups(DateTime.UtcNow - BackupRetention);
 
 		string name = $"{DateTime.Now:yyyyMMdd-HHmmss-fff}_{Path.GetFileNameWithoutExtension(documentPath)}_{ruleName}.iLogicVb";
 		string path = Path.Combine(BackupFolder, string.Concat(name.Select(static character => Path.GetInvalidFileNameChars().Contains(character) ? '_' : character)));
@@ -163,6 +170,33 @@ internal static class RuleEdit
 			_ = diff.Append(CultureInfoInvariant($"... {lines - _maxDiffLines} more lines\n"));
 
 		return diff.ToString();
+	}
+
+	/// <summary>
+	/// 	Deletes the backups last written before a time.
+	/// </summary>
+	/// <remarks>
+	/// 	A backup can hold rule text that a user does not want kept forever, so the folder must not grow without limit.
+	/// 	A file that cannot be deleted stays, and the next backup tries again.
+	/// </remarks>
+	/// <param name="olderThanUtc">
+	/// 	The time before which a backup is deleted.
+	/// </param>
+	internal static void DeleteOldBackups(DateTime olderThanUtc)
+	{
+		foreach (FileInfo backup in new DirectoryInfo(BackupFolder).EnumerateFiles("*.iLogicVb"))
+		{
+			if (backup.LastWriteTimeUtc >= olderThanUtc)
+				continue;
+
+			try
+			{
+				backup.Delete();
+			}
+			catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+			{
+			}
+		}
 	}
 
 	private static string CultureInfoInvariant(FormattableString text) => FormattableString.Invariant(text);

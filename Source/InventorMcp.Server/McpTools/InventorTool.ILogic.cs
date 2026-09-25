@@ -77,8 +77,9 @@ internal static partial class InventorTool
 			return json;
 			""", cancellationToken).ConfigureAwait(false));
 
-	[McpServerTool(Name = "inventor_ilogic_rule_get", ReadOnly = true)]
-	[Description("Reads the text of one iLogic rule, or writes every rule of a document to files in a folder (one '<rule>.iLogicVb' file each). The document can be open, or a file path.")]
+	// Not ReadOnly: with outputFolder it writes files, and a client can run a read-only tool with no approval.
+	[McpServerTool(Name = "inventor_ilogic_rule_get", Destructive = false)]
+	[Description("Reads the text of one iLogic rule, or writes every rule of a document to files in a folder (one '<rule>.iLogicVb' file each). The document can be open, or a file path. An existing file is never overwritten: nothing is written if one of the files exists.")]
 	public static Task<object> ILogicRuleGet(
 		BridgeClient bridge,
 		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
@@ -120,13 +121,25 @@ internal static partial class InventorTool
 					: list[0];
 			}
 
+			List<(string File, string? Text)> planned = [.. list.EnumerateArray().Select(rule => (
+				File: Path.Combine(outputFolder!, SafeFileName(rule.GetProperty("name").GetString()!) + ".iLogicVb"),
+				Text: rule.GetProperty("text").GetString()))];
+
+			string[] existing = [.. planned.Select(static item => item.File).Where(File.Exists)];
+			string[] duplicates = [.. planned.GroupBy(static item => item.File, StringComparer.OrdinalIgnoreCase).Where(static group => group.Count() > 1).Select(static group => group.Key)];
+
+			if (existing.Length > 0 || duplicates.Length > 0)
+				return new { error = "target-exists", message = "Some rule files exist already, or two rules have the same file name, so nothing was written. Give a new folder.", existing, duplicates };
+
 			_ = Directory.CreateDirectory(outputFolder!);
 			List<string> files = [];
 
-			foreach (JsonElement rule in list.EnumerateArray())
+			foreach ((string file, string? text) in planned)
 			{
-				string file = Path.Combine(outputFolder!, SafeFileName(rule.GetProperty("name").GetString()!) + ".iLogicVb");
-				await File.WriteAllTextAsync(file, rule.GetProperty("text").GetString(), cancellationToken).ConfigureAwait(false);
+				// CreateNew: a file made after the check above is not overwritten either.
+				await using FileStream stream = new(file, FileMode.CreateNew, FileAccess.Write);
+				await using StreamWriter writer = new(stream);
+				await writer.WriteAsync(text.AsMemory(), cancellationToken).ConfigureAwait(false);
 				files.Add(file);
 			}
 
