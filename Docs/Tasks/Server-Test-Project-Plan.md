@@ -27,7 +27,9 @@ later server work.
 	test project is not packed. The server stays `net10.0` and uses `Interop.UIAutomationClient` (see "UI Automation
 	without the Desktop Runtime" in the research). Only the fixture uses `UseWindowsForms` and `UseWPF`, because only
 	the fixture shows dialogs.
-3. **xUnit v3.** Use `Assert.SkipUnless` for the live level, so a skipped test shows the reason.
+3. **xUnit v3.** Use `Assert.SkipUnless` for the live level, so a skipped test shows the reason. xUnit v3 4.x runs
+	only on Microsoft.Testing.Platform. The root `global.json` selects it for `dotnet test`, so the project needs no
+	`Microsoft.NET.Test.Sdk` and no `xunit.runner.visualstudio`.
 4. **A fixture process shows the dialogs.** The desktop level needs real dialogs in a different process:
 	- The server reads Inventor from outside its process. The test must do the same.
 	- A UI Automation call from a thread into a dialog that the same thread owns can deadlock.
@@ -74,9 +76,11 @@ Tests/
 
 	<ItemGroup>
 		<PackageReference Include="xunit.v3" />
-		<PackageReference Include="xunit.runner.visualstudio" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" />
 		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="Xunit" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -106,7 +110,8 @@ Tests/
 
 Other changes:
 
-- `Directory.Packages.props`: add `PackageVersion` items for the four test packages, at the current stable versions.
+- `Directory.Packages.props`: add `PackageVersion` items for the two test packages, at the current stable versions.
+- `global.json`: `{ "test": { "runner": "Microsoft.Testing.Platform" } }`.
 - `Source/InventorMcp.Server/InventorMcp.Server.csproj`: add
 	`<ItemGroup><InternalsVisibleTo Include="InventorMcp.Server.Tests" /></ItemGroup>`. The server types are `internal`.
 - `InventorMcp.slnx`: add both projects in a `/Tests/` folder.
@@ -243,15 +248,17 @@ space. In PowerShell, `set` is `Set-Variable`, which does not set an environment
 `LiveInventorFact` trims the value before it compares it with `1`.
 
 The desktop level needs an interactive desktop. A build agent that runs as a Windows service has none, so use the
-second command there. Verify the filter syntax with the xUnit v3 version that is installed.
+second command there. The filter syntax was verified with xunit.v3 4.0.1 on SDK 10.0.401. A filter that selects no
+test ends with exit code 8.
 
 ## Phases
 
 ### Phase 1 - Project setup
 
-- [ ] Add both projects, the package versions, `InternalsVisibleTo` and the solution entries.
-- [ ] Add one unit test that passes, and confirm that `dotnet test InventorMcp.slnx` runs it.
-- [ ] Confirm that the fixture exe is in the test output.
+- [x] Add both projects, the package versions, `InternalsVisibleTo` and the solution entries.
+- [x] Add one unit test that passes, and confirm that `dotnet test InventorMcp.slnx` runs it.
+- [x] Confirm that the fixture exe is in the test output. The `ProjectReference` copies the exe and its
+	`runtimeconfig.json`, so no extra target is necessary.
 
 ### Phase 2 - Fixture and desktop tests
 

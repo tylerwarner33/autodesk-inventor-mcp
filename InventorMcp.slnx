@@ -6,6 +6,7 @@
     <File Path=".mcp.json" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
     <File Path="LICENSE" />
     <File Path="nuget.config" />
     <File Path="README.md" />
@@ -30,4 +31,8 @@
   <Project Path="Source/InventorMcp.AddIn.Loader/InventorMcp.AddIn.Loader.csproj" />
   <Project Path="Source/InventorMcp.Contracts/InventorMcp.Contracts.csproj" />
   <Project Path="Source/InventorMcp.Server/InventorMcp.Server.csproj" />
+  <Folder Name="/Tests/">
+    <Project Path="Tests/InventorMcp.Server.Tests/InventorMcp.Server.Tests.csproj" />
+    <Project Path="Tests/InventorMcp.TestDialogs/InventorMcp.TestDialogs.csproj" />
+  </Folder>
 </Solution>
