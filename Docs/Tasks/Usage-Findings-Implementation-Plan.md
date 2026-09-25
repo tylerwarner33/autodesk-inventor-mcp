@@ -193,8 +193,11 @@ R1.2, R1.4, R1.6, R1.8 and R1.12. Canned snippets, and Win32 calls in the server
 - [x] `inventor_hole_check`: the holes by radius, with their positions, to verify a cut. From the geometry, so it
 	also finds an extrude cut. Only concave cylinders that go all the way around count as holes: on a sheet metal
 	part, the inside of a bend and the end of a slot are also concave cylinders, and are listed apart.
-- [ ] `inventor_drawing_layout`: add the arrowhead checks and the leader tip check, and the annotation extents for
-	each view with the gaps between view groups (R1.8).
+- [x] `inventor_drawing_layout`: add the arrowhead checks and the leader tip check, and the annotation extents for
+	each view with the gaps between view groups (R1.8). Also the open time, a `sheetName`, and a unique label for
+	views with the same name. The arrowhead is the last node of `Leader.AllNodes`: `RootNode` is the balloon end.
+	A sheet that is not active gives E_FAIL for its table range boxes, so the tool activates it and restores the
+	active sheet after.
 - [x] `inventor_file_info(paths)`: iProperties for each model state, the saved version, model state names, and
 	work point and iMate names, for many paths, with paging. Close each document that the tool opened. It opens
 	with iLogic rules off, so no open trigger runs, and stops before 8 s with `nextOffset`.
