@@ -62,27 +62,36 @@ No add-in rebuild. Files: `McpTools/InventorTool.cs`, `McpTools/InventorTool.Exe
 `McpTools/InventorTool.PluginLoop.cs`, `McpTools/InventorTool.Model.cs`, `McpTools/InventorTool.Session.cs`,
 `Services/ApiReferenceService.cs`, `Program.cs`.
 
-- [ ] Remove CS8632 from the diagnostics of a successful result (R1.2).
-- [ ] On CS1061 or CS0117, read the type and the member from the diagnostic. Add up to 5 near matches for that type
-	from `ApiReferenceService` (R1.2). Add a method for near members of one type if `Search` cannot do it.
-- [ ] Write the error code of each tool result to the server log (R1.13). `SafeAsync` has `error` and
+- [x] Remove CS8632 from the diagnostics of a successful result (R1.2).
+- [x] On CS1061 or CS0117, read the type and the member from the diagnostic. Add up to 5 near matches for that type
+	from `ApiReferenceService` (R1.2). Added `FindNear`. It also names the other types that have a member with that
+	name, nearest type name first, with Proxy types left out.
+- [x] Write the error code of each tool result to the server log (R1.13). `SafeAsync` has `error` and
 	`ExecutionResult.ErrorType`.
-- [ ] Keep logs by day, not by file count (R1.13). Use `retainedFileTimeLimit` and set `retainedFileCountLimit`
-	to null.
-- [ ] Add the wall clock time to the execution results. The difference from `ElapsedMilliseconds` is the time in
-	the queue and the time to open a drawing (R1.7, R1.8).
-- [ ] Use one time limit (decision 5).
-- [ ] `inventor_run_plugin`: return the lines that have a warning or error marker, with a cap. Add an optional
-	`logPattern` (R1.7).
-- [ ] `inventor_health`: add `includeSuppressed`, with false as the default. Filter in the server on
+- [x] Keep logs by day, not by file count (R1.13). Use `retainedFileTimeLimit` and set `retainedFileCountLimit`
+	to null. 14 days.
+- [x] Add the wall clock time to the execution results. The difference from `ElapsedMilliseconds` is the time in
+	the queue and the time to open a drawing (R1.7, R1.8). `ExecutionResult.WallClockMilliseconds`, set by the
+	server only, so the add-in needs no rebuild.
+- [x] Use one time limit (decision 5).
+- [x] `inventor_run_plugin`: return the lines that have a warning or error marker, with a cap. Add an optional
+	`logPattern` (R1.7). Also `logMatchLines`, default 50.
+- [x] `inventor_health`: add `includeSuppressed`, with false as the default. Filter in the server on
 	`FeatureHealth.IsSuppressed` (R1.9).
-- [ ] `inventor_assembly_tree`: add a summary mode (the count at each depth, and the unique documents) and a limit
-	on the output size with a message (R1.10).
-- [ ] In the description of `inventor_eval_csharp`, say that opening a generated drawing marks it dirty
+- [x] `inventor_assembly_tree`: add a summary mode (the count at each depth, and the unique documents) and a limit
+	on the output size with a message (R1.10). The limit is 60,000 characters.
+- [x] In the description of `inventor_eval_csharp`, say that opening a generated drawing marks it dirty
 	(R1.11).
 
 Verify: send again some failed snippets from the research (ex. `face.RangeBox`), and check that the near matches
 show the correct member.
+
+Verified on 2026-09-25 against Inventor 2026 through the packed server: the `Face.RangeBox` hint, the removed
+CS8632, `wallClockMilliseconds`, and the result log line. `Face.RangeBox` has no near member on `Face`, and 157
+other types have `RangeBox`, so the hint can only point at some of them and at `inventor_api_lookup`. The hint for
+`CenterlineTypeEnum.kWorkFeatureCenterline` names `kWorkFeatureCenterlineType` (unit test). The changed
+`inventor_run_plugin` snippet compiled in Inventor. Not verified live: its marked lines and `logPattern` against a
+real plugin log.
 
 ### Phase 2 - Script helpers
 

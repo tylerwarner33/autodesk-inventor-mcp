@@ -65,6 +65,93 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 			.Select(static scored => scored.Member)];
 	}
 
+	/// <summary>
+	/// 	Finds the members of one type whose names are near a name that does not exist.
+	/// </summary>
+	/// <remarks>
+	/// 	For a compile error such as CS1061, where the model guessed a member name (ex. <c>Balloon.RangeBox</c>).
+	/// </remarks>
+	/// <param name="typeName">
+	/// 	The type, with or without the Inventor namespace.
+	/// </param>
+	/// <param name="memberName">
+	/// 	The name that does not exist.
+	/// </param>
+	/// <param name="maxResults">
+	/// 	Cap on the number of members returned.
+	/// </param>
+	/// <param name="releaseYear">
+	/// 	Inventor release to answer for, or null for the newest.
+	/// </param>
+	/// <returns>
+	/// 	The near members of the type, nearest first, the members with exactly that name on other types, with the
+	/// 	type name nearest to <paramref name="typeName"/> first, and how many types have that name.
+	/// </returns>
+	public (IReadOnlyList<ApiMember> NearMembers, IReadOnlyList<ApiMember> SameNameElsewhere, int SameNameCount) FindNear(
+		string typeName,
+		string memberName,
+		int maxResults,
+		int? releaseYear)
+	{
+		List<ApiMember> members = EnsureIndex(ResolveReleaseYear(releaseYear));
+		string declaringType = typeName.StartsWith("Inventor.", StringComparison.Ordinal) ? typeName : "Inventor." + typeName;
+
+		List<ApiMember> nearMembers = [.. members
+			.Where(member => string.Equals(member.DeclaringType, declaringType, StringComparison.Ordinal))
+			.GroupBy(static member => member.Name, StringComparer.Ordinal)
+			.Select(static group => group.First())
+			.Select(member => (Member: member, Distance: NameDistance(member.Name, memberName)))
+			.Where(scored => scored.Distance <= Math.Max(3, memberName.Length / 2)
+				|| scored.Member.Name.Contains(memberName, StringComparison.OrdinalIgnoreCase)
+				|| memberName.Contains(scored.Member.Name, StringComparison.OrdinalIgnoreCase))
+			.OrderBy(static scored => scored.Distance)
+			.Take(maxResults)
+			.Select(static scored => scored.Member)];
+
+		// Proxy types repeat every member of their base, so they only add noise here.
+		List<ApiMember> sameName = [.. members
+			.Where(member => member.Kind is not "type"
+				&& string.Equals(member.Name, memberName, StringComparison.Ordinal)
+				&& string.Equals(member.DeclaringType, declaringType, StringComparison.Ordinal) is false
+				&& member.DeclaringType.EndsWith("Proxy", StringComparison.Ordinal) is false)
+			.GroupBy(static member => member.QualifiedName, StringComparer.Ordinal)
+			.Select(static group => group.First())];
+
+		string shortType = declaringType["Inventor.".Length..];
+
+		List<ApiMember> sameNameElsewhere = [.. sameName
+			.OrderBy(member => NameDistance(member.DeclaringType["Inventor.".Length..], shortType))
+			.Take(maxResults)];
+
+		return (nearMembers, sameNameElsewhere, sameName.Count);
+	}
+
+	/// <summary>
+	/// 	The edit distance of two names, ignoring case.
+	/// </summary>
+	private static int NameDistance(string first, string second)
+	{
+		string a = first.ToUpperInvariant();
+		string b = second.ToUpperInvariant();
+		int[] previous = [.. Enumerable.Range(0, b.Length + 1)];
+		int[] current = new int[b.Length + 1];
+
+		for (int i = 1; i <= a.Length; i++)
+		{
+			current[0] = i;
+
+			for (int j = 1; j <= b.Length; j++)
+			{
+				int substitution = previous[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1);
+				current[j] = Math.Min(Math.Min(previous[j] + 1, current[j - 1] + 1), substitution);
+			}
+
+			(previous, current) = (current, previous);
+		}
+
+		return previous[b.Length];
+	}
+
 	private static int RankMatch(ApiMember member, string needle)
 	{
 		if (string.Equals(member.QualifiedName, needle, StringComparison.OrdinalIgnoreCase))

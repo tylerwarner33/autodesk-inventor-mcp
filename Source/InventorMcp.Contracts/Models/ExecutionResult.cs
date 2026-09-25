@@ -35,4 +35,15 @@ public sealed record ExecutionResult(
 	IReadOnlyList<string> Diagnostics,
 	string? ExceptionType,
 	string? ExceptionMessage,
-	long ElapsedMilliseconds);
+	long ElapsedMilliseconds)
+{
+	/// <summary>
+	/// 	The time from the server's request to the response, or null.
+	/// </summary>
+	/// <remarks>
+	/// 	The server sets it, not the add-in.
+	/// 	The difference from <see cref="ElapsedMilliseconds"/> is the time the call waited behind other calls on the main
+	/// 	thread, and the time to open a document before the code ran.
+	/// </remarks>
+	public long? WallClockMilliseconds { get; init; }
+}

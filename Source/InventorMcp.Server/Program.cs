@@ -1,4 +1,5 @@
 using InventorMcp.Server.Bridge;
+using InventorMcp.Server.McpTools;
 using InventorMcp.Server.Services;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -19,10 +20,13 @@ _ = Directory.CreateDirectory(logDirectory);
 
 Log.Logger = new LoggerConfiguration()
 	.MinimumLevel.Information()
+	// Kept by age, not by count: each server process writes its own file, so with many clients a count limit deletes
+	// the files of the same day.
 	.WriteTo.File(
 		Path.Combine(logDirectory, "server-.log"),
 		rollingInterval: RollingInterval.Day,
-		retainedFileCountLimit: 7)
+		retainedFileCountLimit: null,
+		retainedFileTimeLimit: TimeSpan.FromDays(14))
 	.CreateLogger();
 
 builder.Logging.ClearProviders();
@@ -46,7 +50,11 @@ _ = builder.Services
 	.WithStdioServerTransport()
 	.WithToolsFromAssembly();
 
-await builder.Build().RunAsync();
+IHost host = builder.Build();
+
+InventorTool.ResultLogger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("InventorMcp.Server.ToolResults");
+
+await host.RunAsync();
 
 static string ReadServerInstructions()
 {

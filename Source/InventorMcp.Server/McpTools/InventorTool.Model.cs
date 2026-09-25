@@ -83,14 +83,40 @@ internal static partial class InventorTool
 	public static Task<object> Health(
 		BridgeClient bridge,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
+		[Description("Also list sick features that are suppressed. Default false, because a suppressed feature is usually suppressed on purpose.")] bool includeSuppressed = false,
 		CancellationToken cancellationToken = default) =>
 		UnlessBlockedAsync(
 			bridge,
-			() => SafeAsync(async () => AddHealthHints(await bridge.InvokeAsync<Contracts.Models.HealthInfo>(
+			() => SafeAsync(async () => FilterSuppressed(AddHealthHints(await bridge.InvokeAsync<Contracts.Models.HealthInfo>(
 				BridgeOperations.Health,
 				new DocumentScopedRequest(documentName),
-				cancellationToken).ConfigureAwait(false))),
+				cancellationToken).ConfigureAwait(false)), includeSuppressed)),
 			cancellationToken);
+
+	/// <summary>
+	/// 	Leaves out the sick features that are suppressed, and says how many.
+	/// </summary>
+	/// <remarks>
+	/// 	One part listed about 15 suppressed features, which hid the one that mattered.
+	/// 	Filtered in the server, so the add-in needs no change.
+	/// </remarks>
+	internal static object FilterSuppressed(Contracts.Models.HealthInfo health, bool includeSuppressed)
+	{
+		int suppressed = health.SickFeatures.Count(static feature => feature.IsSuppressed);
+
+		if (includeSuppressed || suppressed == 0)
+			return health;
+
+		return new
+		{
+			document = health.Document,
+			requiresUpdate = health.RequiresUpdate,
+			sickFeatures = health.SickFeatures.Where(static feature => feature.IsSuppressed is false),
+			suppressedSickFeaturesLeftOut = suppressed,
+			errorCount = health.ErrorCount,
+			errors = health.Errors
+		};
+	}
 
 	/// <summary>
 	/// 	Explains a sick feature whose meaning is known, because Inventor records no failure text for a feature.

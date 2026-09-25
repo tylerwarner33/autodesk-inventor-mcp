@@ -26,25 +26,34 @@ internal static partial class InventorTool
 		Lengths are in centimetres and angles in radians, because those are Inventor's internal units. Convert with
 		Document.UnitsOfMeasure.ConvertUnits or write expressions through parameters instead.
 
-		Keep each call short, ex. under 10 s. The snippet runs on Inventor's main thread, so Inventor processes no window
-		messages until it returns. A long loop that creates or edits sketches, views or documents can fill the message
-		queue and terminate Inventor. Split such a loop over several calls. A result from a call over 20 s carries a
-		warning.
+		Keep each call under 10 s. The snippet runs on Inventor's main thread, so Inventor processes no window messages
+		until it returns. A long loop that creates or edits sketches, views or documents can fill the message queue and
+		terminate Inventor. Split such a loop over several calls. A result from a call over 10 s carries a warning.
+		wallClockMilliseconds minus elapsedMilliseconds is the time the call waited behind other work, or to open a
+		document.
 
 		This executes arbitrary code in the user's CAD session. Every snippet is written to an audit log. Execution is
 		refused when the document has unsaved changes unless allowUnsavedChanges is set, because the work cannot be
-		recovered. Prefer inventor_set_parameter for a change a parameter can express.
+		recovered. Opening or updating a generated drawing marks it as changed, so a later call on it can be refused:
+		pass allowUnsavedChanges when the only changes are from that open. Prefer inventor_set_parameter for a change
+		a parameter can express.
+
+		A compile error for a member that does not exist carries a HINT with the near members of that type.
 		""")]
 	public static Task<object> EvaluateCSharp(
 		BridgeClient bridge,
+		ApiReferenceService apiReference,
 		[Description("The C# snippet to run.")] string code,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
 		[Description("Set true to run against a document with unsaved changes. Those changes cannot be recovered if the snippet damages them.")] bool allowUnsavedChanges = false,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ExecutionResult>(
-			BridgeOperations.EvalCSharp,
-			new ExecuteRequest(code, documentName, allowUnsavedChanges),
-			cancellationToken));
+		SafeAsync(async () => DiagnosticHints.Improve(
+			await bridge.InvokeAsync<Contracts.Models.ExecutionResult>(
+				BridgeOperations.EvalCSharp,
+				new ExecuteRequest(code, documentName, allowUnsavedChanges),
+				cancellationToken).ConfigureAwait(false),
+			apiReference,
+			bridge.ReleaseYear));
 
 	[McpServerTool(Name = "inventor_run_ilogic")]
 	[Description("""
@@ -55,7 +64,7 @@ internal static partial class InventorTool
 		Parameter, iProperties or Component. Use inventor_eval_csharp when you need the raw Inventor API.
 
 		This executes arbitrary code in the user's CAD session and is audited and guarded the same way as
-		inventor_eval_csharp.
+		inventor_eval_csharp. Keep each call under 10 s.
 		""")]
 	public static Task<object> RunILogic(
 		BridgeClient bridge,

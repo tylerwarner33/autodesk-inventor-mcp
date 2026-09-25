@@ -1,5 +1,11 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+
 using InventorMcp.Server.Bridge;
 using InventorMcp.Server.Services;
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using ModelContextProtocol.Server;
 
@@ -19,9 +25,19 @@ internal static partial class InventorTool
 	/// 	Run time on Inventor's main thread above which an execution result carries a warning.
 	/// </summary>
 	/// <remarks>
+	/// 	The same limit as the server instructions and the tool descriptions, so a model reads one number.
 	/// 	See <c>.agents/rules/inventor-interop.md</c>, "A long snippet can terminate Inventor".
 	/// </remarks>
-	private static readonly TimeSpan _longExecutionWarningThreshold = TimeSpan.FromSeconds(20);
+	private static readonly TimeSpan _longExecutionWarningThreshold = TimeSpan.FromSeconds(10);
+
+	/// <summary>
+	/// 	The log for tool results, set at startup.
+	/// </summary>
+	/// <remarks>
+	/// 	The tools are static, and <see cref="SafeAsync"/> turns every failure into a normal payload, so without this
+	/// 	line the server log cannot count failures.
+	/// </remarks>
+	public static ILogger ResultLogger { get; set; } = NullLogger.Instance;
 
 	/// <summary>
 	/// 	Runs a bridge call and turns a bridge failure into a result the model can read.
@@ -37,27 +53,53 @@ internal static partial class InventorTool
 	/// <param name="work">
 	/// 	The bridge call to run.
 	/// </param>
+	/// <param name="warnOnLongExecution">
+	/// 	False for a call that cannot be split, so a warning to split it would only be noise.
+	/// </param>
+	/// <param name="tool">
+	/// 	The tool method, for the log.
+	/// </param>
 	/// <returns>
 	/// 	The result, or a failure description.
 	/// </returns>
-	private static async Task<object> SafeAsync<TResult>(Func<Task<TResult>> work)
+	private static async Task<object> SafeAsync<TResult>(
+		Func<Task<TResult>> work,
+		bool warnOnLongExecution = true,
+		[CallerMemberName] string tool = "")
 	{
 		List<DialogReport> dialogs = DialogReports.Begin();
+		Stopwatch stopwatch = Stopwatch.StartNew();
 
 		try
 		{
-			object result = await work().ConfigureAwait(false) switch
+			TResult raw = await work().ConfigureAwait(false);
+			stopwatch.Stop();
+
+			object result = raw switch
 			{
-				Contracts.Models.ExecutionResult execution when execution.ElapsedMilliseconds > _longExecutionWarningThreshold.TotalMilliseconds =>
-					execution with { Output = [.. execution.Output, LongExecutionWarning(execution.ElapsedMilliseconds)] },
-				TResult other => other!,
-				_ => null!
+				Contracts.Models.ExecutionResult execution => Complete(execution, stopwatch.ElapsedMilliseconds, warnOnLongExecution),
+				_ => raw!
 			};
+
+			if (result is Contracts.Models.ExecutionResult { Succeeded: false } failed)
+			{
+				ResultLogger.LogInformation(
+					"Tool {Tool} result: the code failed with {ErrorType} after {WallClockMilliseconds} ms.",
+					tool,
+					failed.ExceptionType ?? (failed.Diagnostics.Count > 0 ? "compile errors" : "no exception type"),
+					stopwatch.ElapsedMilliseconds);
+			}
 
 			return dialogs.Count == 0 ? result : new { result, blockingDialogs = dialogs };
 		}
 		catch (InventorBridgeException exception)
 		{
+			ResultLogger.LogInformation(
+				"Tool {Tool} result: error {ErrorCode} after {WallClockMilliseconds} ms.",
+				tool,
+				exception.Code,
+				stopwatch.ElapsedMilliseconds);
+
 			return dialogs.Count == 0
 				? new
 				{
@@ -73,6 +115,15 @@ internal static partial class InventorTool
 					blockingDialogs = dialogs
 				};
 		}
+	}
+
+	private static Contracts.Models.ExecutionResult Complete(Contracts.Models.ExecutionResult execution, long wallClockMilliseconds, bool warnOnLongExecution)
+	{
+		Contracts.Models.ExecutionResult timed = execution with { WallClockMilliseconds = wallClockMilliseconds };
+
+		return warnOnLongExecution && execution.ElapsedMilliseconds > _longExecutionWarningThreshold.TotalMilliseconds
+			? timed with { Output = [.. execution.Output, LongExecutionWarning(execution.ElapsedMilliseconds)] }
+			: timed;
 	}
 
 	private static string LongExecutionWarning(long elapsedMilliseconds) =>

@@ -128,6 +128,8 @@ internal static partial class InventorTool
 		int logTailLines = __LOG_TAIL__;
 		string[] warningMarkers = [__WARNING_MARKERS__];
 		string[] errorMarkers = [__ERROR_MARKERS__];
+		string? logPattern = __LOG_PATTERN__;
+		int logMatchLines = __LOG_MATCH_LINES__;
 		Dictionary<string, object?> arguments = new(StringComparer.Ordinal)
 		{
 		__ARGUMENTS__
@@ -344,7 +346,27 @@ internal static partial class InventorTool
 					{
 						int warnings = lines.Count(line => warningMarkers.Any(marker => line.Contains(marker, StringComparison.Ordinal)));
 						int errors = lines.Count(line => errorMarkers.Any(marker => line.Contains(marker, StringComparison.Ordinal)));
-						Log($"Log '{logFilePath}': {lines.Count} lines written during the call ({string.Join("; ", sources)}), {warnings} with a warning marker, {errors} with an error marker. Last {Math.Min(logTailLines, lines.Count)}:");
+						Log($"Log '{logFilePath}': {lines.Count} lines written during the call ({string.Join("; ", sources)}), {warnings} with a warning marker, {errors} with an error marker.");
+
+						// The marked lines first, because a tail alone hides a warning written early in a long run.
+						List<string> marked = [.. lines.Where(line => warningMarkers.Concat(errorMarkers).Any(marker => line.Contains(marker, StringComparison.Ordinal)))];
+						if (marked.Count > 0)
+						{
+							Log($"Lines with a warning or error marker, first {Math.Min(logMatchLines, marked.Count)} of {marked.Count}:");
+							foreach (string line in marked.Take(logMatchLines))
+								Log(line.Length > 400 ? line[..400] + " ..." : line);
+						}
+
+						if (logPattern is not null)
+						{
+							System.Text.RegularExpressions.Regex pattern = new(logPattern, System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
+							List<string> matched = [.. lines.Where(line => pattern.IsMatch(line))];
+							Log($"Lines that match '{logPattern}', first {Math.Min(logMatchLines, matched.Count)} of {matched.Count}:");
+							foreach (string line in matched.Take(logMatchLines))
+								Log(line.Length > 400 ? line[..400] + " ..." : line);
+						}
+
+						Log($"Last {Math.Min(logTailLines, lines.Count)} lines:");
 						foreach (string line in lines.TakeLast(logTailLines))
 							Log(line.Length > 400 ? line[..400] + " ..." : line);
 					}
@@ -399,13 +421,15 @@ internal static partial class InventorTool
 		[Description("How many of the lines written during the call to return, from the end. Default 40.")] int logTailLines = 40,
 		[Description("Text that marks a warning line, matched case sensitively. Default: WARN, [WRN].")] string[]? warningMarkers = null,
 		[Description("Text that marks an error line, matched case sensitively. Default: ERROR, FATAL, [ERR], [FTL].")] string[]? errorMarkers = null,
+		[Description("A .NET regular expression. The lines written during the call that match it are returned too, ex. 'Balloon|Leader'.")] string? logPattern = null,
+		[Description("How many marked lines, and how many lines that match logPattern, to return. Default 50.")] int logMatchLines = 50,
 		CancellationToken cancellationToken = default)
 	{
 		string code;
 
 		try
 		{
-			code = ComposeRunPluginSnippet(buildOutputDirectory, assemblyFileName, typeName, methodName, arguments, shadowFiles, closeDocumentsUnder, keepDocumentsOpen, logFilePath, logTailLines, warningMarkers, errorMarkers);
+			code = ComposeRunPluginSnippet(buildOutputDirectory, assemblyFileName, typeName, methodName, arguments, shadowFiles, closeDocumentsUnder, keepDocumentsOpen, logFilePath, logTailLines, warningMarkers, errorMarkers, logPattern, logMatchLines);
 		}
 		catch (ArgumentException exception)
 		{
@@ -417,7 +441,9 @@ internal static partial class InventorTool
 			// The unsaved guard protects the active document from the snippet. This snippet never touches the active
 			// document, and guards the plugin's own output folder itself, so the general guard would only get in the way.
 			new ExecuteRequest(code, DocumentName: null, AllowUnsavedChanges: true),
-			cancellationToken));
+			cancellationToken),
+			// A plugin run cannot be split, so a warning to split it would only be noise.
+			warnOnLongExecution: false);
 	}
 
 	/// <summary>
@@ -441,7 +467,9 @@ internal static partial class InventorTool
 		string? logFilePath,
 		int logTailLines,
 		string[]? warningMarkers,
-		string[]? errorMarkers)
+		string[]? errorMarkers,
+		string? logPattern,
+		int logMatchLines)
 	{
 		foreach ((string name, string value) in new[] { ("buildOutputDirectory", buildOutputDirectory), ("assemblyFileName", assemblyFileName), ("typeName", typeName), ("methodName", methodName) })
 		{
@@ -463,6 +491,18 @@ internal static partial class InventorTool
 		if (warningMarkers.Concat(errorMarkers).Any(string.IsNullOrEmpty))
 			throw new ArgumentException("A warning or error marker cannot be empty, because it would match every line.");
 
+		if (string.IsNullOrEmpty(logPattern) is false)
+		{
+			try
+			{
+				_ = new System.Text.RegularExpressions.Regex(logPattern);
+			}
+			catch (ArgumentException exception)
+			{
+				throw new ArgumentException($"'logPattern' is not a valid regular expression: {exception.Message}");
+			}
+		}
+
 		StringBuilder argumentEntries = new();
 		foreach ((string name, JsonElement value) in arguments ?? [])
 			argumentEntries.AppendLine(CultureInfo.InvariantCulture, $"\t[{CSharpLiteral.String(name)}] = {CSharpLiteral.FromJson(value)},");
@@ -482,6 +522,8 @@ internal static partial class InventorTool
 			.Replace("__LOG_TAIL__", Math.Clamp(logTailLines, 0, 500).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
 			.Replace("__WARNING_MARKERS__", string.Join(", ", warningMarkers.Select(CSharpLiteral.String)), StringComparison.Ordinal)
 			.Replace("__ERROR_MARKERS__", string.Join(", ", errorMarkers.Select(CSharpLiteral.String)), StringComparison.Ordinal)
+			.Replace("__LOG_PATTERN__", CSharpLiteral.String(string.IsNullOrEmpty(logPattern) ? null : logPattern), StringComparison.Ordinal)
+			.Replace("__LOG_MATCH_LINES__", Math.Clamp(logMatchLines, 0, 500).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
 			.Replace("__ARGUMENTS__", argumentEntries.ToString(), StringComparison.Ordinal)
 			.Replace("__SHADOW_FILES__", shadowFileEntries.ToString(), StringComparison.Ordinal);
 	}
