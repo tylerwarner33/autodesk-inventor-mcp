@@ -273,8 +273,10 @@ test ends with exit code 8.
 
 ### Phase 3 - Unit tests with the watchdog
 
-- [ ] Make the other server changes in "Changes to the server that make it testable".
-- [ ] Write the policy, response match, watchdog, pipe process ID and one clicker tests.
+- [x] Make the other server changes in "Changes to the server that make it testable".
+- [x] Write the policy, response match, watchdog and pipe process ID tests. The one clicker test is in the desktop
+	level. Extra tests: the next call after a stopped wait gets its own response, and a block with no dialog stops
+	the wait on the second check.
 
 ### Phase 4 - Live tests
 

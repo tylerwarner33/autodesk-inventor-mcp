@@ -1,4 +1,5 @@
 using InventorMcp.Server.Bridge;
+using InventorMcp.Server.Services;
 
 using ModelContextProtocol.Server;
 
@@ -28,6 +29,7 @@ internal static partial class InventorTool
 	/// <remarks>
 	/// 	Throwing would surface as an opaque protocol error.
 	/// 	A structured object lets the model see that Inventor is merely busy or has no open document, and act on it.
+	/// 	A dialog that blocked the call is added as <c>blockingDialogs</c>, so the model knows, ex., that a rule failed.
 	/// </remarks>
 	/// <typeparam name="TResult">
 	/// 	Type the operation returns.
@@ -40,26 +42,36 @@ internal static partial class InventorTool
 	/// </returns>
 	private static async Task<object> SafeAsync<TResult>(Func<Task<TResult>> work)
 	{
+		List<DialogReport> dialogs = DialogReports.Begin();
+
 		try
 		{
-			TResult result = await work().ConfigureAwait(false);
-
-			if (result is Contracts.Models.ExecutionResult execution
-				&& execution.ElapsedMilliseconds > _longExecutionWarningThreshold.TotalMilliseconds)
+			object result = await work().ConfigureAwait(false) switch
 			{
-				return execution with { Output = [.. execution.Output, LongExecutionWarning(execution.ElapsedMilliseconds)] };
-			}
+				Contracts.Models.ExecutionResult execution when execution.ElapsedMilliseconds > _longExecutionWarningThreshold.TotalMilliseconds =>
+					execution with { Output = [.. execution.Output, LongExecutionWarning(execution.ElapsedMilliseconds)] },
+				TResult other => other!,
+				_ => null!
+			};
 
-			return result!;
+			return dialogs.Count == 0 ? result : new { result, blockingDialogs = dialogs };
 		}
 		catch (InventorBridgeException exception)
 		{
-			return new
-			{
-				error = exception.Code,
-				message = exception.Message,
-				detail = exception.Detail
-			};
+			return dialogs.Count == 0
+				? new
+				{
+					error = exception.Code,
+					message = exception.Message,
+					detail = exception.Detail
+				}
+				: new
+				{
+					error = exception.Code,
+					message = exception.Message,
+					detail = exception.Detail,
+					blockingDialogs = dialogs
+				};
 		}
 	}
 
