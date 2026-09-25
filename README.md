@@ -456,6 +456,10 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | `inventor_properties` | iProperties, optionally limited to one set |
 | `inventor_set_property` | Set one iProperty |
 | `inventor_health` | Rebuild state, sick features, error manager contents |
+| `inventor_features` | Every feature with type, suppression, health and parameters, and the definition of each pattern |
+| `inventor_pattern_elements` | The transform of each element of a pattern or mirror |
+| `inventor_hole_check` | The holes of a part from its geometry, by diameter, with their axes |
+| `inventor_styles` | The styles of a drawing or a part, with a diff against a second document |
 | `inventor_update` | Rebuild a document |
 | `inventor_activity` | Ordered feed of Inventor events, including every committed transaction |
 | `inventor_eval_csharp` | Run a C# snippet against the live Inventor API |

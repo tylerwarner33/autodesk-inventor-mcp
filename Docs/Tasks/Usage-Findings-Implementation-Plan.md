@@ -186,10 +186,13 @@ R1.2, R1.4, R1.6, R1.8 and R1.12. Canned snippets, and Win32 calls in the server
 	`inventor_run_plugin`. Refuse a dirty document unless the caller allows it. Never close a document outside the
 	folder. Visible documents first, then hidden ones. A hidden document that a document outside the folder
 	references stays open, and the result names it.
-- [ ] `inventor_features`: the name, type, suppressed flag and health of each feature. For a pattern, also the
-	count and spacing expressions, the direction entity and the parent features.
-- [ ] `inventor_pattern_elements`: the transform of each element.
-- [ ] `inventor_hole_check`: the holes by radius, with their positions, to verify a cut.
+- [x] `inventor_features`: the name, type, suppressed flag and health of each feature. For a pattern, also the
+	count and spacing expressions, the direction entity and the parent features. Also a mirror, and the parameters
+	of each feature.
+- [x] `inventor_pattern_elements`: the transform of each element.
+- [x] `inventor_hole_check`: the holes by radius, with their positions, to verify a cut. From the geometry, so it
+	also finds an extrude cut. Only concave cylinders that go all the way around count as holes: on a sheet metal
+	part, the inside of a bend and the end of a slot are also concave cylinders, and are listed apart.
 - [ ] `inventor_drawing_layout`: add the arrowhead checks and the leader tip check, and the annotation extents for
 	each view with the gaps between view groups (R1.8).
 - [x] `inventor_file_info(paths)`: iProperties for each model state, the saved version, model state names, and
@@ -201,7 +204,11 @@ R1.2, R1.4, R1.6, R1.8 and R1.12. Canned snippets, and Win32 calls in the server
 	references. Apprentice in a child Windows PowerShell process (`TestCopy.ps1`, embedded), so no rule runs and
 	the native DLL never loads into the server. It walks `File.ReferencedFileDescriptors`, so it also finds
 	suppressed components, and copies with a plain file copy, so `ReplaceReference` accepts each copy.
-- [ ] `inventor_styles`: the styles of a document, with a diff against a second document.
+- [x] `inventor_styles`: the styles of a document, with a diff against a second document. Drawings (with the
+	details of text, balloon and leader styles), and the sheet metal styles, material and appearance of a part.
+
+A tool that opens a file opens it with iLogic rules off (in `FindToolDocument`), so no open trigger runs, and
+`RunJsonSnippetAsync` closes the documents that a failed snippet opened.
 
 ### Phase 5 - Knowledge delivery
 

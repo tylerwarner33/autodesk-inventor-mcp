@@ -45,7 +45,14 @@ internal static partial class InventorTool
 				if (!allowOpen)
 					throw new InvalidOperationException($"'{nameOrPath}' is not open. Open it first, ex. with inventor_eval_csharp and OpenOrReuseDocument(path, true).");
 
-				return OpenOrReuseDocument(nameOrPath);
+				// With the rules off, so an open trigger does not run: a tool only reads the file.
+				dynamic? automation = null;
+				bool? rulesWereEnabled = null;
+				try { automation = ILogicAutomation(); rulesWereEnabled = (bool)automation.RulesEnabled; automation.RulesEnabled = false; }
+				catch (Exception) { }
+
+				try { return OpenOrReuseDocument(nameOrPath); }
+				finally { if (rulesWereEnabled is bool previous) automation!.RulesEnabled = previous; }
 			}
 
 			throw new ArgumentException($"No open document and no file is named '{nameOrPath}'.");
@@ -385,6 +392,11 @@ internal static partial class InventorTool
 	/// </returns>
 	private static async Task<JsonElement> RunJsonSnippetAsync(BridgeClient bridge, string code, CancellationToken cancellationToken)
 	{
+		// A canned snippet that throws must still close what it opened. None of them declares a type, which a block
+		// cannot hold. A second close does nothing, because the helper forgets each document it closes.
+		if (code.Contains("FindToolDocument(", StringComparison.Ordinal) || code.Contains("OpenOrReuseDocument(", StringComparison.Ordinal))
+			code = $"try\n{{\n{code}\n}}\nfinally\n{{\n\tCloseDocumentsOpenedHere();\n}}";
+
 		ExecutionResult result = await bridge.InvokeAsync<ExecutionResult>(
 			BridgeOperations.EvalCSharp,
 			// The snippets guard unsaved changes themselves where they write, and a read needs no guard.
