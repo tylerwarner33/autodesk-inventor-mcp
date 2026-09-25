@@ -77,8 +77,16 @@ The Phase 4 tools of `Docs/Tasks/Usage-Findings-Implementation-Plan.md` were ver
 - `inventor_drawing_layout`: three balloons added in memory to a drawing copy, never saved. It flagged the two
 	arrowheads at one point and a tip 0.04 in from another component, which the image confirmed.
 
-Not yet exercised: the "attached to another component" check with a real case, the curve check time limit on a
-large view, and the Phase 4 tools from a real MCP client.
+Later on 2026-09-25, on Inventor 2025.4:
+
+- The six live dialog tests passed two runs in a row on Inventor 2025 (19 s each), with no dialog left open.
+- A balloon with a second leader branch (`LeaderNode.AddLeader`) to another component: the layout reported the
+	branch as attached to a component the balloon does not name. The check reads every leaf node of the leader.
+- The arrowhead curve check on a view with 932 curves and 12 balloons took 1.6 s. With `curveCheckSeconds` 0.1 it
+	stopped after 35 curves and said so.
+- A headless Claude Code 2.1.282 session, a real MCP client with the newest packed server, called
+	`inventor_session`, `inventor_hole_check`, `inventor_file_info` and `inventor_export_sheet_image`, and read the
+	sheet image content correctly (the 98.500 dimension).
 
 Not yet exercised: the `inventor-busy` result for `RPC_E_CALL_REJECTED` and `RPC_E_SERVERCALL_RETRYLATER`.
 The dispatcher queues each call on Inventor's main thread, so no call has been rejected yet.

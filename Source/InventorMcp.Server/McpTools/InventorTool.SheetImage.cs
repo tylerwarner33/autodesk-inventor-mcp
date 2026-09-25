@@ -104,9 +104,14 @@ internal static partial class InventorTool
 			{
 				byte[] png = await File.ReadAllBytesAsync(file, cancellationToken).ConfigureAwait(false);
 
+				// The file is deleted below, so its path stays out of the result: a model read it as a file left on disk.
+				Dictionary<string, JsonElement> facts = json.EnumerateObject()
+					.Where(static property => property.Name != "file")
+					.ToDictionary(static property => property.Name, static property => property.Value);
+
 				return
 				[
-					new TextContentBlock { Text = json.ToString() },
+					new TextContentBlock { Text = JsonSerializer.Serialize(facts) },
 					ImageContentBlock.FromBytes(png, "image/png")
 				];
 			}
