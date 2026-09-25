@@ -468,6 +468,7 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | `inventor_ilogic_rule_get` | Read one rule, or write every rule of a document to files |
 | `inventor_ilogic_rule_set` | Change a rule at a unique anchor, with a backup and a diff |
 | `inventor_api_lookup` | Search Autodesk's Inventor API documentation. Works with Inventor closed. |
+| `inventor_skill` | List or read the server's guides (skills) for a topic or a workflow. Works with Inventor closed. |
 | `inventor_orientation` | Resolve each ViewCube face to a world direction for the active document |
 | `inventor_run_plugin` | Run a method from a plugin's build output, loaded fresh each call, so a code change needs no restart |
 | `inventor_drawing_layout` | Measure a drawing's views, balloons, dimensions and tables, and report collisions |

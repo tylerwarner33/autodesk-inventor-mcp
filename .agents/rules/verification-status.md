@@ -88,6 +88,21 @@ Later on 2026-09-25, on Inventor 2025.4:
 	`inventor_session`, `inventor_hole_check`, `inventor_file_info` and `inventor_export_sheet_image`, and read the
 	sheet image content correctly (the 98.500 dimension).
 
+The skills (`inventor_skill`) were checked on 2026-09-25 with headless Claude Code 2.1.282 sessions that started
+outside this repository, so no repository rule loaded:
+
+- A snippet task (list the text and boolean parameters of a part), with only the list of skills in the
+  instructions: no skill was read, and it took 3 snippets, the first with the trap that `interop` describes.
+- The same task after the instruction said to read `interop` before the first snippet, and the tool description
+  said so too: it read `interop`, then needed 2 snippets, because a returned `List` came back as its type name.
+  After the description said to return a string: `interop`, then 1 snippet, with the correct answer (11).
+- A task to plan a rule edit, with no change allowed: it planned from the tool descriptions and read no skill.
+- A task to do the rule edit on a test copy, after the description of `inventor_ilogic_rule_set` named its skill:
+  it read `ilogic-rule-edit` first, then followed its steps (session, read, anchored change with backup and diff,
+  read back).
+
+Not yet verified: Claude Desktop and Visual Studio.
+
 Not yet exercised: the `inventor-busy` result for `RPC_E_CALL_REJECTED` and `RPC_E_SERVERCALL_RETRYLATER`.
 The dispatcher queues each call on Inventor's main thread, so no call has been rejected yet.
 To test it, open a modal dialog (ex. Parameters) or start a large rebuild, then call any tool except

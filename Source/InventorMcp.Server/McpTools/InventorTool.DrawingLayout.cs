@@ -415,7 +415,8 @@ internal static partial class InventorTool
 
 		Read only. A drawing this opens is opened with iLogic rules off and closed without saving, and a drawing
 		already open is measured and left as it was. Use it to compare layout settings across several generated
-		drawings rather than judging a PDF by eye. Use inventor_export_sheet_image to look at a region it flags.
+		drawings rather than judging a PDF by eye. Use inventor_export_sheet_image to look at a region it flags. The
+		'drawings' skill (inventor_skill) has the facts about sheets, views, balloons and styles.
 		""")]
 	public static Task<object> DrawingLayout(
 		BridgeClient bridge,

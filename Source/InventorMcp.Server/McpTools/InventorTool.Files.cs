@@ -246,7 +246,8 @@ internal static partial class InventorTool
 		source files are not changed, and it refuses a target that has any of the copies already. An iLogic rule that
 		names a file in its text still names the master: check the rules of the copy.
 
-		Do not check the copy into Vault. Delete it when the test is done.
+		Do not check the copy into Vault. Delete it when the test is done. For a template change, follow the
+		'safe-template-edit' skill (inventor_skill).
 		""")]
 	public static Task<object> TestCopy(
 		[Description("Full paths of the top files, ex. the top assembly and its drawing.")] string[] sources,

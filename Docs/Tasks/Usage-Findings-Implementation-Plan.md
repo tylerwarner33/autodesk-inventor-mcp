@@ -220,19 +220,28 @@ A tool that opens a file opens it with iLogic rules off (in `FindToolDocument`),
 R2, R3 and R4, and decisions 4, 7 and 8. Do this phase after Phases 1 to 4, so the skills name the new tools in
 place of hand-written snippets.
 
-- [ ] Write the topic skills: `interop`, `ilogic`, `projects-and-files`, `drawings`, `modeling`.
-- [ ] Write the workflow skills: `safe-template-edit`, `ilogic-rule-edit`, `plugin-loop-cycle`,
+- [x] Write the topic skills: `interop`, `ilogic`, `projects-and-files`, `drawings`, `modeling`. They also have the
+	API facts found in Phase 4.
+- [x] Write the workflow skills: `safe-template-edit`, `ilogic-rule-edit`, `plugin-loop-cycle`,
 	`read-back-after-failed-write`, `split-long-work`, `probe-project-code`.
-- [ ] Each skill has `name` and `description` frontmatter, and `name` is the same as its folder name. Embed the
-	folder with a `LogicalName` that keeps the path.
-- [ ] Add `inventor_skill` with `list` (name, description, files) and `read` (one file).
-- [ ] Change `.agents/rules/inventor-interop.md` and `inventor-modeling.md` so they point to the skills for the
+- [x] Each skill has `name` and `description` frontmatter, and `name` is the same as its folder name. Embed the
+	folder with a `LogicalName` that keeps the path. `SkillCatalog` refuses a skill that breaks this, and unit tests
+	check that every tool and every skill that a skill names exists.
+- [x] Add `inventor_skill` with `list` (name, description, files) and `read` (one file).
+- [x] Change `.agents/rules/inventor-interop.md` and `inventor-modeling.md` so they point to the skills for the
 	snippet facts (decision 8).
-- [ ] Change `ServerInstructions.md` once, with all the lines from R2 that stay after decision 4, and one line that
-	names the skills and says when to read each one.
+- [x] Change `ServerInstructions.md` once, with all the lines from R2 that stay after decision 4, and one line that
+	names the skills and says when to read each one. The line tells a model to read `interop` before its first
+	snippet, because a list of the skills alone did not make a client read one. The descriptions of
+	`inventor_eval_csharp`, `inventor_ilogic_rule_set`, `inventor_test_copy`, `inventor_run_plugin` and
+	`inventor_drawing_layout` name their skill (decision 4).
 
 Verify: in Claude Desktop and in Visual Studio, outside this repository, give a task that needs a skill. Check
 that the model calls `inventor_skill` before it writes a snippet.
+
+- [x] Claude Code, headless, outside this repository (see `.agents/rules/verification-status.md`).
+- [ ] Claude Desktop. Needs the user.
+- [ ] Visual Studio. Needs the user.
 
 ### Phase 6 - One add-in release
 
@@ -248,6 +257,9 @@ Inventor must be closed for this phase, so do all of these items together. First
 - [ ] After a failed snippet, list the documents that it created (R1.2). Compare the open documents before and
 	after the snippet.
 - [ ] Move the stable helpers to `InventorScriptGlobals` if the Phase 2 measurement shows it is necessary.
+- [ ] Serialize a returned collection or object as JSON, not with `ToString()`
+	(`InventorOperations.Execution.cs`). A client in the Phase 5 check returned a `List` and got its type name, then
+	sent the snippet again with a joined string. Until then, the tool description and the `interop` skill say so.
 
 ### Phase 7 - Skills over MCP
 

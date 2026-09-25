@@ -58,6 +58,14 @@
 		<EmbeddedResource Include="ScriptPrelude.csx" LogicalName="InventorMcp.Server.ScriptPrelude.csx" />
 	</ItemGroup>
 
+	<!--
+		The skills that inventor_skill serves, one folder each, embedded with their path. Services/SkillCatalog.cs reads
+		them. The path in the name lets the Skills over MCP extension serve the same files later.
+	-->
+	<ItemGroup>
+		<EmbeddedResource Include="Skills\**\*" LogicalName="InventorMcp.Server.Skills/%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
 	<!-- The Apprentice script of inventor_test_copy, run in a child process. McpTools/InventorTool.Files.cs reads it. -->
 	<ItemGroup>
 		<EmbeddedResource Include="TestCopy.ps1" LogicalName="InventorMcp.Server.TestCopy.ps1" />

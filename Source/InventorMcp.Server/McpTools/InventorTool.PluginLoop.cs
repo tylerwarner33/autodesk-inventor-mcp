@@ -405,7 +405,7 @@ internal static partial class InventorTool
 		Use closeDocumentsUnder with the folder the plugin writes to: the call refuses to run while a document there
 		has unsaved changes, closes the rest before running, and closes what the run opened afterwards unless
 		keepDocumentsOpen is set. Use shadowFiles to replace a file in the copy, ex. an appsettings.json with trial
-		values, without a build. See Docs/Plugin-Development-Loop.md.
+		values, without a build. Read the 'plugin-loop-cycle' skill (inventor_skill) before a first run.
 		""")]
 	public static Task<object> RunPlugin(
 		BridgeClient bridge,

@@ -17,9 +17,14 @@ internal static partial class InventorTool
 		every member of the Inventor API, so use it for anything the other tools do not cover, such as creating sketches,
 		features, or geometry.
 
+		Before your first snippet, read the 'interop' skill: inventor_skill with action 'read' and name 'interop'. It
+		lists the API traps that make most snippets fail, ex. how to tell a text or boolean parameter from a numeric one.
+
 		The snippet is Roslyn script code, not a full class. 'Application' and 'Document' are already in scope, and
 		System, System.Collections.Generic, System.Linq and Inventor are imported. Call Log(...) to report progress,
-		and end with an expression or a return statement to return a value.
+		and end with an expression or a return statement to return a value. The value is converted with ToString, so a
+		list or an object comes back as its type name: return a string, ex. string.Join("\n", lines) or
+		System.Text.Json.JsonSerializer.Serialize(rows).
 
 		'Document' is null when no document is open and none is named. The snippet still runs, so it can open or
 		create its own documents, ex. Application.Documents.Add, or run a plugin that does.
@@ -39,7 +44,9 @@ internal static partial class InventorTool
 		pass allowUnsavedChanges when the only changes are from that open. Prefer inventor_set_parameter for a change
 		a parameter can express.
 
-		A compile error for a member that does not exist carries a HINT with the near members of that type.
+		A compile error for a member that does not exist carries a HINT with the near members of that type. Some members
+		are typed as object and need a cast, ex. (double)parameter.Value. Calls from all clients run one at a time, so a
+		slow call can be waiting behind other work.
 
 		Helpers you can call:
 		- OpenOrReuseDocument(fullFileName, visible = false) returns the open copy or opens it, and

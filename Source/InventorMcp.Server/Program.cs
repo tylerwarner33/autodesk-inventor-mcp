@@ -41,6 +41,7 @@ builder.Services.AddSingleton(static services => new BridgeClient(
 
 // Singleton because it indexes a 12 MB documentation file once and holds the result.
 builder.Services.AddSingleton<ApiReferenceService>();
+builder.Services.AddSingleton<SkillCatalog>();
 
 builder.Services.AddSingleton<InventorInstallations>();
 

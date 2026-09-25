@@ -142,6 +142,8 @@ internal static partial class InventorTool
 
 		A rule text change through the API can make iLogic ask the user to trust the rule at its next run (an iLogic
 		Security Alert). Never answer that dialog for the user.
+
+		Read the 'ilogic-rule-edit' skill (inventor_skill) before the first change: it has the steps before and after.
 		""")]
 	public static Task<object> ILogicRuleSet(
 		BridgeClient bridge,
