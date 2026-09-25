@@ -240,8 +240,10 @@ Verify: in Claude Desktop and in Visual Studio, outside this repository, give a 
 that the model calls `inventor_skill` before it writes a snippet.
 
 - [x] Claude Code, headless, outside this repository (see `.agents/rules/verification-status.md`).
-- [ ] Claude Desktop. Needs the user.
-- [ ] Visual Studio. Needs the user.
+- [x] Claude Desktop, Opus 5.5: it read `interop` because the tool description said so, then one snippet, correct.
+- [ ] Visual Studio, Copilot with Claude Sonnet 5: the answer was correct, but no `inventor_skill` call was visible,
+	and it compared the unit text, the trap that `interop` describes. Open: find whether Copilot in Visual Studio
+	gets the server instructions, and whether a stronger cue is worth another trust prompt for the users.
 
 ### Phase 6 - One add-in release
 

@@ -101,7 +101,13 @@ outside this repository, so no repository rule loaded:
   it read `ilogic-rule-edit` first, then followed its steps (session, read, anchored change with backup and diff,
   read back).
 
-Not yet verified: Claude Desktop and Visual Studio.
+By the user, on 2026-09-25, with the same task on the master part (read only, rules off):
+
+- Claude Desktop, Opus 5.5: "The tool description says to read the interop skill first, so I'll load it." Then
+	one snippet with `GetTypeFromString(p.get_Units())`, and the correct 11 parameters.
+- Visual Studio, Copilot with Claude Sonnet 5: the correct 11 parameters, but no `inventor_skill` call was visible,
+	and it compared the unit text to "Boolean" and "Text". After a restart of the server connection, Visual Studio
+	asked to trust the server again and listed the added tools as the change.
 
 The Phase 6 add-in release was verified on 2026-09-25 on Inventor 2025.4, with the add-in built for 2025 and 2026:
 
