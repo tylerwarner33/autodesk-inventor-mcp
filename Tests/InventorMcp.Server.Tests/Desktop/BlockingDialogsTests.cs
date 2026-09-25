@@ -41,7 +41,7 @@ public sealed class BlockingDialogsTests
 		Assert.Equal("#32770", dialog.ClassName);
 		Assert.Contains("Test message", dialog.Text);
 		Assert.Equal(["OK"], dialog.ClickableButtons);
-		Assert.Contains(dialog.Buttons, button => button.IsInTitleBar);
+		Assert.Contains(dialog.Buttons, button => button.IsWindowFrame);
 		Assert.Equal("message box", DialogPolicy.Classify(dialog));
 		Assert.True(DialogPolicy.ShouldClose(dialog, autoCloseEnabled: true));
 	}
@@ -56,6 +56,7 @@ public sealed class BlockingDialogsTests
 		// A WinForms tab that is not selected has no window until it opens, so only the live test can check the
 		// second tab of the real DevExpress dialog. See Docs/Research/Blocking-Dialog-Detection.md.
 		Assert.Equal(["OK"], dialog.ClickableButtons);
+		Assert.Contains(dialog.Buttons, button => button.IsWindowFrame && button.Name == "Line down");
 		Assert.Contains("Cannot find an external rule file", dialog.Text);
 		Assert.Equal("iLogic error", DialogPolicy.Classify(dialog));
 		Assert.True(DialogPolicy.ShouldClose(dialog, autoCloseEnabled: true));

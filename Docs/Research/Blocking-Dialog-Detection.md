@@ -266,11 +266,10 @@ Findings from the test:
 - **A hidden WinForms button does not always show.** The hidden `Cancel` of a plain WinForms form was not in the
 	UI Automation tree. The DevExpress buttons of the real iLogic dialog were in the tree (see "Test results"). The
 	Win32 visibility test is still necessary for them.
-- **A standard WinForms tab that is not selected has no windows.** In the desktop test fixture, the second tab page
+- **A standard WinForms tab that was never shown has no windows.** In the desktop test fixture, the second tab page
 	of a `TabControl` and the hidden buttons had no child window at all (checked with `EnumChildWindows`). WinForms
 	creates the controls of a tab only when it opens. So no process can read that text from outside, with UI
-	Automation or with Win32. The DevExpress `XtraTabControl` of the real iLogic dialog gave the text of its second
-	tab, so this limit does not apply to it. The live test checks it again.
+	Automation or with Win32. The real iLogic dialog gave the text of its second tab (see "Live test results").
 - **WPF controls have no window handle.** The `IsOffscreen` test gave the correct answer for the WPF `OK` button.
 - The WPF `OK` button showed two times: the button, and the text element inside it. Match buttons by control type.
 
@@ -315,6 +314,50 @@ must not stop the watchdog.
 The repository has no test project now. `Docs/Tasks/Server-Test-Project-Plan.md` sets up
 `Tests/InventorMcp.Server.Tests` with three levels (unit, desktop, live), a fixture process that shows real
 dialogs with no Inventor, and the live test cases for this feature.
+
+## Live test results
+
+Run on 2026-09-25 against Inventor Professional 2026.2 (Build 302298010), with the live level of
+`Tests/InventorMcp.Server.Tests`. The first two runs failed and found the problems below. After the fixes, two runs
+in a row passed all six live tests, and each dialog closed approximately 3.2 s after the call started.
+
+| Test | Result after the fixes |
+| --- | --- |
+| iLogic error through `iLogicAutomation.RunRule` in a C# snippet (the path of the incident) | Closed with `OK`. The result has the dialog text. |
+| iLogic error through `inventor_run_ilogic` | Closed with `OK` |
+| WinForms message box with `OK`, owned by the main frame | Closed with `OK` |
+| Message box with `Yes` and `No` | Left open. `blocked-by-dialog` with `Visible buttons: Yes, No`. A second client read the block with no bridge call in less than 5 s. The next call after the question got its own response. |
+| Two clients wait on one iLogic error | One click |
+| `INVENTORMCP_AUTOCLOSE_DIALOGS=false` | No click. `blocked-by-dialog`. |
+
+Findings:
+
+- **`SilentOperation` does not stop the iLogic error dialog.** The dialog opened in each test that ran a rule
+	through a C# snippet, which runs inside `SilentOperationScope`. This confirms "Prevention" below.
+- **A scroll bar adds buttons.** The message of the iLogic error dialog is long enough for scroll bars in its text
+	box. UI Automation reports the arrows as visible buttons (`Line up`, `Line down`, `Column left`,
+	`Column right`), with a `ScrollBar` parent. So "exactly one visible button" refused to close the dialog. The
+	server now skips the buttons of scroll bars and title bars.
+- **UI Automation can miss the `OK` button.** In the second run, a walk of the dialog from its own element did
+	not return the DevExpress buttons: the pane that holds them (a child window) had no UI Automation children.
+	`EnumChildWindows` found them (`OK` visible, `Apply`, `Extra`, `Second`, `Cancel` hidden), and
+	`ElementFromHandle` of the `OK` window gave a Button with the ID
+	`ShowExceptionDialog_<title>.CommonButton_m_okButton` and the Invoke pattern. The first run had found the same
+	button through the dialog. The cause is not known. So the server now also reads each Win32 child window from its
+	own handle.
+- **The tree of a window holds the windows it owns.** The UI Automation tree of a dialog has the dialogs that it
+	owns as children, and the main frame has all of them. A read of one dialog then mixed in the text and buttons
+	of another. The server now walks the tree itself, and stops at each element of a different top level window.
+	This also explains why the root search in "Test results" did not find the dialog: it is below the main frame.
+- **A call runs inside the modal loop of an open dialog.** After a call stopped with `blocked-by-dialog`, the next
+	bridge call still ran in Inventor, inside the message loop of the open dialog. Each failed test opened a new
+	dialog over the one before, and each outer dialog could close only after the one over it. Only the innermost
+	dialog is enabled. So the server now handles the dialogs before it sends a call, and it sends nothing while a
+	dialog needs a person.
+- **The text of the "More Info" tab was readable** in the real dialog, from a tab that was not selected. So the
+	limit found with the fixture applies only to a plain WinForms tab that was never shown.
+
+Not yet done: the manual check of an iLogic Security Alert (see the test plan).
 
 ## Risks and limits
 

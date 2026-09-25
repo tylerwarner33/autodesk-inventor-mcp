@@ -48,6 +48,15 @@ Not yet run: the plugin loop on Inventor 2027.
 
 Not yet exercised: the ring buffer's `droppedEntries` counter, which needs more than 2000 buffered events.
 
+The blocking dialog watchdog was verified on 2026-09-25 on Inventor 2026.2, through the live level of
+`Tests/InventorMcp.Server.Tests` (`INVENTORMCP_LIVE_TESTS=1`): the iLogic error closed through `RunRule` in a
+snippet and through `inventor_run_ilogic`, a message box with OK closed, a Yes/No question left open with
+`blocked-by-dialog`, the block read by a second client with no bridge call, the next call after a question, one
+click from two clients, and the setting off. Two runs in a row passed all six. See
+`Docs/Research/Blocking-Dialog-Detection.md`, "Live test results", for what the first runs found.
+Not yet exercised: `inventor_dialogs` and `inventor_dialog_click` from a real MCP client while Inventor is blocked,
+an iLogic Security Alert, a dialog of a different process (ex. Vault), and Inventor running as administrator.
+
 Not yet exercised: the `inventor-busy` result for `RPC_E_CALL_REJECTED` and `RPC_E_SERVERCALL_RETRYLATER`.
 The dispatcher queues each call on Inventor's main thread, so no call has been rejected yet.
 To test it, open a modal dialog (ex. Parameters) or start a large rebuild, then call any tool except

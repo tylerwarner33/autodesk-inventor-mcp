@@ -22,6 +22,29 @@ Run the bundle command once per release: each adds its own manifest and `Content
 version independent bundle, and Inventor loads only the manifest matching its own version.
 See `Docs/Architecture.md`.
 
+## Tests
+
+```
+dotnet test InventorMcp.slnx
+dotnet test InventorMcp.slnx --filter-not-trait Level=Desktop
+```
+
+`Tests/InventorMcp.Server.Tests` has three levels, selected by the trait `Level`:
+
+- `Unit` needs nothing.
+- `Desktop` needs an interactive desktop, and shows real dialogs from `InventorMcp.TestDialogs.exe`. A build agent
+	that runs as a Windows service has no desktop, so use the second command there.
+- `Live` needs Inventor with the add-in loaded, and runs only with `INVENTORMCP_LIVE_TESTS=1`. The tests create and
+	close their own parts, and open and close dialogs. Do not use Inventor while they run.
+
+The live level, in PowerShell: `$env:INVENTORMCP_LIVE_TESTS = '1'; dotnet test InventorMcp.slnx --filter-trait Level=Live`.
+In `cmd`, quote the assignment: `set "INVENTORMCP_LIVE_TESTS=1" && dotnet test ...`.
+
+xunit.v3 runs on Microsoft.Testing.Platform, which the root `global.json` selects. A filter that selects no test
+ends with exit code 8.
+If a live test fails, a dialog can stay open in Inventor. Read it with `inventor_dialogs`. Several failed tests stack
+their dialogs, and only the innermost one is enabled.
+
 ## The server runs from a local feed, never from bin
 
 The Debug build of `InventorMcp.Server` adds a tool package to `%LOCALAPPDATA%\InventorMcp\Feed` with a new

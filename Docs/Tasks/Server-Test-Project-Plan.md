@@ -280,8 +280,9 @@ test ends with exit code 8.
 
 ### Phase 4 - Live tests
 
-- [ ] Write `LiveInventorFact` and the live tests.
-- [ ] Run them against Inventor 2026. Record the results in `.agents/rules/verification-status.md`.
+- [x] Write the live tests. `LiveInventor.Require()` calls `Assert.SkipUnless`, in place of a `LiveInventorFact`
+	attribute.
+- [x] Run them against Inventor 2026. Record the results in `.agents/rules/verification-status.md`.
 - [ ] Do the manual Security Alert check.
 
 ## Not in this plan

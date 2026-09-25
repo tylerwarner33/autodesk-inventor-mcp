@@ -5,7 +5,7 @@ using InventorMcp.Contracts.Models;
 using InventorMcp.Server.Bridge;
 using InventorMcp.Server.Services;
 
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace InventorMcp.Server.Tests.Live;
 
@@ -31,7 +31,12 @@ internal static class LiveInventor
 	/// 	A client of the real pipe, with the real detector and the real clock.
 	/// </summary>
 	public static BridgeClient CreateClient() =>
-		new(NullLogger<BridgeClient>.Instance, new BlockingDialogs(), TimeProvider.System);
+		new(new TestOutputLogger<BridgeClient>(), new BlockingDialogs(), TimeProvider.System);
+
+	/// <summary>
+	/// 	The longest a live call may take, so a call that hangs fails its test and does not stop the run.
+	/// </summary>
+	private static readonly TimeSpan _callTimeout = TimeSpan.FromSeconds(60);
 
 	/// <summary>
 	/// 	A name that iLogic has not seen, because it shows the same rule error only once in 120 minutes.
@@ -49,7 +54,7 @@ internal static class LiveInventor
 		client.InvokeAsync<ExecutionResult>(
 			BridgeOperations.EvalCSharp,
 			new ExecuteRequest(code, null, AllowUnsavedChanges: true),
-			cancellationToken);
+			cancellationToken).WaitAsync(_callTimeout, cancellationToken);
 
 	/// <summary>
 	/// 	Runs an iLogic rule body through the bridge, the same way <c>inventor_run_ilogic</c> does.
@@ -58,7 +63,7 @@ internal static class LiveInventor
 		client.InvokeAsync<ExecutionResult>(
 			BridgeOperations.RunILogic,
 			new ExecuteRequest(code, documentName, AllowUnsavedChanges: true),
-			cancellationToken);
+			cancellationToken).WaitAsync(_callTimeout, cancellationToken);
 
 	/// <summary>
 	/// 	A snippet that creates a temporary part, adds a rule that fails, runs it through the iLogic automation object,

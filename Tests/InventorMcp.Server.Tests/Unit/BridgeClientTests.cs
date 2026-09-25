@@ -73,11 +73,14 @@ public sealed class BridgeClientTests
 		await using TestBridge bridge = new();
 		(Task<string> call, TestConnection connection, BridgeRequest request) = await bridge.StartPingAsync();
 
+		// One check runs before the request is sent.
+		Assert.Equal(1, bridge.Dialogs.DetectCalls);
+
 		await bridge.AdvanceAsync(BridgeClient.FirstDialogCheck - TimeSpan.FromMilliseconds(500));
-		Assert.Equal(0, bridge.Dialogs.DetectCalls);
+		Assert.Equal(1, bridge.Dialogs.DetectCalls);
 
 		await bridge.AdvanceAsync(TimeSpan.FromMilliseconds(750));
-		await TestBridge.WaitUntilAsync(() => bridge.Dialogs.DetectCalls == 1);
+		await TestBridge.WaitUntilAsync(() => bridge.Dialogs.DetectCalls == 2);
 
 		await connection.RespondAsync(request.Id, "done");
 		Assert.Equal("done", await call);
@@ -159,6 +162,38 @@ public sealed class BridgeClientTests
 	}
 
 	[Fact]
+	public async Task NothingIsSentWhileAQuestionIsOpen()
+	{
+		await using TestBridge bridge = new();
+		Task<TestConnection> accept = bridge.Server.AcceptAsync();
+		Assert.True(await bridge.Client.TryConnectAsync(TestContext.Current.CancellationToken));
+		TestConnection connection = await accept;
+		bridge.Dialogs.Dialogs = [_question];
+
+		InventorBridgeException exception = await Assert.ThrowsAsync<InventorBridgeException>(
+			() => bridge.Client.InvokeAsync<string>(BridgeOperations.Ping, null, TestContext.Current.CancellationToken));
+
+		Assert.Equal(BridgeErrorCodes.BlockedByDialog, exception.Code);
+		_ = await Assert.ThrowsAsync<TimeoutException>(() => connection.ReadRequestAsync(TimeSpan.FromMilliseconds(500)));
+	}
+
+	[Fact]
+	public async Task InformationDialogIsClosedBeforeTheRequestIsSent()
+	{
+		await using TestBridge bridge = new();
+		Task<TestConnection> accept = bridge.Server.AcceptAsync();
+		Assert.True(await bridge.Client.TryConnectAsync(TestContext.Current.CancellationToken));
+		TestConnection connection = await accept;
+		bridge.Dialogs.Dialogs = [_iLogicError];
+
+		(Task<string> call, _, BridgeRequest request) = await bridge.StartPingAsync(connection);
+		await connection.RespondAsync(request.Id, "done");
+
+		Assert.Equal("done", await call);
+		Assert.Equal(1, bridge.Dialogs.ClickCalls);
+	}
+
+	[Fact]
 	public async Task BlockWithNoDialogStopsTheWaitOnTheSecondCheck()
 	{
 		await using TestBridge bridge = new();
@@ -166,7 +201,8 @@ public sealed class BridgeClientTests
 		bridge.Dialogs.BlockedWithoutDialog = true;
 
 		await bridge.AdvanceAsync(BridgeClient.FirstDialogCheck + TimeSpan.FromMilliseconds(250));
-		await TestBridge.WaitUntilAsync(() => bridge.Dialogs.DetectCalls == 1);
+		// The first call is the check before the send.
+		await TestBridge.WaitUntilAsync(() => bridge.Dialogs.DetectCalls == 2);
 		Assert.False(call.IsCompleted);
 
 		await bridge.AdvanceAsync(BridgeClient.DialogCheckInterval);

@@ -57,6 +57,7 @@ internal interface IBlockingDialogs
 internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow = null, TimeSpan? readTimeout = null) : IBlockingDialogs
 {
 	private const string _textSeparator = "\r\n---\r\n";
+	private const uint _getAncestorRoot = 2;
 
 	private static readonly TimeSpan _closeWait = TimeSpan.FromSeconds(1);
 
@@ -156,9 +157,7 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 
 	private ClickOutcome Invoke(IntPtr handle, string title, string buttonName)
 	{
-		IUIAutomationElement window = _automation.Value.ElementFromHandle(handle);
-
-		List<IUIAutomationElement> matches = [.. FindButtons(window)
+		List<IUIAutomationElement> matches = [.. Collect(handle).Buttons
 			.Where(pair => pair.Button.IsClickable && pair.Button.Name == buttonName)
 			.Select(pair => pair.Element)];
 
@@ -191,72 +190,119 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 
 	private DialogSnapshot Read(WindowInfo window)
 	{
-		IUIAutomation automation = _automation.Value;
-		IUIAutomationElement element = automation.ElementFromHandle(window.Handle);
-		IUIAutomationElementArray descendants = element.FindAll(TreeScope.TreeScope_Descendants, automation.CreateTrueCondition());
-
-		List<DialogButton> buttons = [];
-		List<string> texts = [];
-
-		for (int index = 0; index < descendants.Length; index++)
-		{
-			IUIAutomationElement descendant = descendants.GetElement(index);
-			int controlType = descendant.CurrentControlType;
-
-			if (controlType == UIA_ControlTypeIds.UIA_ButtonControlTypeId)
-			{
-				buttons.Add(ReadButton(descendant));
-			}
-			else if (controlType is UIA_ControlTypeIds.UIA_TextControlTypeId or UIA_ControlTypeIds.UIA_EditControlTypeId or UIA_ControlTypeIds.UIA_DocumentControlTypeId)
-			{
-				// Some controls repeat the text of their parent, so each text is kept one time.
-				string text = ReadText(descendant);
-
-				if (text.Length > 0 && texts.Contains(text) is false)
-					texts.Add(text);
-			}
-		}
+		DialogContent content = Collect(window.Handle);
 
 		// A WPF button holds its caption as a text element, which is not dialog text.
-		_ = texts.RemoveAll(text => buttons.Any(button => button.Name == text));
+		List<string> texts = [.. content.Texts.Where(text => content.Buttons.Any(pair => pair.Button.Name == text) is false)];
 
 		return new DialogSnapshot(
 			window.Handle.ToInt64(),
 			window.Title,
 			window.ClassName,
-			element.CurrentFrameworkId,
+			content.Framework,
 			string.Join(_textSeparator, texts),
-			buttons);
+			[.. content.Buttons.Select(pair => pair.Button)]);
 	}
 
-	private IEnumerable<(DialogButton Button, IUIAutomationElement Element)> FindButtons(IUIAutomationElement window)
+	/// <summary>
+	/// 	Reads the text and the buttons of one dialog.
+	/// </summary>
+	/// <remarks>
+	/// 	The UI Automation tree of a window also holds the windows it owns, so a walk stops at each element of a different
+	/// 	top level window. Otherwise a dialog over a dialog mixes their text and buttons.
+	/// 	UI Automation from the dialog can also miss buttons that are windows of their own (seen on the DevExpress buttons
+	/// 	of the iLogic error dialog), so the Win32 child windows are read too, each from its own handle.
+	/// 	See <c>Docs/Research/Blocking-Dialog-Detection.md</c>, "Live test results".
+	/// </remarks>
+	private DialogContent Collect(IntPtr dialog)
 	{
 		IUIAutomation automation = _automation.Value;
-		IUIAutomationCondition condition = automation.CreatePropertyCondition(
-			UIA_PropertyIds.UIA_ControlTypePropertyId,
-			UIA_ControlTypeIds.UIA_ButtonControlTypeId);
+		IUIAutomationElement root = automation.ElementFromHandle(dialog);
+		DialogContent content = new(root.CurrentFrameworkId);
+		HashSet<IntPtr> seenHandles = [];
 
-		IUIAutomationElementArray found = window.FindAll(TreeScope.TreeScope_Descendants, condition);
+		Walk(automation.RawViewWalker, root, dialog, UIA_ControlTypeIds.UIA_WindowControlTypeId, content, seenHandles, 0);
 
-		for (int index = 0; index < found.Length; index++)
+		foreach (IntPtr child in ChildWindows(dialog))
 		{
-			IUIAutomationElement element = found.GetElement(index);
+			if (seenHandles.Contains(child))
+				continue;
 
-			yield return (ReadButton(element), element);
+			IUIAutomationElement element = automation.ElementFromHandle(child);
+
+			if (element.CurrentControlType == UIA_ControlTypeIds.UIA_ButtonControlTypeId)
+				content.Buttons.Add((ReadButton(element, child, UIA_ControlTypeIds.UIA_PaneControlTypeId), element));
+		}
+
+		return content;
+	}
+
+	private void Walk(IUIAutomationTreeWalker walker, IUIAutomationElement parent, IntPtr dialog, int parentType, DialogContent content, HashSet<IntPtr> seenHandles, int depth)
+	{
+		const int maxDepth = 40;
+
+		for (IUIAutomationElement? element = walker.GetFirstChildElement(parent); element is not null; element = walker.GetNextSiblingElement(element))
+		{
+			IntPtr handle = element.CurrentNativeWindowHandle;
+
+			if (handle != IntPtr.Zero)
+			{
+				if (GetAncestor(handle, _getAncestorRoot) != dialog)
+					continue;
+
+				_ = seenHandles.Add(handle);
+			}
+
+			int controlType = element.CurrentControlType;
+
+			if (controlType == UIA_ControlTypeIds.UIA_ButtonControlTypeId)
+			{
+				content.Buttons.Add((ReadButton(element, handle, parentType), element));
+			}
+			else if (controlType is UIA_ControlTypeIds.UIA_TextControlTypeId or UIA_ControlTypeIds.UIA_EditControlTypeId or UIA_ControlTypeIds.UIA_DocumentControlTypeId)
+			{
+				// Some controls repeat the text of their parent, so each text is kept one time.
+				string text = ReadText(element);
+
+				if (text.Length > 0 && content.Texts.Contains(text) is false)
+					content.Texts.Add(text);
+			}
+
+			if (depth < maxDepth)
+				Walk(walker, element, dialog, controlType, content, seenHandles, depth + 1);
 		}
 	}
 
-	private DialogButton ReadButton(IUIAutomationElement element)
+	/// <summary>
+	/// 	Reads the state of one button.
+	/// </summary>
+	/// <remarks>
+	/// 	WinForms controls have their own window, and UI Automation reports hidden ones as on screen.
+	/// 	WPF controls, and the buttons of title bars and scroll bars, have no window, so IsOffscreen decides for them.
+	/// 	A button of a title bar or a scroll bar (ex. <c>Close</c>, <c>Line down</c>) answers nothing, and a scroll bar
+	/// 	appears when a message is long, as in the iLogic error dialog.
+	/// </remarks>
+	private static DialogButton ReadButton(IUIAutomationElement element, IntPtr handle, int parentType)
 	{
-		IntPtr handle = element.CurrentNativeWindowHandle;
-
-		// WinForms controls have their own window, and UI Automation reports hidden ones as on screen.
-		// WPF controls and title bar buttons have no window, so IsOffscreen decides for them.
 		bool visible = handle != IntPtr.Zero ? IsWindowVisible(handle) : element.CurrentIsOffscreen == 0;
-		bool inTitleBar = handle == IntPtr.Zero
-			&& _automation.Value.RawViewWalker.GetParentElement(element)?.CurrentControlType == UIA_ControlTypeIds.UIA_TitleBarControlTypeId;
+		bool enabled = element.CurrentIsEnabled != 0 && (handle == IntPtr.Zero || IsWindowEnabled(handle));
+		bool windowFrame = handle == IntPtr.Zero
+			&& parentType is UIA_ControlTypeIds.UIA_TitleBarControlTypeId or UIA_ControlTypeIds.UIA_ScrollBarControlTypeId;
 
-		return new DialogButton(element.CurrentName ?? string.Empty, visible, element.CurrentIsEnabled != 0, inTitleBar);
+		return new DialogButton(element.CurrentName ?? string.Empty, visible, enabled, windowFrame);
+	}
+
+	private static List<IntPtr> ChildWindows(IntPtr parent)
+	{
+		List<IntPtr> children = [];
+
+		_ = EnumChildWindows(parent, (child, parameter) =>
+		{
+			children.Add(child);
+			return true;
+		}, IntPtr.Zero);
+
+		return children;
 	}
 
 	/// <summary>
@@ -361,6 +407,24 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	}
 
 	private sealed record WindowInfo(IntPtr Handle, string ClassName, string Title, bool Enabled);
+
+	/// <summary>
+	/// 	What <see cref="Collect"/> found in one dialog.
+	/// </summary>
+	private sealed class DialogContent(string? framework)
+	{
+		public string? Framework { get; } = framework;
+
+		public List<string> Texts { get; } = [];
+
+		public List<(DialogButton Button, IUIAutomationElement Element)> Buttons { get; } = [];
+	}
+
+	[DllImport("user32.dll")]
+	private static extern bool EnumChildWindows(IntPtr parent, EnumWindowsCallback callback, IntPtr parameter);
+
+	[DllImport("user32.dll")]
+	private static extern IntPtr GetAncestor(IntPtr window, uint flags);
 
 	private delegate bool EnumWindowsCallback(IntPtr window, IntPtr parameter);
 

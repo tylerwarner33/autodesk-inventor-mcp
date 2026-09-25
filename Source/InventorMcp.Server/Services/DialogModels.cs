@@ -80,15 +80,15 @@ internal sealed record DialogSnapshot(
 /// <param name="IsEnabled">
 /// 	True when the button accepts a click.
 /// </param>
-/// <param name="IsInTitleBar">
-/// 	True for the minimise, maximise and close buttons of the title bar.
+/// <param name="IsWindowFrame">
+/// 	True for the buttons of a title bar (ex. <c>Close</c>) and of a scroll bar (ex. <c>Line down</c>).
 /// </param>
-internal sealed record DialogButton(string Name, bool IsVisible, bool IsEnabled, bool IsInTitleBar = false)
+internal sealed record DialogButton(string Name, bool IsVisible, bool IsEnabled, bool IsWindowFrame = false)
 {
 	/// <summary>
 	/// 	True when a user can see and click the button in the dialog itself.
 	/// </summary>
-	public bool IsClickable => IsVisible && IsEnabled && IsInTitleBar is false;
+	public bool IsClickable => IsVisible && IsEnabled && IsWindowFrame is false;
 }
 
 /// <summary>

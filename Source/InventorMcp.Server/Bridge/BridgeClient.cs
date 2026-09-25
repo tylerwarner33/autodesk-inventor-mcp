@@ -216,9 +216,15 @@ internal sealed class BridgeClient(
 
 		BridgeRequest request = new(Guid.NewGuid().ToString("N"), operation, serialisedPayload);
 
+		// A dialog's modal loop still runs the add-in's work, so a call sent now would run nested inside the call that
+		// opened the dialog (ex. inside a waiting iLogic rule). So the dialog is handled first, and nothing is sent while
+		// one needs a person.
+		DialogWatch watch = new();
+		await HandleDialogsAsync(watch, cancellationToken).ConfigureAwait(false);
+
 		await _writer!.WriteLineAsync(JsonSerializer.Serialize(request, BridgeProtocol.SerializerOptions)).ConfigureAwait(false);
 
-		BridgeResponse response = await ReadResponseAsync(request.Id, cancellationToken).ConfigureAwait(false);
+		BridgeResponse response = await ReadResponseAsync(request.Id, watch, cancellationToken).ConfigureAwait(false);
 
 		if (response.Success is false)
 		{
@@ -241,9 +247,8 @@ internal sealed class BridgeClient(
 	/// 	So the check runs on a timer here, not after the call returns.
 	/// 	See <c>Docs/Research/Blocking-Dialog-Detection.md</c>, "Proposal for the server".
 	/// </remarks>
-	private async Task<BridgeResponse> ReadResponseAsync(string requestId, CancellationToken cancellationToken)
+	private async Task<BridgeResponse> ReadResponseAsync(string requestId, DialogWatch watch, CancellationToken cancellationToken)
 	{
-		DialogWatch watch = new();
 		TimeSpan wait = FirstDialogCheck;
 
 		while (true)

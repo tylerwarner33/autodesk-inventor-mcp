@@ -150,7 +150,10 @@ internal static class Program
 		};
 
 		WinForms.TabControl tabs = new() { Left = 10, Top = 10, Width = 480, Height = 200 };
-		tabs.TabPages.Add(CreateTextPage("Error Message", "RunExternalRule: Cannot find an external rule file named: \"DoesNotExist\""));
+		// Long enough for a scroll bar, whose arrow buttons UI Automation also reports, as in the real dialog.
+		string message = "RunExternalRule: Cannot find an external rule file named: \"DoesNotExist\"" +
+			string.Concat(Enumerable.Range(1, 30).Select(line => $"\r\nLine {line} of the message."));
+		tabs.TabPages.Add(CreateTextPage("Error Message", message));
 		tabs.TabPages.Add(CreateTextPage("More Info", "System.Exception: Test stack trace\r\n   at ThisRule.Main() in rule: Test, line 1"));
 		dialog.Controls.Add(tabs);
 
@@ -171,6 +174,8 @@ internal static class Program
 		{
 			Multiline = true,
 			ReadOnly = true,
+			ScrollBars = WinForms.ScrollBars.Both,
+			WordWrap = false,
 			Text = text,
 			Dock = WinForms.DockStyle.Fill
 		});

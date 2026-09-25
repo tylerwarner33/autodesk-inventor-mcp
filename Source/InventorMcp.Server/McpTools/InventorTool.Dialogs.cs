@@ -123,7 +123,7 @@ internal static partial class InventorTool
 		className = dialog.ClassName,
 		text = dialog.Text,
 		buttons = dialog.ClickableButtons,
-		hiddenOrDisabledButtons = dialog.Buttons.Where(button => button.IsClickable is false && button.IsInTitleBar is false).Select(button => button.Name),
+		hiddenOrDisabledButtons = dialog.Buttons.Where(button => button.IsClickable is false && button.IsWindowFrame is false).Select(button => button.Name),
 		readError = dialog.ReadError,
 		serverWouldClose = DialogPolicy.ShouldClose(dialog, DialogPolicy.IsAutoCloseEnabled)
 	};

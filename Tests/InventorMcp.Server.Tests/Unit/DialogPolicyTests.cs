@@ -28,7 +28,13 @@ public sealed class DialogPolicyTests
 	[Fact]
 	public void TitleBarButtonsDoNotCount() =>
 		Assert.True(DialogPolicy.ShouldClose(
-			Dialog("Autodesk Inventor", "#32770", Button("OK"), new DialogButton("Close", true, true, IsInTitleBar: true)),
+			Dialog("Autodesk Inventor", "#32770", Button("OK"), new DialogButton("Close", true, true, IsWindowFrame: true)),
+			autoCloseEnabled: true));
+
+	[Fact]
+	public void ScrollBarButtonsDoNotCount() =>
+		Assert.True(DialogPolicy.ShouldClose(
+			Dialog(_iLogicTitle, _winFormsClass, Button("OK"), new DialogButton("Line up", true, true, IsWindowFrame: true), new DialogButton("Column right", true, true, IsWindowFrame: true)),
 			autoCloseEnabled: true));
 
 	[Fact]

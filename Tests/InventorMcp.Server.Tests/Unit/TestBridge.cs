@@ -49,11 +49,11 @@ internal sealed class TestConnection(NamedPipeServerStream pipe) : IAsyncDisposa
 	private readonly StreamReader _reader = new(pipe, new UTF8Encoding(false), false, leaveOpen: true);
 	private readonly StreamWriter _writer = new(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
 
-	public async Task<BridgeRequest> ReadRequestAsync()
+	public async Task<BridgeRequest> ReadRequestAsync(TimeSpan? timeout = null)
 	{
 		string? line = await _reader.ReadLineAsync(TestContext.Current.CancellationToken)
 			.AsTask()
-			.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+			.WaitAsync(timeout ?? TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
 		return JsonSerializer.Deserialize<BridgeRequest>(line!, BridgeProtocol.SerializerOptions)!;
 	}
