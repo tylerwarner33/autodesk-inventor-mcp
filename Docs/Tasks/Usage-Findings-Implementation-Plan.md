@@ -34,7 +34,9 @@ A reference such as "R1.3" means item 3 of section 1 in the research's "Findings
 	can reply. The server can find the dialog with Win32: Inventor's main window is disabled
 	(`IsWindowEnabled` is false), and a top level window of the same process is enabled and has a title.
 	This works while the main thread is blocked. Verify it with the iLogic Security Alert, which may not be a
-	standard dialog class.
+	standard dialog class. Tested on 2026-09-24 with a real iLogic error dialog: see
+	`Docs/Research/Blocking-Dialog-Detection.md` for the method, the proposal to detect and close information
+	dialogs during the wait, and `Docs/Tasks/Server-Test-Project-Plan.md` for the tests.
 7. **Serve the skills as the research recommends.** Put them in `Source/InventorMcp.Server/Skills/<name>/SKILL.md`,
 	embed them, and serve them through `inventor_skill` until the C# SDK and the clients support the extension.
 	`McpServerSkill.Create` computes the manifest from bytes, so embedded files will also work with the SDK later.
