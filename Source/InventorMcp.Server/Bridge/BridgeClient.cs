@@ -392,29 +392,17 @@ internal sealed class BridgeClient(
 			$"Dialog: '{dialog.Title}' ({dialog.Framework ?? "not read"}, {type ?? "not in the catalog"})" + Environment.NewLine +
 			(dialog.ReadError is null ? $"Text: {text}" : dialog.ReadError) + Environment.NewLine +
 			$"Visible buttons: {string.Join(", ", dialog.ClickableButtons)}" + Environment.NewLine +
-			"Do not close a dialog that asks a question without asking the user. Use inventor_dialogs to read or close it, " +
-			"or ask the user.";
+			"Do not close a dialog that asks a question without asking the user. Read it with inventor_dialogs, and close it " +
+			"with inventor_dialog_click only after the user chose the button.";
 
 		return new InventorBridgeException(BridgeErrorCodes.BlockedByDialog, message, dialog.Text);
 	}
 
-	/// <summary>
-	/// 	Records a click in the execution audit log, which the add-in writes for each snippet.
-	/// </summary>
 	private void WriteClickAudit(DialogSnapshot dialog)
 	{
 		try
 		{
-			string newLine = Environment.NewLine;
-			string entry =
-				$"{new string('=', 80)}{newLine}" +
-				$"{DateTimeOffset.UtcNow:O}  dialog-click  button='{DialogPolicy.CloseButton}'  title='{dialog.Title}'{newLine}" +
-				$"{new string('-', 80)}{newLine}" +
-				$"{dialog.Text}{newLine}";
-
-			File.AppendAllText(
-				Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InventorMcp", "executed-code.log"),
-				entry);
+			ExecutionAuditLog.WriteDialogClick(dialog, DialogPolicy.CloseButton, "watchdog");
 		}
 		catch (IOException exception)
 		{

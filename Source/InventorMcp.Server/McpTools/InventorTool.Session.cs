@@ -10,9 +10,12 @@ namespace InventorMcp.Server.McpTools;
 internal static partial class InventorTool
 {
 	[McpServerTool(Name = "inventor_session")]
-	[Description("Reports whether an Inventor session is reachable, which version it is, and which document is active. Call this first when you are unsure what Inventor is doing.")]
+	[Description("Reports whether an Inventor session is reachable, which version it is, and which document is active. Call this first when you are unsure what Inventor is doing. If a modal dialog blocks Inventor, it returns blocked-by-dialog at once, with the dialog.")]
 	public static Task<object> Session(BridgeClient bridge, CancellationToken cancellationToken) =>
-		SafeAsync(() => bridge.InvokeAsync<Contracts.Models.SessionInfo>(BridgeOperations.Session, null, cancellationToken));
+		UnlessBlockedAsync(
+			bridge,
+			() => SafeAsync(() => bridge.InvokeAsync<Contracts.Models.SessionInfo>(BridgeOperations.Session, null, cancellationToken)),
+			cancellationToken);
 
 	[McpServerTool(Name = "inventor_documents")]
 	[Description("Lists every document open in the Inventor session, with its full path, type, unsaved state, and whether it needs a rebuild.")]

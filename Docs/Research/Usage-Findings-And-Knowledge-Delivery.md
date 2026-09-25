@@ -250,7 +250,9 @@ Proposed lines:
 	A file saved in a newer release, even a newer point release, does not open in an older one. In one session a
 	template was saved in a newer point release with no check, and it could no longer be used by the older
 	release that reads it.
-- Never answer a dialog on the user's behalf, ex. an iLogic Security Alert. Tell the user and wait.
+- Never answer a question dialog on the user's behalf, ex. an iLogic Security Alert. The server closes an
+	information dialog that has only `OK`, and gives its text in the result. Changed on 2026-09-25, see
+	`Docs/Research/Blocking-Dialog-Detection.md`, "Decision: close information dialogs, default on".
 - Calls run one at a time on Inventor's main thread. A slow call can be another client's work.
 - `Parameter.Value` and some definition members (ex. `RectangularPatternFeatureDefinition.XCount`) are typed as
 	`object`. Cast them (ex. `((Parameter)d.XCount).Expression`).

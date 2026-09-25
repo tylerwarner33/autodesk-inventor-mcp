@@ -460,6 +460,8 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | `inventor_orientation` | Resolve each ViewCube face to a world direction for the active document |
 | `inventor_run_plugin` | Run a method from a plugin's build output, loaded fresh each call, so a code change needs no restart |
 | `inventor_drawing_layout` | Measure a drawing's views, balloons, dimensions and tables, and report collisions |
+| `inventor_dialogs` | The modal dialogs that block Inventor, with their text and buttons. Works while Inventor is blocked. |
+| `inventor_dialog_click` | Click one visible button of a blocking dialog. Marked destructive, so a client can ask first. |
 
 ## Executing code
 
@@ -507,6 +509,18 @@ So an unanswered dialog stalls every tool except `inventor_activity`, which read
 
 Write operations therefore run with `SilentOperation` set, and restore the previous value afterwards.
 Inventor answers a suppressed dialog with its own default, which is a real behaviour change, so reads never suppress anything.
+
+`SilentOperation` does not stop every dialog (ex. the iLogic error dialog). So the server watches from outside
+Inventor's process while a call waits. After 3 s, and then every 2 s, it checks whether the Inventor main window is
+disabled. If it is, the server reads each dialog with UI Automation and writes its text to the server log:
+
+- A known information dialog with only `OK` (an iLogic error, or a Win32 message box) is closed with `OK`. The call
+	then returns, with the dialog text in `blockingDialogs`.
+- Any other dialog stays open. The call stops with `blocked-by-dialog`, the dialog text and its buttons.
+	`inventor_dialogs` reads it, and `inventor_dialog_click` clicks the button that the user chose.
+
+Set `INVENTORMCP_AUTOCLOSE_DIALOGS=false` on the server to close no dialog automatically.
+See `Docs/Research/Blocking-Dialog-Detection.md`.
 
 ## Logs
 

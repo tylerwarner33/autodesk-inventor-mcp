@@ -79,15 +79,18 @@ internal static partial class InventorTool
 			cancellationToken));
 
 	[McpServerTool(Name = "inventor_health")]
-	[Description("Reports whether a document needs a rebuild, which features are sick and why, and what the Inventor error manager is holding. Use this to debug automation that is producing bad geometry.")]
+	[Description("Reports whether a document needs a rebuild, which features are sick and why, and what the Inventor error manager is holding. Use this to debug automation that is producing bad geometry. If a modal dialog blocks Inventor, it returns blocked-by-dialog at once, with the dialog.")]
 	public static Task<object> Health(
 		BridgeClient bridge,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(async () => AddHealthHints(await bridge.InvokeAsync<Contracts.Models.HealthInfo>(
-			BridgeOperations.Health,
-			new DocumentScopedRequest(documentName),
-			cancellationToken).ConfigureAwait(false)));
+		UnlessBlockedAsync(
+			bridge,
+			() => SafeAsync(async () => AddHealthHints(await bridge.InvokeAsync<Contracts.Models.HealthInfo>(
+				BridgeOperations.Health,
+				new DocumentScopedRequest(documentName),
+				cancellationToken).ConfigureAwait(false))),
+			cancellationToken);
 
 	/// <summary>
 	/// 	Explains a sick feature whose meaning is known, because Inventor records no failure text for a feature.
