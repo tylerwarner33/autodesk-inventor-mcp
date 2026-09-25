@@ -33,11 +33,18 @@ internal static partial class InventorTool
 		[Description("Parameter name.")] string name,
 		[Description("New value. For a numeric parameter this is an expression, ex. '50 mm' or 'Width / 2'.")] string expression,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
+		[Description("Turn iLogic rules off for the write, so the change does not run them. They are turned back on after it. For several writes, use inventor_set_parameters.")] bool suppressRules = false,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ParameterInfo>(
-			BridgeOperations.SetParameter,
-			new SetParameterRequest(name, expression, documentName),
-			cancellationToken));
+		suppressRules
+			// The same snippet as inventor_set_parameters, because the add-in operation cannot turn the rules off.
+			? SafeAsync(async () => await RunJsonSnippetAsync(
+				bridge,
+				ComposeSetParametersSnippet(new Dictionary<string, string> { [name] = expression }, documentName, suppressRules: true, runRuleAfter: null, createIfMissing: false, allowUnsavedChanges: true),
+				cancellationToken).ConfigureAwait(false))
+			: SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ParameterInfo>(
+				BridgeOperations.SetParameter,
+				new SetParameterRequest(name, expression, documentName),
+				cancellationToken));
 
 	[McpServerTool(Name = "inventor_evaluate_expression")]
 	[Description("Asks Inventor what an expression evaluates to, without writing it anywhere. Reports validity, the internal value, the display value, and which parameters the expression reads. Use this to check an expression before calling inventor_set_parameter.")]

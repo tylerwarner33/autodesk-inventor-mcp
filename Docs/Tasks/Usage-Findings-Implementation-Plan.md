@@ -123,19 +123,22 @@ this machine's iLogic security options). The cause of the alert in the research 
 R1.3 and R1.5. Canned snippets through `BridgeOperations.EvalCSharp` that use the Phase 2 iLogic helper.
 New file: `McpTools/InventorTool.ILogic.cs`.
 
-- [ ] `inventor_ilogic_rules`: the name, the active flag and the length of each rule, for an open document or a
+- [x] `inventor_ilogic_rules`: the name, the active flag and the length of each rule, for an open document or a
 	path.
-- [ ] `inventor_ilogic_rule_get`: one rule, or all rules written to files in a folder.
-- [ ] `inventor_ilogic_rule_set`: insert or replace at an anchor that must occur exactly once. Stop if it does not.
+- [x] `inventor_ilogic_rule_get`: one rule, or all rules written to files in a folder.
+- [x] `inventor_ilogic_rule_set`: insert or replace at an anchor that must occur exactly once. Stop if it does not.
 	Make CRLF line ends the same, write a backup of the old text under `%LOCALAPPDATA%\InventorMcp\`, and return a
-	diff. See decision 10.
-- [ ] `inventor_run_ilogic`: accept a document path and a rule name. A rule name runs that rule, in place of a
+	diff. See decision 10. It also refuses to write when the rule changed between its read and its write, and a
+	file that is not open needs `save=true`.
+- [x] `inventor_run_ilogic`: accept a document path and a rule name. A rule name runs that rule, in place of a
 	temporary rule body. This part is a snippet in the server. Nothing can stop a call on the main thread, so a
-	timeout can only be reported. It cannot be enforced.
-- [ ] `inventor_set_parameters`: a bulk write of names and expressions, with `suppressRules`, `runRuleAfter` and
+	timeout can only be reported. It cannot be enforced. A write tool takes an open document only (display name
+	or full path), because a change to a document that the call opens is lost when it closes.
+- [x] `inventor_set_parameters`: a bulk write of names and expressions, with `suppressRules`, `runRuleAfter` and
 	`createIfMissing` (R1.5). See decision 9.
-- [ ] `suppressRules` on `inventor_set_parameter` and `inventor_eval_csharp`. With the option, the server sends a
-	snippet in place of the add-in operation.
+- [x] `suppressRules` on `inventor_set_parameter` and `inventor_eval_csharp`. With the option, the server sends a
+	snippet in place of the add-in operation. For `inventor_eval_csharp` it is three calls (off, the snippet, restore
+	in the server's `finally`), because a wrapping `try` block would break a snippet that declares methods.
 
 Verify on test copies of a template with many rule triggers, never on the masters:
 
@@ -143,6 +146,30 @@ Verify on test copies of a template with many rule triggers, never on the master
 - The rule runs once after the batch.
 - `RulesEnabled` has its old value after the call and after a failed call.
 - `inventor_ilogic_rule_set` causes a Security Alert, or it does not.
+
+Verified on 2026-09-25 on Inventor 2025 (the user changed from 2026 during the work), on a test copy of
+`C:\Work\Designs\Frame\Master Frame.iam` in
+`C:\Work\_McpTest\Frame`. The copy has the 29 model files of the master
+folder, made with Apprentice `FileSaveAs` so no rule ran. Its references to the project's library paths (`Designs`
+and the Content Center, 28 files) point at the originals, which the project makes read-only. The masters were not
+changed. Delete the `_McpTest` folder when the tests are done, and do not check it into Vault.
+
+| Measurement | Result |
+| --- | --- |
+| One parameter write with the rules on (the old way) | 85 s |
+| Two writes with `suppressRules` | 73 ms, then `RulesEnabled` was true again |
+| One run of the top `Master` rule | 79 s |
+| Four writes with `suppressRules` and `runRuleAfter: Master` | 59 ms of writes, 67 s in total |
+
+- `RulesEnabled` was true after the batch, after a snippet that threw with `suppressRules`, and after the rule run.
+- A text parameter, a boolean parameter and a missing name (reported per parameter, no exception) in one batch.
+- `inventor_ilogic_rule_set` refused an anchor that occurs 3 times, and inserted at a unique one with a backup and a
+	diff. The edited rule then ran by name through `inventor_run_ilogic` in 120 ms. No Security Alert opened. So
+	decision 10 is not reproduced: two API edits, one of a saved rule, opened no alert on this machine.
+- Opening the test copy took 4.7 s and made it dirty, as R1.11 found for drawings.
+
+Not verified: whether `RulesEnabled = false` stays after an Inventor restart (decision 9). The server always
+restores it, and says so when the restore fails.
 
 ### Phase 4 - Session state and read tools
 

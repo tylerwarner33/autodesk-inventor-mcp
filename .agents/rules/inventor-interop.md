@@ -57,8 +57,10 @@ It shows in the Windows Application event log as a `.NET Runtime` event 1026, an
 every call was accepted.
 
 Keep each call under about 10 s and split a loop that creates or edits sketches, views or documents over several
-calls. The server appends a warning to any execution result over 20 s (`_longExecutionWarningThreshold` in
-`InventorTool.cs`). The value sits above the 6 to 12 s plugin runs, which were safe, so routine runs do not warn.
+calls. The server appends a warning to a snippet result over 10 s (`_longExecutionWarningThreshold` in
+`InventorTool.cs`), the same number as the instructions. A plugin run gets no warning, because it cannot be split.
+iLogic rule chains are long in practice: on 2026-09-25 one top level `Master` rule of an automation assembly ran
+79 s, and one parameter write with the rules on took 85 s, with no failure. Use `suppressRules` for a batch.
 Run time is only a proxy: the risk grows with the window messages a call causes, so a short call that edits the
 user interface heavily can still fill the queue.
 

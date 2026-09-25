@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json;
 
 using InventorMcp.Contracts;
 using InventorMcp.Server.Bridge;
@@ -55,14 +56,75 @@ internal static partial class InventorTool
 		[Description("The C# snippet to run.")] string code,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
 		[Description("Set true to run against a document with unsaved changes. Those changes cannot be recovered if the snippet damages them.")] bool allowUnsavedChanges = false,
+		[Description("Turn iLogic rules off while the snippet runs, so a parameter change does not run them. They are turned back on after it, also after a failure. RulesEnabled is a setting of the whole session.")] bool suppressRules = false,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(async () => DiagnosticHints.Improve(
-			await bridge.InvokeAsync<Contracts.Models.ExecutionResult>(
-				BridgeOperations.EvalCSharp,
-				new ExecuteRequest(ScriptPrelude.Apply(code), documentName, allowUnsavedChanges),
-				cancellationToken).ConfigureAwait(false),
-			apiReference,
-			bridge.ReleaseYear));
+		SafeAsync(() => WithRulesSuppressedAsync(
+			bridge,
+			suppressRules,
+			async () => DiagnosticHints.Improve(
+				await bridge.InvokeAsync<Contracts.Models.ExecutionResult>(
+					BridgeOperations.EvalCSharp,
+					new ExecuteRequest(ScriptPrelude.Apply(code), documentName, allowUnsavedChanges),
+					cancellationToken).ConfigureAwait(false),
+				apiReference,
+				bridge.ReleaseYear),
+			cancellationToken));
+
+	/// <summary>
+	/// 	Runs a call with iLogic rules turned off, and turns them back on after it.
+	/// </summary>
+	/// <remarks>
+	/// 	Three bridge calls, not one snippet with a finally block: the model's snippet can declare methods and return at
+	/// 	the top level, which a wrapping try block would break. The restore runs in the server's finally block, so a
+	/// 	failed snippet still restores. If the restore cannot run (ex. a dialog blocks Inventor), the result says so.
+	/// </remarks>
+	private static async Task<object> WithRulesSuppressedAsync<TResult>(
+		BridgeClient bridge,
+		bool suppressRules,
+		Func<Task<TResult>> work,
+		CancellationToken cancellationToken)
+	{
+		if (suppressRules is false)
+			return (await work().ConfigureAwait(false))!;
+
+		JsonElement before = await RunJsonSnippetAsync(bridge, """
+			dynamic automation = ILogicAutomation();
+			bool previous = (bool)automation.RulesEnabled;
+			automation.RulesEnabled = false;
+			return System.Text.Json.JsonSerializer.Serialize(new { previous });
+			""", cancellationToken).ConfigureAwait(false);
+
+		if (before.TryGetProperty("previous", out JsonElement previousElement) is false)
+			return new { error = BridgeErrorCodes.ExecutionFailed, message = "Could not turn the iLogic rules off, so the snippet did not run.", detail = before };
+
+		bool previous = previousElement.GetBoolean();
+		object? result = null;
+		string? restoreProblem = null;
+
+		try
+		{
+			result = await work().ConfigureAwait(false);
+		}
+		finally
+		{
+			try
+			{
+				_ = await RunJsonSnippetAsync(
+					bridge,
+					$"ILogicAutomation().RulesEnabled = {(previous ? "true" : "false")}; return \"{{}}\";",
+					CancellationToken.None).ConfigureAwait(false);
+			}
+			catch (InventorBridgeException exception)
+			{
+				restoreProblem = $"iLogic rules are still turned off, because the restore failed: {exception.Message} " +
+					"Tell the user. Call inventor_eval_csharp with 'ILogicAutomation().RulesEnabled = true; return 0;' when Inventor answers.";
+			}
+		}
+
+		return restoreProblem is null
+			? new { result, rulesSuppressed = true, rulesEnabledNow = previous }
+			: new { result, rulesSuppressed = true, warning = restoreProblem };
+	}
 
 	[McpServerTool(Name = "inventor_run_ilogic")]
 	[Description("""
@@ -74,17 +136,41 @@ internal static partial class InventorTool
 
 		This executes arbitrary code in the user's CAD session and is audited and guarded the same way as
 		inventor_eval_csharp. Keep each call under 10 s.
+
+		Give ruleName instead of code to run a rule that the document already has. Nothing can stop a rule that runs
+		on the main thread, so a long rule can only be reported after it returns.
 		""")]
 	public static Task<object> RunILogic(
 		BridgeClient bridge,
-		[Description("The iLogic rule body, in VB.NET.")] string code,
-		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
+		[Description("The iLogic rule body, in VB.NET. Omit when ruleName is given.")] string? code = null,
+		[Description("Display name or full path of an open document. Omit to use the active document.")] string? documentName = null,
 		[Description("Set true to run against a document with unsaved changes. Those changes cannot be recovered if the rule damages them.")] bool allowUnsavedChanges = false,
-		CancellationToken cancellationToken = default) =>
-		SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ExecutionResult>(
-			BridgeOperations.RunILogic,
-			new ExecuteRequest(code, documentName, allowUnsavedChanges),
-			cancellationToken));
+		[Description("The name of a rule in the document to run, in place of code.")] string? ruleName = null,
+		CancellationToken cancellationToken = default)
+	{
+		if (string.IsNullOrWhiteSpace(code) == string.IsNullOrWhiteSpace(ruleName))
+			return Task.FromResult<object>(new { error = "invalid-arguments", message = "Give code to run a rule body, or ruleName to run a rule of the document. Not both." });
+
+		if (ruleName is null)
+		{
+			return SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ExecutionResult>(
+				BridgeOperations.RunILogic,
+				new ExecuteRequest(code!, documentName, allowUnsavedChanges),
+				cancellationToken));
+		}
+
+		return SafeAsync(async () => await RunJsonSnippetAsync(bridge, _findToolDocument + $$"""
+			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}}, allowOpen: false);
+			string ruleName = {{CSharpLiteral.String(ruleName)}};
+			if (!{{(allowUnsavedChanges ? "true" : "false")}} && document.Dirty)
+				throw new InvalidOperationException($"'{document.DisplayName}' has unsaved changes. Save it, or pass allowUnsavedChanges.");
+			if (ILogicRuleText(document, ruleName) is null)
+				throw new ArgumentException($"'{document.DisplayName}' has no rule named '{ruleName}'. Call inventor_ilogic_rules for the names.");
+			System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+			RunILogicRule(document, ruleName);
+			return System.Text.Json.JsonSerializer.Serialize(new { document = document.DisplayName, rule = ruleName, ruleMilliseconds = stopwatch.ElapsedMilliseconds, dirty = document.Dirty });
+			""", cancellationToken).ConfigureAwait(false));
+	}
 
 	[McpServerTool(Name = "inventor_api_lookup")]
 	[Description("""
