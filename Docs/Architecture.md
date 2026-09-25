@@ -209,6 +209,17 @@ A few tools are canned snippets the server composes and sends through the same e
 point for a job worth repeating, and cost no add-in rebuild. Their argument values reach the snippet only as C#
 literals built by `CSharpLiteral`, never as pasted text, because a composed snippet is compiled inside Inventor.
 
+### Script helpers travel with the snippet
+
+The helpers for `inventor_eval_csharp` (documents, iLogic, units, user parameters, a time guard) are in
+`Source/InventorMcp.Server/ScriptPrelude.csx`, not in the add-in's script globals. The server puts them before a
+snippet that calls one of them, so a helper change needs no add-in rebuild. A snippet that calls none is sent as it
+is. The snippet's leading `using` directives go first, and `#line` keeps its line numbers.
+
+Measured on 2026-09-25 on Inventor 2026: `return 1;` took 43 to 49 ms to compile and run, and `return ToInches(2.54);`
+with the prelude took 70 to 135 ms. The median snippet call in the usage research is 0.29 s, so the prelude stays
+in the server. Move a helper to the globals only if a later measurement shows a cost that matters.
+
 ### Plugins under development load from a copy
 
 `inventor_run_plugin` copies a plugin's build output and loads the copy into a new collectible context on every call,
@@ -325,6 +336,18 @@ would stall every tool except the activity feed.
 
 Write operations therefore set `SilentOperation` and restore it afterwards.
 Inventor answers a suppressed dialog with its default, which is a real behaviour change, so reads never suppress.
+
+### The server watches for dialogs from outside Inventor
+
+`SilentOperation` does not stop every dialog (ex. the iLogic error dialog of `RunRule`). A call that opens a modal
+dialog is also the call that waits on it, so only a process outside Inventor can see the dialog. The server does:
+`BridgeClient` checks the main frame 3 s into a wait and then every 2 s, finds the dialogs with Win32, reads them
+with the UI Automation COM API, closes a known information dialog with only `OK`, and stops the wait with
+`blocked-by-dialog` for any other dialog. It also checks before it sends a call, because the modal loop of an open
+dialog still runs the add-in's work, and a new call would run nested inside the call that opened it.
+`inventor_dialogs` and `inventor_dialog_click` use the same service with no bridge call.
+The UI Automation COM interop (`Interop.UIAutomationClient`) is used in place of `System.Windows.Automation`, so the
+server needs no .NET Desktop Runtime. See `Research/Blocking-Dialog-Detection.md`.
 
 ### The add-in runs in its own assembly load context
 

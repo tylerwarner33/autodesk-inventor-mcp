@@ -29,6 +29,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<!--
+			The UI Automation COM API, for the dialogs that block Inventor. Not System.Windows.Automation, which needs the
+			.NET Desktop Runtime. See Docs/Research/Blocking-Dialog-Detection.md.
+		-->
+		<PackageReference Include="Interop.UIAutomationClient" />
 		<PackageReference Include="Microsoft.Extensions.Hosting" />
 		<PackageReference Include="ModelContextProtocol" />
 		<PackageReference Include="Serilog.Extensions.Logging" />
@@ -39,9 +44,31 @@
 		<ProjectReference Include="..\InventorMcp.Contracts\InventorMcp.Contracts.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<InternalsVisibleTo Include="InventorMcp.Server.Tests" />
+	</ItemGroup>
+
 	<!-- The modelling rules sent to every client in the initialize response. .agents/rules points here. -->
 	<ItemGroup>
 		<EmbeddedResource Include="ServerInstructions.md" LogicalName="InventorMcp.Server.ServerInstructions.md" />
+	</ItemGroup>
+
+	<!-- The helpers put before an inventor_eval_csharp snippet that calls one. Services/ScriptPrelude.cs reads it. -->
+	<ItemGroup>
+		<EmbeddedResource Include="ScriptPrelude.csx" LogicalName="InventorMcp.Server.ScriptPrelude.csx" />
+	</ItemGroup>
+
+	<!--
+		The skills that inventor_skill serves, one folder each, embedded with their path. Services/SkillCatalog.cs reads
+		them. The path in the name lets the Skills over MCP extension serve the same files later.
+	-->
+	<ItemGroup>
+		<EmbeddedResource Include="Skills\**\*" LogicalName="InventorMcp.Server.Skills/%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<!-- The Apprentice script of inventor_test_copy, run in a child process. McpTools/InventorTool.Files.cs reads it. -->
+	<ItemGroup>
+		<EmbeddedResource Include="TestCopy.ps1" LogicalName="InventorMcp.Server.TestCopy.ps1" />
 	</ItemGroup>
 
 	<!--

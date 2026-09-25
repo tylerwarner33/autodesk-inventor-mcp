@@ -1,4 +1,5 @@
 using InventorMcp.Server.Bridge;
+using InventorMcp.Server.McpTools;
 using InventorMcp.Server.Services;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -19,19 +20,28 @@ _ = Directory.CreateDirectory(logDirectory);
 
 Log.Logger = new LoggerConfiguration()
 	.MinimumLevel.Information()
+	// Kept by age, not by count: each server process writes its own file, so with many clients a count limit deletes
+	// the files of the same day.
 	.WriteTo.File(
 		Path.Combine(logDirectory, "server-.log"),
 		rollingInterval: RollingInterval.Day,
-		retainedFileCountLimit: 7)
+		retainedFileCountLimit: null,
+		retainedFileTimeLimit: TimeSpan.FromDays(14))
 	.CreateLogger();
 
 builder.Logging.ClearProviders();
 _ = builder.Logging.AddSerilog(Log.Logger, dispose: true);
 
-builder.Services.AddSingleton<BridgeClient>();
+builder.Services.AddSingleton<IBlockingDialogs>(static _ => new BlockingDialogs());
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(static services => new BridgeClient(
+	services.GetRequiredService<ILogger<BridgeClient>>(),
+	services.GetRequiredService<IBlockingDialogs>(),
+	services.GetRequiredService<TimeProvider>()));
 
 // Singleton because it indexes a 12 MB documentation file once and holds the result.
 builder.Services.AddSingleton<ApiReferenceService>();
+builder.Services.AddSingleton<SkillCatalog>();
 
 builder.Services.AddSingleton<InventorInstallations>();
 
@@ -39,9 +49,23 @@ builder.Services.AddSingleton<InventorInstallations>();
 _ = builder.Services
 	.AddMcpServer(static options => options.ServerInstructions = ReadServerInstructions())
 	.WithStdioServerTransport()
-	.WithToolsFromAssembly();
+	.WithToolsFromAssembly()
+	// The client name goes to the add-in's audit log, so each snippet there shows which client sent it.
+	.WithRequestFilters(static filters => filters.AddCallToolFilter(static next => (context, cancellationToken) =>
+	{
+		BridgeClient bridge = context.Services!.GetRequiredService<BridgeClient>();
 
-await builder.Build().RunAsync();
+		if (bridge.ClientName is null && context.Server.ClientInfo is { } client)
+			bridge.ClientName = ExecutionAuditLog.OneLine($"{client.Name} {client.Version}").Trim();
+
+		return next(context, cancellationToken);
+	}));
+
+IHost host = builder.Build();
+
+InventorTool.ResultLogger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("InventorMcp.Server.ToolResults");
+
+await host.RunAsync();
 
 static string ReadServerInstructions()
 {

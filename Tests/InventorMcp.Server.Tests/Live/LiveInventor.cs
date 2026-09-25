@@ -1,0 +1,133 @@
+using System.Text.Json;
+
+using InventorMcp.Contracts;
+using InventorMcp.Contracts.Models;
+using InventorMcp.Server.Bridge;
+using InventorMcp.Server.Services;
+
+using Microsoft.Extensions.Logging;
+
+namespace InventorMcp.Server.Tests.Live;
+
+/// <summary>
+/// 	Access to a live Inventor with the add-in loaded, for the tests that set <c>INVENTORMCP_LIVE_TESTS=1</c>.
+/// </summary>
+internal static class LiveInventor
+{
+	public const string EnableVariable = "INVENTORMCP_LIVE_TESTS";
+
+	/// <summary>
+	/// 	Skips the test unless the live level is on.
+	/// </summary>
+	/// <remarks>
+	/// 	The value is trimmed, because <c>set INVENTORMCP_LIVE_TESTS=1 &amp;&amp; ...</c> in cmd stores a trailing space.
+	/// </remarks>
+	public static void Require() =>
+		Assert.SkipUnless(
+			Environment.GetEnvironmentVariable(EnableVariable)?.Trim() == "1",
+			$"Set {EnableVariable}=1, and start Inventor with the add-in, to run the live tests.");
+
+	/// <summary>
+	/// 	A client of the real pipe, with the real detector and the real clock.
+	/// </summary>
+	public static BridgeClient CreateClient() =>
+		new(new TestOutputLogger<BridgeClient>(), new BlockingDialogs(), TimeProvider.System);
+
+	/// <summary>
+	/// 	The longest a live call may take, so a call that hangs fails its test and does not stop the run.
+	/// </summary>
+	private static readonly TimeSpan _callTimeout = TimeSpan.FromSeconds(60);
+
+	/// <summary>
+	/// 	A name that iLogic has not seen, because it shows the same rule error only once in 120 minutes.
+	/// </summary>
+	public static string UniqueName(string prefix) => $"{prefix}_{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+
+	/// <summary>
+	/// 	Runs a C# snippet through the bridge, the same way <c>inventor_eval_csharp</c> does.
+	/// </summary>
+	/// <remarks>
+	/// 	The snippets of these tests work only on documents they create, so the check for unsaved changes in the active
+	/// 	document is turned off.
+	/// </remarks>
+	public static Task<ExecutionResult> EvalAsync(BridgeClient client, string code, CancellationToken cancellationToken) =>
+		client.InvokeAsync<ExecutionResult>(
+			BridgeOperations.EvalCSharp,
+			new ExecuteRequest(code, null, AllowUnsavedChanges: true),
+			cancellationToken).WaitAsync(_callTimeout, cancellationToken);
+
+	/// <summary>
+	/// 	Runs an iLogic rule body through the bridge, the same way <c>inventor_run_ilogic</c> does.
+	/// </summary>
+	public static Task<ExecutionResult> RunILogicAsync(BridgeClient client, string code, string documentName, CancellationToken cancellationToken) =>
+		client.InvokeAsync<ExecutionResult>(
+			BridgeOperations.RunILogic,
+			new ExecuteRequest(code, documentName, AllowUnsavedChanges: true),
+			cancellationToken).WaitAsync(_callTimeout, cancellationToken);
+
+	/// <summary>
+	/// 	A snippet that creates a temporary part, adds a rule that fails, runs it through the iLogic automation object,
+	/// 	and closes the part without a save. This is the path of the real incident.
+	/// </summary>
+	public static string ILogicErrorSnippet(string ruleName, string missingRule) => $$"""
+		dynamic automation = Application.ApplicationAddIns.ItemById["{3BDD8D79-2179-4B11-8A5A-257B1C0263AC}"].Automation;
+		Document part = (Document)Application.Documents.Add(
+			DocumentTypeEnum.kPartDocumentObject,
+			Application.FileManager.GetTemplateFile(DocumentTypeEnum.kPartDocumentObject),
+			false);
+		try
+		{
+			automation.AddRule(part, "{{ruleName}}", "iLogicVb.RunExternalRule(\"{{missingRule}}\")");
+			automation.RunRule(part, "{{ruleName}}");
+		}
+		finally
+		{
+			part.Close(true);
+		}
+		return "done";
+		""";
+
+	/// <summary>
+	/// 	A snippet that shows a WinForms message box owned by the Inventor main frame, so the main frame is disabled.
+	/// </summary>
+	/// <remarks>
+	/// 	Through reflection, because a snippet has no reference to System.Windows.Forms.
+	/// </remarks>
+	public static string MessageBoxSnippet(string caption, string buttons) => $$"""
+		System.Reflection.Assembly forms = System.Reflection.Assembly.Load("System.Windows.Forms");
+		dynamic owner = Activator.CreateInstance(forms.GetType("System.Windows.Forms.NativeWindow"));
+		owner.AssignHandle(new IntPtr(Application.MainFrameHWND));
+		try
+		{
+			Type buttonsType = forms.GetType("System.Windows.Forms.MessageBoxButtons");
+			System.Reflection.MethodInfo show = forms.GetType("System.Windows.Forms.MessageBox").GetMethod(
+				"Show",
+				new[] { forms.GetType("System.Windows.Forms.IWin32Window"), typeof(string), typeof(string), buttonsType });
+			return show.Invoke(null, new object[] { owner, "McpTest message text", "{{caption}}", Enum.Parse(buttonsType, "{{buttons}}") }).ToString();
+		}
+		finally
+		{
+			owner.ReleaseHandle();
+		}
+		""";
+
+	/// <summary>
+	/// 	Waits in real time until a dialog blocks Inventor, and returns it.
+	/// </summary>
+	public static async Task<(int ProcessId, DialogSnapshot Dialog)> WaitForDialogAsync(BridgeClient client, CancellationToken cancellationToken)
+	{
+		DateTime deadline = DateTime.UtcNow.AddSeconds(20);
+
+		while (DateTime.UtcNow < deadline)
+		{
+			if (await client.GetBlockStateAsync(cancellationToken) is { Blocked: true, Dialogs: [DialogSnapshot dialog, ..] } state)
+				return (state.ProcessId, dialog);
+
+			await Task.Delay(250, cancellationToken);
+		}
+
+		throw new TimeoutException("No dialog blocked Inventor within 20 s.");
+	}
+
+	public static string Describe(ExecutionResult result) => JsonSerializer.Serialize(result);
+}

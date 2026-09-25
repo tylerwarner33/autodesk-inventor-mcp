@@ -33,11 +33,18 @@ internal static partial class InventorTool
 		[Description("Parameter name.")] string name,
 		[Description("New value. For a numeric parameter this is an expression, ex. '50 mm' or 'Width / 2'.")] string expression,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
+		[Description("Turn iLogic rules off for the write, so the change does not run them. They are turned back on after it. For several writes, use inventor_set_parameters.")] bool suppressRules = false,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ParameterInfo>(
-			BridgeOperations.SetParameter,
-			new SetParameterRequest(name, expression, documentName),
-			cancellationToken));
+		suppressRules
+			// The same snippet as inventor_set_parameters, because the add-in operation cannot turn the rules off.
+			? SafeAsync(async () => await RunJsonSnippetAsync(
+				bridge,
+				ComposeSetParametersSnippet(new Dictionary<string, string> { [name] = expression }, documentName, suppressRules: true, runRuleAfter: null, createIfMissing: false, allowUnsavedChanges: true),
+				cancellationToken).ConfigureAwait(false))
+			: SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ParameterInfo>(
+				BridgeOperations.SetParameter,
+				new SetParameterRequest(name, expression, documentName),
+				cancellationToken));
 
 	[McpServerTool(Name = "inventor_evaluate_expression")]
 	[Description("Asks Inventor what an expression evaluates to, without writing it anywhere. Reports validity, the internal value, the display value, and which parameters the expression reads. Use this to check an expression before calling inventor_set_parameter.")]
@@ -79,15 +86,44 @@ internal static partial class InventorTool
 			cancellationToken));
 
 	[McpServerTool(Name = "inventor_health")]
-	[Description("Reports whether a document needs a rebuild, which features are sick and why, and what the Inventor error manager is holding. Use this to debug automation that is producing bad geometry.")]
+	[Description("Reports whether a document needs a rebuild, which features are sick and why, and what the Inventor error manager is holding. Use this to debug automation that is producing bad geometry. If a modal dialog blocks Inventor, it returns blocked-by-dialog at once, with the dialog.")]
 	public static Task<object> Health(
 		BridgeClient bridge,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
+		[Description("Also list sick features that are suppressed. Default false, because a suppressed feature is usually suppressed on purpose.")] bool includeSuppressed = false,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(async () => AddHealthHints(await bridge.InvokeAsync<Contracts.Models.HealthInfo>(
-			BridgeOperations.Health,
-			new DocumentScopedRequest(documentName),
-			cancellationToken).ConfigureAwait(false)));
+		UnlessBlockedAsync(
+			bridge,
+			() => SafeAsync(async () => FilterSuppressed(AddHealthHints(await bridge.InvokeAsync<Contracts.Models.HealthInfo>(
+				BridgeOperations.Health,
+				new DocumentScopedRequest(documentName),
+				cancellationToken).ConfigureAwait(false)), includeSuppressed)),
+			cancellationToken);
+
+	/// <summary>
+	/// 	Leaves out the sick features that are suppressed, and says how many.
+	/// </summary>
+	/// <remarks>
+	/// 	One part listed about 15 suppressed features, which hid the one that mattered.
+	/// 	Filtered in the server, so the add-in needs no change.
+	/// </remarks>
+	internal static object FilterSuppressed(Contracts.Models.HealthInfo health, bool includeSuppressed)
+	{
+		int suppressed = health.SickFeatures.Count(static feature => feature.IsSuppressed);
+
+		if (includeSuppressed || suppressed == 0)
+			return health;
+
+		return new
+		{
+			document = health.Document,
+			requiresUpdate = health.RequiresUpdate,
+			sickFeatures = health.SickFeatures.Where(static feature => feature.IsSuppressed is false),
+			suppressedSickFeaturesLeftOut = suppressed,
+			errorCount = health.ErrorCount,
+			errors = health.Errors
+		};
+	}
 
 	/// <summary>
 	/// 	Explains a sick feature whose meaning is known, because Inventor records no failure text for a feature.

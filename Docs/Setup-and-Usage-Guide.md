@@ -143,6 +143,15 @@ Claude can change your model. Two things bound that:
 Writes also suppress Inventor's dialogs for their duration, so a prompt cannot silently stall the session.
 Inventor answers a suppressed dialog with its default, which is a real behaviour change rather than a cosmetic one.
 
+Some dialogs still open (ex. the iLogic error dialog). The server finds them while a call waits:
+
+- It closes an information dialog that has only `OK` (an iLogic error or a message box), and gives Claude its text.
+- It leaves every other dialog open, ex. "Save changes?". Claude then tells you what the dialog says, and clicks a
+	button only after you chose it.
+
+To close no dialog automatically, add `INVENTORMCP_AUTOCLOSE_DIALOGS` with the value `false` to the `env` of the
+server entry in your client configuration.
+
 ## Troubleshooting
 
 | Symptom | Cause |
@@ -151,6 +160,7 @@ Inventor answers a suppressed dialog with its default, which is a real behaviour
 | The add-in is missing from **Tools > Add-Ins** | The manifest was never deployed for that release. Run the install command with its `AutodeskVersion`. |
 | `addin.log` has no entry for today on 2025 or 2026 | The loader failed before the add-in started. Read `addin-startup.log`. |
 | "Inventor rejected the call because it is busy" | A command or modal dialog is running. Finish it and retry. |
+| "Inventor is blocked by a modal dialog" | A dialog waits for an answer. Read it on the screen, or ask Claude what it says, and answer it. |
 | A tool reports success but the model looks wrong | Ask for a health check. An API call can succeed while the feature cuts nothing. |
 | Changes to the add-in do not take effect | Inventor must be closed to rebuild it. Unloading the add-in is not enough. |
 | The client cannot start the server | The feed is empty. Run `dotnet build` once. |

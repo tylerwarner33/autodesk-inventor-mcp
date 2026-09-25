@@ -39,6 +39,7 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
 | `Docs/Plugin-Development-Loop.md` | Plugin developers: running and iterating on a plugin in a live session, and making a plugin ready for it |
 | `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
+| `Docs/Research/` | Maintainers: findings and measurements that tasks and decisions come from. Kept after the task is done. |
 | `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
 | `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
 | `.agents/rules/` | Coding agents: the Inventor behaviours and repository rules, one topic per file |
@@ -441,24 +442,39 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 
 | Tool | Purpose |
 | --- | --- |
-| `inventor_session` | Is Inventor reachable, which version, which document is active |
+| `inventor_session` | Is Inventor reachable, which version, which document is active, the active project, and which open documents are modifiable |
 | `inventor_start` | Start Inventor when no session hosts the bridge, asking which release when several can |
 | `inventor_documents` | Every open document with path, type, and unsaved state |
+| `inventor_close_documents` | Close the open documents under a folder, drawings first, and never one outside it |
+| `inventor_file_info` | Saved release, model states, iProperties, work points and iMates of many files, in pages |
+| `inventor_test_copy` | Copy a document tree to a test folder through Apprentice, and point the copies at each other |
 | `inventor_assembly_tree` | Occurrence tree with suppression, visibility, and referenced files |
 | `inventor_parameters` | Parameters with kind, expression, display value, and internal value |
 | `inventor_set_parameter` | Set one parameter and rebuild |
+| `inventor_set_parameters` | Set many parameters with one rebuild, optionally with iLogic rules off and one rule after |
 | `inventor_evaluate_expression` | Ask Inventor what an expression evaluates to, without writing it |
 | `inventor_properties` | iProperties, optionally limited to one set |
 | `inventor_set_property` | Set one iProperty |
 | `inventor_health` | Rebuild state, sick features, error manager contents |
+| `inventor_features` | Every feature with type, suppression, health and parameters, and the definition of each pattern |
+| `inventor_pattern_elements` | The transform of each element of a pattern or mirror |
+| `inventor_hole_check` | The holes of a part from its geometry, by diameter, with their axes |
+| `inventor_styles` | The styles of a drawing or a part, with a diff against a second document |
 | `inventor_update` | Rebuild a document |
 | `inventor_activity` | Ordered feed of Inventor events, including every committed transaction |
 | `inventor_eval_csharp` | Run a C# snippet against the live Inventor API |
-| `inventor_run_ilogic` | Run an iLogic rule body, in VB.NET, against a document |
+| `inventor_run_ilogic` | Run an iLogic rule body, in VB.NET, or a rule of the document by name |
+| `inventor_ilogic_rules` | The iLogic rules of a document, with the active flag and the length |
+| `inventor_ilogic_rule_get` | Read one rule, or write every rule of a document to files |
+| `inventor_ilogic_rule_set` | Change a rule at a unique anchor, with a backup and a diff |
 | `inventor_api_lookup` | Search Autodesk's Inventor API documentation. Works with Inventor closed. |
+| `inventor_skill` | List or read the server's guides (skills) for a topic or a workflow. Works with Inventor closed. |
 | `inventor_orientation` | Resolve each ViewCube face to a world direction for the active document |
 | `inventor_run_plugin` | Run a method from a plugin's build output, loaded fresh each call, so a code change needs no restart |
 | `inventor_drawing_layout` | Measure a drawing's views, balloons, dimensions and tables, and report collisions |
+| `inventor_export_sheet_image` | A drawing sheet, or a region of it, as PNG image content |
+| `inventor_dialogs` | The modal dialogs that block Inventor, with their text and buttons. Works while Inventor is blocked. |
+| `inventor_dialog_click` | Click one visible button of a blocking dialog. Marked destructive, so a client can ask first. |
 
 ## Executing code
 
@@ -506,6 +522,18 @@ So an unanswered dialog stalls every tool except `inventor_activity`, which read
 
 Write operations therefore run with `SilentOperation` set, and restore the previous value afterwards.
 Inventor answers a suppressed dialog with its own default, which is a real behaviour change, so reads never suppress anything.
+
+`SilentOperation` does not stop every dialog (ex. the iLogic error dialog). So the server watches from outside
+Inventor's process while a call waits. After 3 s, and then every 2 s, it checks whether the Inventor main window is
+disabled. If it is, the server reads each dialog with UI Automation and writes its text to the server log:
+
+- A known information dialog with only `OK` (an iLogic error, or a Win32 message box) is closed with `OK`. The call
+	then returns, with the dialog text in `blockingDialogs`.
+- Any other dialog stays open. The call stops with `blocked-by-dialog`, the dialog text and its buttons.
+	`inventor_dialogs` reads it, and `inventor_dialog_click` clicks the button that the user chose.
+
+Set `INVENTORMCP_AUTOCLOSE_DIALOGS=false` on the server to close no dialog automatically.
+See `Docs/Research/Blocking-Dialog-Detection.md`.
 
 ## Logs
 

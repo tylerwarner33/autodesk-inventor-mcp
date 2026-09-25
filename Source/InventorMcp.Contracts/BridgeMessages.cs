@@ -57,6 +57,7 @@ public static class BridgeErrorCodes
 	public const string WrongDocumentType = "wrong-document-type";
 	public const string NotFound = "not-found";
 	public const string Busy = "inventor-busy";
+	public const string BlockedByDialog = "blocked-by-dialog";
 	public const string UnsavedChanges = "unsaved-changes";
 	public const string ExecutionFailed = "execution-failed";
 	public const string UnknownOperation = "unknown-operation";

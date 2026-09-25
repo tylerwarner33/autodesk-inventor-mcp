@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!-- Not packed, so a platform target framework is allowed. The server stays net10.0 for PackAsTool. -->
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<RootNamespace>InventorMcp.Server.Tests</RootNamespace>
+		<IsPackable>false</IsPackable>
+		<OutputType>Exe</OutputType>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- xunit.v3 runs on Microsoft.Testing.Platform, which global.json selects for dotnet test. -->
+		<PackageReference Include="xunit.v3" />
+		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="Xunit" />
+	</ItemGroup>
+
+	<!--
+		Add-in classes with no Inventor types, compiled here too, because the add-in itself needs Inventor's interop.
+		Keep the list to files that reference nothing else of the add-in.
+	-->
+	<ItemGroup>
+		<Compile Include="..\..\Source\InventorMcp.AddIn\Bridge\LogThrottle.cs" Link="AddIn\LogThrottle.cs" />
+		<Compile Include="..\..\Source\InventorMcp.AddIn\Operations\ReturnValueText.cs" Link="AddIn\ReturnValueText.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\Source\InventorMcp.Server\InventorMcp.Server.csproj" />
+		<!-- Copies the fixture exe next to the tests, so DialogFixture starts it from AppContext.BaseDirectory. -->
+		<ProjectReference Include="..\InventorMcp.TestDialogs\InventorMcp.TestDialogs.csproj" />
+	</ItemGroup>
+
+</Project>

@@ -25,14 +25,15 @@ which runs inside `Inventor.exe` and calls the COM API on Inventor's main thread
 - **Verify against the model, not the return value.** Check `inventor_health` after any write.
 - **Keep evidence out of code comments.** A remark says what a change to the code needs, plus a pointer.
 	Dates, measurements and what was tried go in `Docs/` or `.agents/rules/`, never in `Docs/Tasks/`, which is deleted.
+	Evidence that a task comes from goes in `Docs/Research/`, and the task points to it.
 
 ## On-Demand Rules
 
 The rules are not loaded automatically. Before acting on a task, scan this list and open any rule whose trigger fits
 the request or the files about to change. If several match, open all of them.
 
-- **`.agents/rules/inventor-modeling.md`** - Open before writing geometry, sketches, or features in a live session, or when a request names a face (ex. "the top face"), a direction, or units. Covers the ViewCube mapping, sketch-relative extent direction, and centimetres and radians.
-- **`.agents/rules/inventor-interop.md`** - Open when editing `Source/InventorMcp.AddIn/`, or writing a snippet that touches parameters, `UnitsOfMeasure`, health, `ErrorManager`, or transactions. Covers non-numeric parameters, BCL type collisions, and COM accessors that cannot be properties.
+- **`.agents/rules/inventor-modeling.md`** - Open before writing geometry, sketches, or features in a live session, or when a request names a face (ex. "the top face"), a direction, or units. Points to the server's `modeling` skill, which has the ViewCube mapping, sketch-relative extent direction, and centimetres and radians.
+- **`.agents/rules/inventor-interop.md`** - Open when editing `Source/InventorMcp.AddIn/`, or writing a snippet that touches parameters, `UnitsOfMeasure`, health, `ErrorManager`, or transactions. Covers the add-in's interop facts and the long snippet limit, and points to the server's skills (`Source/InventorMcp.Server/Skills/`) for the snippet facts.
 - **`.agents/rules/addin-isolation.md`** - Open when touching `InventorMcp.AddIn.Loader`, the `.addin` manifest template, the bundle layout, add-in package references, or the Roslyn scripting host, or when debugging a load context or globals cast failure.
 - **`.agents/rules/build.md`** - Open before running `dotnet build`, deploying the add-in or bundle, reading logs, or driving the server by hand. Also for a file lock during a build, the local tool feed, or a client configuration entry for the server.
 - **`.agents/rules/plugin-loop.md`** - Open before running or iterating on a plugin inside a live Inventor session (ex. a Design Automation plugin), loading a build output from a snippet, validating drawings against a payload set, or building an `inventor_run_plugin` tool.

@@ -125,8 +125,13 @@ public sealed record ActivityRequest(
 /// <param name="TimeoutSeconds">
 /// 	Wall clock budget. Inventor's main thread is blocked for the whole execution.
 /// </param>
+/// <param name="ClientName">
+/// 	The MCP client behind the call, ex. "claude-code 2.1.282", for the audit log. Null when it is not known.
+/// 	An add-in older than this member ignores it, so the server and the add-in can differ.
+/// </param>
 public sealed record ExecuteRequest(
 	string Code,
 	string? DocumentName = null,
 	bool AllowUnsavedChanges = false,
-	int TimeoutSeconds = 30) : DocumentScopedRequest(DocumentName);
+	int TimeoutSeconds = 30,
+	string? ClientName = null) : DocumentScopedRequest(DocumentName);
