@@ -40,7 +40,8 @@ changed. Check `inventor_documents` before a retry. The read tools of this serve
 - `inventor_run_ilogic` with `ruleName` runs a rule of the document. With `code`, it runs a temporary rule body in
   VB.NET and removes it.
 - The server closes an iLogic error dialog (it has only OK) and gives its text in `blockingDialogs`. The text often
-  says which line of which rule failed.
+  says which line of which rule failed. A "Microsoft .NET" error ("Cannot access a disposed object") can come after
+  it. The server clicks its `Continue`. It is a fault in the error window, not in the model.
 - A rule can open a question dialog, ex. in a partial test setup. That blocks every call: see below.
 
 ## The Security Alert

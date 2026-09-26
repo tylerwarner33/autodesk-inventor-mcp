@@ -18,6 +18,15 @@ public sealed class BridgeClientTests
 		"RunExternalRule: Cannot find an external rule file named: \"DoesNotExist\"",
 		[new DialogButton("OK", true, true), new DialogButton("Cancel", false, true)]);
 
+	private static readonly DialogSnapshot _dotNetError = new(
+		0x9ABC,
+		"Microsoft .NET",
+		"WindowsForms10.Window.8.app.0.22c9f37_r3_ad1",
+		"WinForm",
+		"Unhandled exception has occurred in a component in your application.\r\n\r\nCannot access a disposed object.\r\n" +
+			"Object name: 'DevExpress.XtraTab.XtraTabPage'.",
+		[new DialogButton("Details", true, true), new DialogButton("Continue", true, true)]);
+
 	private static readonly DialogSnapshot _question = new(
 		0x5678,
 		"Autodesk Inventor",
@@ -123,6 +132,26 @@ public sealed class BridgeClientTests
 		Assert.Equal("iLogic error", report.Type);
 		Assert.Equal("closed with OK", report.Action);
 		Assert.Contains("DoesNotExist", report.Text);
+	}
+
+	[Fact]
+	public async Task DotNetErrorIsClosedWithContinue()
+	{
+		await using TestBridge bridge = new();
+		List<DialogReport> reports = DialogReports.Begin();
+		(Task<string> call, TestConnection connection, BridgeRequest request) = await bridge.StartPingAsync();
+		bridge.Dialogs.Dialogs = [_dotNetError];
+
+		await bridge.AdvanceAsync(BridgeClient.FirstDialogCheck + TimeSpan.FromMilliseconds(250));
+		await TestBridge.WaitUntilAsync(() => bridge.Dialogs.ClickCalls == 1);
+
+		await bridge.AdvanceAsync(BridgeClient.DialogCheckInterval * 2);
+		await connection.RespondAsync(request.Id, "done");
+
+		Assert.Equal("done", await call);
+		DialogReport report = Assert.Single(reports);
+		Assert.Equal(".NET error", report.Type);
+		Assert.Equal("closed with Continue", report.Action);
 	}
 
 	[Fact]
