@@ -3,14 +3,21 @@ using InventorMcp.Server.Services;
 namespace InventorMcp.Server.Tests.Unit;
 
 /// <summary>
-/// 	The server closes only a known information dialog with one clickable button, named OK, and the migration dialog when
-/// 	the user turned that on.
+/// 	The server closes only a known information dialog with one clickable button, named OK, the .NET error dialog for a
+/// 	disposed object with Continue, and the migration dialog when the user turned that on.
 /// </summary>
 [Trait("Level", "Unit")]
 public sealed class DialogPolicyTests
 {
 	private const string _iLogicTitle = "Error on line 16 in rule: Drawing_Main, in document: Frame Shop Drawing.idw";
 	private const string _winFormsClass = "WindowsForms10.Window.8.app.0.22c9f37_r3_ad1";
+
+	private const string _unhandledExceptionText =
+		"Unhandled exception has occurred in a component in your application. If you click Continue, the application will " +
+		"ignore this error and attempt to continue.\r\n\r\n";
+
+	private const string _disposedObjectText =
+		_unhandledExceptionText + "Cannot access a disposed object.\r\nObject name: 'DevExpress.XtraTab.XtraTabPage'.";
 
 	[Fact]
 	public void ILogicErrorWithOnlyOkCloses() =>
@@ -116,10 +123,53 @@ public sealed class DialogPolicyTests
 	public void AcceptingMigrationDoesNotCloseOtherQuestions() =>
 		Assert.False(DialogPolicy.ShouldClose(Dialog("Autodesk Inventor", "#32770", Button("OK"), Button("Cancel")), autoCloseEnabled: true, acceptMigrationEnabled: true));
 
+	[Fact]
+	public void DisposedObjectErrorClosesWithContinue()
+	{
+		DialogSnapshot dialog = DotNetErrorDialog(_disposedObjectText, Button("Details"), Button("Continue"));
+
+		Assert.True(DialogPolicy.ShouldClose(dialog, autoCloseEnabled: true));
+		Assert.Equal("Continue", DialogPolicy.ButtonToClick(dialog));
+	}
+
+	[Fact]
+	public void DisposedObjectErrorWithoutDetailsCloses() =>
+		Assert.True(DialogPolicy.ShouldClose(DotNetErrorDialog(_disposedObjectText, Button("Continue")), autoCloseEnabled: true));
+
+	[Fact]
+	public void DisposedObjectErrorStaysOpenWhenAutoCloseIsOff() =>
+		Assert.False(DialogPolicy.ShouldClose(DotNetErrorDialog(_disposedObjectText, Button("Details"), Button("Continue")), autoCloseEnabled: false));
+
+	[Fact]
+	public void DotNetErrorOfADifferentExceptionStaysOpen() =>
+		Assert.False(DialogPolicy.ShouldClose(
+			DotNetErrorDialog(_unhandledExceptionText + "Object reference not set to an instance of an object.", Button("Details"), Button("Continue")),
+			autoCloseEnabled: true));
+
+	[Fact]
+	public void DotNetErrorWithQuitStaysOpen() =>
+		Assert.False(DialogPolicy.ShouldClose(DotNetErrorDialog(_disposedObjectText, Button("Details"), Button("Continue"), Button("Quit")), autoCloseEnabled: true));
+
+	[Fact]
+	public void DotNetErrorWithoutContinueStaysOpen() =>
+		Assert.False(DialogPolicy.ShouldClose(DotNetErrorDialog(_disposedObjectText, Button("Details")), autoCloseEnabled: true));
+
+	[Fact]
+	public void UnreadDotNetErrorStaysOpen() =>
+		Assert.False(DialogPolicy.ShouldClose(
+			DotNetErrorDialog(_disposedObjectText, Button("Details"), Button("Continue")) with { ReadError = "The dialog did not answer within 2 s." },
+			autoCloseEnabled: true));
+
+	[Fact]
+	public void OtherTypesCloseWithOk() =>
+		Assert.Equal("OK", DialogPolicy.ButtonToClick(Dialog(_iLogicTitle, _winFormsClass, Button("OK"))));
+
 	[Theory]
 	[InlineData(_iLogicTitle, _winFormsClass, "iLogic error")]
 	[InlineData("Data Format Has Changed", "#32770", "migration")]
 	[InlineData("Data Format Has Changed", _winFormsClass, null)]
+	[InlineData("Microsoft .NET", _winFormsClass, ".NET error")]
+	[InlineData("Microsoft .NET", "#32770", "message box")]
 	[InlineData("Autodesk Inventor", "#32770", "message box")]
 	[InlineData("iLogic Security Alert", _winFormsClass, null)]
 	[InlineData("Error in rule", _winFormsClass, null)]
@@ -134,6 +184,12 @@ public sealed class DialogPolicyTests
 	/// </summary>
 	private static DialogSnapshot MigrationDialog(params DialogButton[] buttons) =>
 		new(0x1234, "Data Format Has Changed", "#32770", "Win32", "The data format of the following files was migrated to the current release.", buttons);
+
+	/// <summary>
+	/// 	The .NET error dialog as the server log recorded it. See Docs/Research/Blocking-Dialog-Detection.md.
+	/// </summary>
+	private static DialogSnapshot DotNetErrorDialog(string text, params DialogButton[] buttons) =>
+		new(0x1234, "Microsoft .NET", "WindowsForms10.Window.8.app.0.ffc8c_r3_ad1", "WinForm", text, buttons);
 
 	private static DialogButton Button(string name, bool visible = true, bool enabled = true) => new(name, visible, enabled);
 }

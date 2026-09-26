@@ -352,16 +352,18 @@ internal sealed class BridgeClient(
 
 			_ = watch.Clicked.Add((dialog.Handle, dialog.Title));
 
+			string button = DialogPolicy.ButtonToClick(dialog);
+
 			ClickOutcome outcome = await Task.Run(
-				() => _dialogs.TryClick(processId, dialog, DialogPolicy.CloseButton),
+				() => _dialogs.TryClick(processId, dialog, button),
 				cancellationToken).ConfigureAwait(false);
 
 			string action = outcome.Status switch
 			{
 				// The model must know that the save wrote the files in this release's format, which older releases cannot open.
 				ClickStatus.Clicked when DialogPolicy.Classify(dialog) == DialogPolicy.MigrationType =>
-					$"closed with {DialogPolicy.CloseButton}, so the files were saved in this release's format",
-				ClickStatus.Clicked => $"closed with {DialogPolicy.CloseButton}",
+					$"closed with {button}, so the files were saved in this release's format",
+				ClickStatus.Clicked => $"closed with {button}",
 				ClickStatus.DialogClosed => "closed by a different server or the user",
 				_ => $"left open: {outcome.Message}"
 			};
@@ -369,7 +371,7 @@ internal sealed class BridgeClient(
 			Report(processId, dialog, action);
 
 			if (outcome.Status is ClickStatus.Clicked)
-				WriteClickAudit(dialog);
+				WriteClickAudit(dialog, button);
 			else if (outcome.Status is ClickStatus.Refused or ClickStatus.Failed)
 				needPerson.Add(dialog);
 		}
@@ -420,11 +422,11 @@ internal sealed class BridgeClient(
 		return new InventorBridgeException(BridgeErrorCodes.BlockedByDialog, message, dialog.Text);
 	}
 
-	private void WriteClickAudit(DialogSnapshot dialog)
+	private void WriteClickAudit(DialogSnapshot dialog, string button)
 	{
 		try
 		{
-			ExecutionAuditLog.WriteDialogClick(dialog, DialogPolicy.CloseButton, "watchdog");
+			ExecutionAuditLog.WriteDialogClick(dialog, button, "watchdog");
 		}
 		catch (IOException exception)
 		{
