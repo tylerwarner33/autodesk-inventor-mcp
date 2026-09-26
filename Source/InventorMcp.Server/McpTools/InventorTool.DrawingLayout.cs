@@ -123,22 +123,27 @@ internal static partial class InventorTool
 					Log($"Dimension '{name}' text {Box(text.MinPoint.X, text.MinPoint.Y, text.MaxPoint.X, text.MaxPoint.Y)}");
 			}
 
-			// The file of the component that a drawing curve shows, or null for a curve with no single component.
-			static string? ComponentOf(DrawingCurve curve)
+			// The files of the component that a drawing curve shows, from the top level down to the part, or null for a
+			// curve with no single component. A balloon of a sub-assembly with its own BOM row names a file above the part.
+			static string[]? ComponentOf(DrawingCurve curve)
 			{
 				try
 				{
 					dynamic geometry = curve.ModelGeometry;
-					ComponentOccurrence? occurrence = geometry.ContainingOccurrence as ComponentOccurrence;
-					return occurrence is null ? null : ((Document)occurrence.Definition.Document).FullFileName;
+					if (geometry.ContainingOccurrence is not ComponentOccurrence occurrence)
+						return null;
+					string[] files = [.. occurrence.OccurrencePath.OfType<ComponentOccurrence>().Select(step => ((Document)step.Definition.Document).FullFileName)];
+					return files.Length == 0 ? null : files;
 				}
 				catch (Exception) { return null; }
 			}
 
+			static bool Names(string? named, string[] files) => named is not null && files.Contains(named, StringComparer.OrdinalIgnoreCase);
+
 			// A balloon's leader is a tree: RootNode is at the balloon, and each leaf node is an arrowhead. A leader can
 			// have several branches (Add Leader), so a balloon can have several arrowheads.
 			List<(string Item, double X, double Y, double Diameter, string? View, List<((double X, double Y) A, (double X, double Y) B)> Segments, string? Named)> balloons = [];
-			List<(int Balloon, double X, double Y, string? Attached, string? View)> arrows = [];
+			List<(int Balloon, double X, double Y, string[]? Attached, string? View)> arrows = [];
 			foreach (Balloon balloon in sheet.Balloons)
 			{
 				string item = "?";
@@ -168,7 +173,7 @@ internal static partial class InventorTool
 					LeaderNode node = pending.Pop();
 					if (node.ChildNodes.Count == 0)
 					{
-						string? attached = null;
+						string[]? attached = null;
 						try
 						{
 							if (node.AttachedEntity is GeometryIntent intent && intent.Geometry is DrawingCurve curve)
@@ -255,8 +260,8 @@ internal static partial class InventorTool
 			{
 				var arrow = arrows[i];
 				string? named = balloons[arrow.Balloon].Named;
-				if (named is not null && arrow.Attached is string attachedTo && !string.Equals(named, attachedTo, StringComparison.OrdinalIgnoreCase))
-					Issue($"a leader of balloon {Owner(i)} is attached to '{FileName(attachedTo)}', but the balloon names '{FileName(named)}'");
+				if (named is not null && arrow.Attached is string[] attachedTo && !Names(named, attachedTo))
+					Issue($"a leader of balloon {Owner(i)} is attached to '{FileName(attachedTo[^1])}', but the balloon names '{FileName(named)}'");
 
 				for (int j = i + 1; j < arrows.Count; j++)
 				{
@@ -297,10 +302,10 @@ internal static partial class InventorTool
 					Box2d range = curve.Evaluator2D.RangeBox;
 					List<int> near = onView.Where(index => arrows[index].X > range.MinPoint.X - clearance && arrows[index].X < range.MaxPoint.X + clearance
 						&& arrows[index].Y > range.MinPoint.Y - clearance && arrows[index].Y < range.MaxPoint.Y + clearance).ToList();
-					if (near.Count == 0 || ComponentOf(curve) is not string component)
+					if (near.Count == 0 || ComponentOf(curve) is not string[] component)
 						continue;
 
-					foreach (int index in near.Where(index => !string.Equals(component, balloons[arrows[index].Balloon].Named, StringComparison.OrdinalIgnoreCase)))
+					foreach (int index in near.Where(index => !Names(balloons[arrows[index].Balloon].Named, component)))
 					{
 						(double X, double Y) tip = (arrows[index].X, arrows[index].Y);
 						double distance = double.MaxValue;
@@ -318,7 +323,7 @@ internal static partial class InventorTool
 						}
 
 						if (distance < clearance && (!nearest.TryGetValue(index, out var best) || distance < best.Distance))
-							nearest[index] = (distance, component);
+							nearest[index] = (distance, component[^1]);
 					}
 				}
 

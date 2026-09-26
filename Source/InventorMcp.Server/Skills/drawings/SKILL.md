@@ -25,6 +25,23 @@ description: How to read, measure and check Inventor drawings - the layout and i
 - A balloon has no range box in the API. A style that scales to its text is estimated at 3 times the text height;
   give `balloonDiameterInches` when you know the size.
 
+## Placing balloons
+
+- `inventor_auto_balloon` balloons one assembly view. It deletes every balloon of that view first, also one added by
+  hand. Call it once for each view, the main view first: an item that has a balloon on the sheet is not ballooned
+  again, so the first view gets it.
+- It selects a side for each part. Give `sides` only when the user asks for some sides. A side with no room for a
+  balloon, to the border or to another view, is not used.
+- The API has no auto-balloon method. Inventor's own Auto Balloon command needs the user to select the view and the
+  components.
+- Build a leader from a `Point2d` for the balloon and a `GeometryIntent` last. `DrawingCurve.MidPoint` can return
+  null with no exception (ex. a full circle), so use `CenterPoint` next.
+- Get the curves of one component with `view.get_DrawingCurves(occurrence)`. Asking each curve for its owner is much
+  slower.
+- `Balloon.ParentView` gives the view of a balloon. `BalloonValueSets[1].ItemNumber` gives its item number.
+- A balloon on a part of a sub-assembly that has its own BOM row shows the item of the sub-assembly.
+- After a balloon change, run `inventor_drawing_layout` and look at the view with `inventor_export_sheet_image`.
+
 ## Sheets and views
 
 - A sheet that is not active gives E_FAIL for the range boxes of its tables. Activate it first, and restore the
