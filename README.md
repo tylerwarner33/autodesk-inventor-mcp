@@ -529,6 +529,8 @@ disabled. If it is, the server reads each dialog with UI Automation and writes i
 
 - A known information dialog with only `OK` (an iLogic error, or a Win32 message box) is closed with `OK`. The call
 	then returns, with the dialog text in `blockingDialogs`.
+- The .NET error dialog (**Microsoft .NET**, "Cannot access a disposed object.") is closed with `Continue`. It can
+	come after the server closes an iLogic error. Its only other choice ends Inventor.
 - Any other dialog stays open. The call stops with `blocked-by-dialog`, the dialog text and its buttons.
 	`inventor_dialogs` reads it, and `inventor_dialog_click` clicks the button that the user chose.
 

@@ -411,6 +411,35 @@ server on a copy of a part that `INVENTORMCP_LIVE_OLD_RELEASE_PART` names. Both 
 together with the six earlier live tests. The fixture has no dialog that hides its buttons from UI Automation, so the
 desktop tests call the Win32 read and click directly on a real message box.
 
+## The .NET error dialog
+
+On 2026-09-26 on Inventor 2025.4, an `inventor_set_parameters` call ran an assembly rule that failed. The server
+closed the iLogic error dialog with `OK` at 05:59:42.5. At 05:59:44.5 the next check found a second dialog, and the
+server log recorded it:
+
+| Field | Value |
+| --- | --- |
+| Title | `Microsoft .NET` |
+| Framework and class | `WinForm`, `WindowsForms10.Window.8.app.0.ffc8c_r3_ad1` |
+| Buttons | `Details`, `Continue` |
+| Text | "Unhandled exception has occurred in a component in your application. If you click Continue, the application will ignore this error and attempt to continue." then "Cannot access a disposed object. Object name: 'DevExpress.XtraTab.XtraTabPage'." |
+
+This is the Windows Forms `ThreadExceptionDialog`. A control of the iLogic error window (a DevExpress tab page) was
+used after the window closed. The dialog comes after the server's own `OK` click, so the automatic close causes it,
+and it held the call until a person clicked `Continue`.
+
+### It decides nothing, so the server clicks Continue
+
+`Continue` ignores the exception, and the UI thread continues. The only other choice, `Quit`, ends Inventor and loses
+unsaved work. `Quit` was not visible in the example. So the automatic close covers the dialog, with no opt-in, and
+`INVENTORMCP_AUTOCLOSE_DIALOGS=false` turns it off with the other types.
+
+The catalog entry matches the title `Microsoft .NET`, a class that starts with `WindowsForms10.`, the text
+`Cannot access a disposed object.`, and the buttons: exactly `Continue`, with `Details` allowed. A dialog for a
+different exception, or with `Quit` or any other button, stays open, because no example of it was read.
+
+Not yet done: a live test. The fixture cannot show this dialog on demand in Inventor.
+
 ## Risks and limits
 
 - **A click is a user decision.** A dialog can ask to save or discard data. Only an information dialog with one
