@@ -26,6 +26,11 @@ The rules come from two production implementations:
   at least the offset plus the balloon radius.
 - **Walk every sub-assembly, then remove repeats.** Inventor gives the item number only after `Balloons.Add`. The tool
   adds the balloon, reads `ItemNumber`, deletes a repeat, and then moves the other balloons together again.
+- **Arrowheads clear of other parts.** Through the packed server, the post's arrowhead landed on the end of the post,
+  which lies on the rail's top edge: `inventor_drawing_layout` reported it 0.00 in from `Rail.ipt`. A straight curve
+  now offers points at 0.5, 0.3, 0.7, 0.15 and 0.85 of its length, and the tool takes the best point that is at least
+  0.1 in (the layout check's clearance) from the curves of the other parts it scanned. When no point is clear, it keeps
+  the best one and names the part in `unclearArrowheads`.
 - **Time limit.** The scan stops after 6 s and aborts the transaction with no change, because a snippet runs on
   Inventor's main thread. The shop rule measured about 5 s for the curve scan of a full elevator cab.
 
@@ -46,5 +51,21 @@ post and a tab) and five bolts, on an 11 x 8.5 in sheet with a front view (VIEW1
   `Bracket.iam`. That was a false issue: the check compared only the part file. It now compares every file on the
   occurrence path.
 
-Not yet checked: a view of more than a few hundred parts against the 6 s limit, a phantom sub-assembly, a balloon
-style from `balloonStyle`, and the tool through the packed server from a real MCP client.
+### Through the packed server
+
+The same test assembly, rebuilt, through `inventor_auto_balloon` from Claude Code after a server reconnect:
+
+| Run | Result | Layout check |
+| --- | --- | --- |
+| VIEW1, all sides | 4 balloons in 150 ms, the same sides as the snippet run. | 1 issue: the post's arrowhead 0.00 in from the rail. The false sub-assembly issues were gone. |
+| VIEW1, all sides, with the clear arrowheads | 4 balloons in 141 ms. The post's arrowhead moved to its side edge, the rail's to 0.85 of its top edge. | 0 issues |
+| VIEW2, after VIEW1 | 0 placed: all 4 items had a balloon on VIEW1, and each repeat was removed. | |
+| VIEW1, `balloonStyle` 'No Such Style' | Refused with the names of the 7 balloon styles of the drawing. | |
+| VIEW1, `sides` Bottom, `balloonStyle` 'Balloon (ISO)' | 4 balloons on the bottom. The style gave a 0.413 in diameter and 0.473 in spacing. | 0 issues |
+| VIEW1, the bracket set to Phantom | 5 balloons: the post and the tab got their own items (4 and 5), and no repeat was removed. | 0 issues |
+
+The VIEW2 run named the removed tab balloon in `unclearArrowheads`. That list now names only the balloons that stay.
+That change is built and unit tested, but not yet run live.
+
+Not yet checked: a view of more than a few hundred parts against the 6 s limit, and a drawing that is not open, which
+the tool opens visible.

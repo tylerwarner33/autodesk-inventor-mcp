@@ -40,6 +40,8 @@ internal static partial class InventorTool
 			public int Side;
 			public string Item = "";
 			public Balloon? Balloon;
+			public List<(DrawingCurve Curve, double X, double Y)> Candidates = new();
+			public bool Unclear;
 		}
 
 		string? drawingPath = __DRAWING_PATH__;
@@ -173,6 +175,30 @@ internal static partial class InventorTool
 			candidate is not null && (ReferenceEquals(candidate, view)
 				|| (candidate.Name == view.Name && Math.Abs(candidate.Left - view.Left) < 1e-6 && Math.Abs(candidate.Top - view.Top) < 1e-6));
 
+		static double ToSegment(double x, double y, double x1, double y1, double x2, double y2)
+		{
+			double dx = x2 - x1, dy = y2 - y1;
+			double lengthSquared = dx * dx + dy * dy;
+			double t = lengthSquared == 0 ? 0 : Math.Clamp(((x - x1) * dx + (y - y1) * dy) / lengthSquared, 0, 1);
+			return Math.Sqrt(Math.Pow(x - (x1 + t * dx), 2) + Math.Pow(y - (y1 + t * dy), 2));
+		}
+
+		// The curves of every instance the scan reads, so an arrowhead can keep clear of the other parts. A curve that is
+		// not straight is kept as the circle around its range box, which can only report too near.
+		List<(string File, double X1, double Y1, double X2, double Y2)> otherLines = new();
+		List<(string File, double X, double Y, double Radius)> otherRounds = new();
+		double NearestOtherPart(string file, double x, double y)
+		{
+			double nearest = double.MaxValue;
+			foreach (var line in otherLines)
+				if (!string.Equals(line.File, file, StringComparison.OrdinalIgnoreCase))
+					nearest = Math.Min(nearest, ToSegment(x, y, line.X1, line.Y1, line.X2, line.Y2));
+			foreach (var round in otherRounds)
+				if (!string.Equals(round.File, file, StringComparison.OrdinalIgnoreCase))
+					nearest = Math.Min(nearest, Math.Abs(Math.Sqrt(Math.Pow(x - round.X, 2) + Math.Pow(y - round.Y, 2)) - round.Radius));
+			return nearest;
+		}
+
 		// Selects the side for one occurrence and the curve its leader attaches to, or null when the view shows none of it.
 		BalloonPlan? Plan(ComponentOccurrence occurrence, string file)
 		{
@@ -183,14 +209,37 @@ internal static partial class InventorTool
 				return null;
 
 			double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+			void Grow(double x, double y)
+			{
+				minX = Math.Min(minX, x); maxX = Math.Max(maxX, x);
+				minY = Math.Min(minY, y); maxY = Math.Max(maxY, y);
+			}
+
 			List<(DrawingCurve Curve, double X, double Y)> points = new();
 			foreach (DrawingCurve curve in curves)
 			{
+				// A curve that is straight on the sheet (also a circle seen edge on) offers points along it: the middle
+				// first, then toward the ends, for an edge that another part covers in part.
+				bool straight = false;
+				try { straight = curve.ProjectedCurveType == Curve2dTypeEnum.kLineSegmentCurve2d; } catch (Exception) { }
+				if (straight && TryPoint(() => curve.StartPoint) is Point2d start && TryPoint(() => curve.EndPoint) is Point2d end)
+				{
+					double x1 = start.X, y1 = start.Y, x2 = end.X, y2 = end.Y;
+					Grow(x1, y1);
+					Grow(x2, y2);
+					otherLines.Add((file, x1, y1, x2, y2));
+					foreach (double along in new[] { 0.5, 0.3, 0.7, 0.15, 0.85 })
+						points.Add((curve, x1 + along * (x2 - x1), y1 + along * (y2 - y1)));
+					continue;
+				}
+
 				try
 				{
 					Box2d range = curve.Evaluator2D.RangeBox;
-					minX = Math.Min(minX, range.MinPoint.X); maxX = Math.Max(maxX, range.MaxPoint.X);
-					minY = Math.Min(minY, range.MinPoint.Y); maxY = Math.Max(maxY, range.MaxPoint.Y);
+					double ax = range.MinPoint.X, ay = range.MinPoint.Y, bx = range.MaxPoint.X, by = range.MaxPoint.Y;
+					Grow(ax, ay);
+					Grow(bx, by);
+					otherRounds.Add((file, (ax + bx) / 2, (ay + by) / 2, Math.Max(bx - ax, by - ay) / 2));
 				}
 				catch (Exception) { }
 
@@ -235,17 +284,18 @@ internal static partial class InventorTool
 			bool vertical = best is left or right;
 			double middle = vertical ? (minY + maxY) / 2 : (minX + maxX) / 2;
 			double DistanceToSide(double x, double y) => best switch { left => x - viewLeft, right => viewRight - x, bottom => y - viewBottom, _ => viewTop - y };
-			var attach = points.OrderBy(p => DistanceToSide(p.X, p.Y) + 0.1 * Math.Abs((vertical ? p.Y : p.X) - middle)).First();
+			List<(DrawingCurve Curve, double X, double Y)> candidates = [.. points.OrderBy(p => DistanceToSide(p.X, p.Y) + 0.1 * Math.Abs((vertical ? p.Y : p.X) - middle))];
 
 			return new BalloonPlan
 			{
 				File = file,
 				Occurrence = occurrence.Name,
-				Curve = attach.Curve,
-				AttachX = attach.X,
-				AttachY = attach.Y,
+				Curve = candidates[0].Curve,
+				AttachX = candidates[0].X,
+				AttachY = candidates[0].Y,
 				Side = best,
-				Gap = gaps[best]
+				Gap = gaps[best],
+				Candidates = candidates
 			};
 		}
 
@@ -385,6 +435,18 @@ internal static partial class InventorTool
 			}
 			long scanMilliseconds = watch.ElapsedMilliseconds;
 
+			// An arrowhead on an edge that another part shares does not show which part it names. Take the best point
+			// that keeps clear of the other parts, the same clearance as inventor_drawing_layout checks.
+			double clearance = 0.1 * cmPerInch;
+			foreach (BalloonPlan plan in plans)
+			{
+				var clear = plan.Candidates.Take(40).FirstOrDefault(candidate => NearestOtherPart(plan.File, candidate.X, candidate.Y) >= clearance);
+				if (clear.Curve is null)
+					plan.Unclear = true;
+				else
+					(plan.Curve, plan.AttachX, plan.AttachY) = (clear.Curve, clear.X, clear.Y);
+			}
+
 			// 4. Add the balloons. A balloon whose item already has one on this sheet is a repeat, and is deleted.
 			Arrange(plans);
 			TransientGeometry geometry = Application.TransientGeometry;
@@ -424,10 +486,15 @@ internal static partial class InventorTool
 			transaction.End();
 			committed = true;
 
+			// Only the balloons that stay: a repeat that was deleted has no arrowhead to report.
+			List<string> unclearArrowheads = [.. kept.Where(plan => plan.Unclear).Select(plan => FileName(plan.File))];
+
 			foreach (BalloonPlan plan in kept.OrderBy(plan => plan.Side).ThenBy(plan => plan.Side is bottom or top ? plan.X : plan.Y))
 				Log($"Balloon {plan.Item} {sideNames[plan.Side]} at ({Inches(plan.X)}, {Inches(plan.Y)}) in: {FileName(plan.File)} ({plan.Occurrence})");
 			if (crowdedSides > 0)
 				Log($"{crowdedSides} side(s) had too many balloons to pack at {Inches(spacing)} in, so they are spread over the full side. They can overlap: allow more sides, or a smaller spacing.");
+			if (unclearArrowheads.Count > 0)
+				Log($"No point of these parts is {Inches(clearance)} in from every other part, so their arrowheads touch another part: {string.Join(", ", unclearArrowheads)}.");
 
 			return new
 			{
@@ -441,6 +508,7 @@ internal static partial class InventorTool
 				repeatsRemoved = repeats,
 				failed,
 				unreadableOccurrences = unreadable,
+				unclearArrowheads,
 				sides = kept.GroupBy(plan => sideNames[plan.Side]).ToDictionary(group => group.Key, group => group.Count()),
 				balloonDiameterInches = Inches(diameter),
 				spacingInches = Inches(spacing),
