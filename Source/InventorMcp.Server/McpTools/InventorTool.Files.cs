@@ -277,7 +277,7 @@ internal static partial class InventorTool
 			try
 			{
 				await File.WriteAllTextAsync(requestFile, JsonSerializer.Serialize(new { sources, target, sourceFolder = folder, prefix }), cancellationToken).ConfigureAwait(false);
-				await File.WriteAllTextAsync(scriptFile, ReadEmbeddedText("InventorMcp.Server.TestCopy.ps1"), Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+				await File.WriteAllTextAsync(scriptFile, ReadEmbeddedText("InventorMcp.Server.Scripts.Copy-DesignTree.ps1"), Encoding.UTF8, cancellationToken).ConfigureAwait(false);
 
 				(int exitCode, string output, string error) = await RunPowerShellAsync(scriptFile, requestFile, cancellationToken).ConfigureAwait(false);
 				string? json = output.Split('\n').Select(static line => line.Trim()).LastOrDefault(static line => line.StartsWith('{'));

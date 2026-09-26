@@ -92,6 +92,11 @@ Later on 2026-09-25, on Inventor 2025.4:
 	`inventor_session`, `inventor_hole_check`, `inventor_file_info` and `inventor_export_sheet_image`, and read the
 	sheet image content correctly (the 98.500 dimension).
 
+`inventor_auto_balloon` was checked on 2026-09-26 on Inventor 2025.4 through the packed server from Claude Code, on
+a test assembly: all sides, limited sides, a named style, a second view, and a Normal and a Phantom sub-assembly,
+each with 0 layout issues. `inventor_drawing_layout` no longer flags a balloon of a sub-assembly whose leader attaches
+to one of its parts. See `Docs/Research/Auto-Balloon.md` for what is not yet checked.
+
 The skills (`inventor_skill`) were checked on 2026-09-25 with headless Claude Code 2.1.282 sessions that started
 outside this repository, so no repository rule loaded:
 

@@ -68,7 +68,7 @@
 
 	<!-- The Apprentice script of inventor_test_copy, run in a child process. McpTools/InventorTool.Files.cs reads it. -->
 	<ItemGroup>
-		<EmbeddedResource Include="TestCopy.ps1" LogicalName="InventorMcp.Server.TestCopy.ps1" />
+		<EmbeddedResource Include="Scripts\Copy-DesignTree.ps1" LogicalName="InventorMcp.Server.Scripts.Copy-DesignTree.ps1" />
 	</ItemGroup>
 
 	<!--

@@ -473,6 +473,7 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | `inventor_run_plugin` | Run a method from a plugin's build output, loaded fresh each call, so a code change needs no restart |
 | `inventor_drawing_layout` | Measure a drawing's views, balloons, dimensions and tables, and report collisions |
 | `inventor_export_sheet_image` | A drawing sheet, or a region of it, as PNG image content |
+| `inventor_auto_balloon` | Replace the balloons of one assembly view: one per part, sides chosen per part or limited, in one Undo step |
 | `inventor_dialogs` | The modal dialogs that block Inventor, with their text and buttons. Works while Inventor is blocked. |
 | `inventor_dialog_click` | Click one visible button of a blocking dialog. Marked destructive, so a client can ask first. |
 

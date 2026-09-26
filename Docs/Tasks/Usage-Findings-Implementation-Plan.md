@@ -206,7 +206,7 @@ R1.2, R1.4, R1.6, R1.8 and R1.12. Canned snippets, and Win32 calls in the server
 	A transient camera on the sheet, with `Camera.CreateImageWithOptions` and `IncludeEdits`, so the drawing can
 	stay invisible. `Camera.SaveAsBitmap` ignored the camera target and rendered the default camera.
 - [x] `inventor_test_copy`: copy a document tree with a prefix, clear the read-only attribute and repoint the
-	references. Apprentice in a child Windows PowerShell process (`TestCopy.ps1`, embedded), so no rule runs and
+	references. Apprentice in a child Windows PowerShell process (`Scripts/Copy-DesignTree.ps1`, embedded), so no rule runs and
 	the native DLL never loads into the server. It walks `File.ReferencedFileDescriptors`, so it also finds
 	suppressed components, and copies with a plain file copy, so `ReplaceReference` accepts each copy.
 - [x] `inventor_styles`: the styles of a document, with a diff against a second document. Drawings (with the
