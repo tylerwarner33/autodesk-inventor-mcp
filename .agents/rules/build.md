@@ -77,10 +77,10 @@ because Inventor's assembly load context is not collectible, so the build still 
 
 | Path | Contents |
 | --- | --- |
-| `%LOCALAPPDATA%\InventorMcp\addin.log` | Add-in lifecycle and handler failures |
-| `%LOCALAPPDATA%\InventorMcp\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
+| `%LOCALAPPDATA%\InventorMcp\addin.<year>.log` | Add-in lifecycle and handler failures, one file for each release |
+| `%LOCALAPPDATA%\InventorMcp\addin-startup.<year>.log` | Loader failures on 2025 and 2026, before `addin.<year>.log` exists |
 | `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity |
-| `%LOCALAPPDATA%\InventorMcp\executed-code.log` | Every snippet run through the execution tools |
+| `%LOCALAPPDATA%\InventorMcp\executed-code.<year>.log` | Every snippet run through the execution tools |
 | `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log` | Claude Desktop: a server that failed to start |
 
 ## Driving the server by hand

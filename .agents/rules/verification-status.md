@@ -249,3 +249,25 @@ its startup files and knew its content, but could not answer from `build.md` or 
 loads at startup. The old `.claude/rules/` loaded all six rules into every session. A second fresh session, allowed
 only `Read`, opened `.agents/rules/build.md` for a build question, so a rule loads when its trigger fits.
 Not yet verified: Copilot in Visual Studio Code reading `AGENTS.md`.
+
+## Multiple releases (2026-10-05)
+
+Verified:
+
+- The unit level (default run): the release map, the pipe names, `ReleaseSelection` (order, no fallback, a change of
+  the choice closes the connection, the legacy pipe) and the reset of `ReleaseYear` and `InventorProcessId`.
+- The three add-in targets compile (2025, 2026 and 2027). The 2025 output could not be copied, because Inventor 2025
+  had the build folder loaded.
+- Against a running Inventor 2025 that still had the old add-in, a server driven by hand returned `bridge-outdated`
+  for `inventor_session`, and `inventor_use_release` returned `version-not-supported` for 2099. This shows that
+  the enumeration of `\\.\pipe\` finds the legacy pipe, and that the guard stops the model from starting a second
+  Inventor.
+- `GetActiveObject` and `GetObject` are not used in the source or the tests (risk 2 of the plan).
+
+Not verified, and left to do with Inventor closed (the add-in must be redeployed first):
+
+- Two releases at one time on one machine, with the add-in loaded in both (risk 1 of the plan). The live tests in
+  `LiveMultiReleaseTests` skip until two releases run. Also open different documents in each, and close one.
+- The Desktop test with two fixture processes, for a dialog in release A that must not block a call to release B
+  (risk 4). The dialog watchdog uses the process ID from the pipe, so it should follow the connected process.
+- `inventor_start` for a second release while the first runs.
