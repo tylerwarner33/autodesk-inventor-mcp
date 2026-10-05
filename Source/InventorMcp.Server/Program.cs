@@ -34,10 +34,12 @@ _ = builder.Logging.AddSerilog(Log.Logger, dispose: true);
 
 builder.Services.AddSingleton<IBlockingDialogs>(static _ => new BlockingDialogs());
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ReleaseSelection>();
 builder.Services.AddSingleton(static services => new BridgeClient(
 	services.GetRequiredService<ILogger<BridgeClient>>(),
 	services.GetRequiredService<IBlockingDialogs>(),
-	services.GetRequiredService<TimeProvider>()));
+	services.GetRequiredService<TimeProvider>(),
+	services.GetRequiredService<ReleaseSelection>()));
 
 // Singleton because it indexes a 12 MB documentation file once and holds the result.
 builder.Services.AddSingleton<ApiReferenceService>();
@@ -51,14 +53,28 @@ _ = builder.Services
 	.WithStdioServerTransport()
 	.WithToolsFromAssembly()
 	// The client name goes to the add-in's audit log, so each snippet there shows which client sent it.
-	.WithRequestFilters(static filters => filters.AddCallToolFilter(static next => (context, cancellationToken) =>
+	// The release of each call goes to the server log, because a session can change its release, and the log of the
+	// MCP library does not name the tool.
+	.WithRequestFilters(static filters => filters.AddCallToolFilter(static next => async (context, cancellationToken) =>
 	{
 		BridgeClient bridge = context.Services!.GetRequiredService<BridgeClient>();
+		ReleaseSelection selection = context.Services!.GetRequiredService<ReleaseSelection>();
 
 		if (bridge.ClientName is null && context.Server.ClientInfo is { } client)
 			bridge.ClientName = ExecutionAuditLog.OneLine($"{client.Name} {client.Version}").Trim();
 
-		return next(context, cancellationToken);
+		try
+		{
+			return await next(context, cancellationToken).ConfigureAwait(false);
+		}
+		finally
+		{
+			Log.Information(
+				"Tool {Tool} finished. Release {Release}, selection {Selection}.",
+				context.Params?.Name,
+				bridge.ReleaseYear?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "not connected",
+				selection.Source);
+		}
 	}));
 
 IHost host = builder.Build();

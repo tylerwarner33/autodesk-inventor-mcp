@@ -1,14 +1,21 @@
+using System.Globalization;
+
 namespace InventorMcp.Server.Services;
 
 /// <summary>
-/// 	Writes the server's entries to <c>executed-code.log</c>, which the add-in writes for each snippet.
+/// 	Writes the server's entries to <c>&lt;year&gt;\executed-code.log</c>, which the add-in of that release writes for each snippet.
 /// </summary>
 internal static class ExecutionAuditLog
 {
-	private static readonly string _path = Path.Combine(
+	/// <summary>
+	/// 	The root of the logs. Each release has its own folder below it, ex. <c>2026</c>.
+	/// </summary>
+	/// <remarks>
+	/// 	Settable so that a test writes its fake dialog clicks to a temporary folder, not to the user's audit trail.
+	/// </remarks>
+	public static string LogRoot { get; set; } = Path.Combine(
 		Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-		"InventorMcp",
-		"executed-code.log");
+		"InventorMcp");
 
 	/// <summary>
 	/// 	Records a click on a dialog button, with the dialog text.
@@ -22,10 +29,13 @@ internal static class ExecutionAuditLog
 	/// <param name="clickedBy">
 	/// 	What clicked (ex. <c>watchdog</c> or <c>inventor_dialog_click</c>).
 	/// </param>
+	/// <param name="releaseYear">
+	/// 	The release of the Inventor with the dialog, which picks the folder. Null writes to <see cref="LogRoot"/>.
+	/// </param>
 	/// <exception cref="IOException">
 	/// 	The log could not be written.
 	/// </exception>
-	public static void WriteDialogClick(DialogSnapshot dialog, string buttonName, string clickedBy)
+	public static void WriteDialogClick(DialogSnapshot dialog, string buttonName, string clickedBy, int? releaseYear)
 	{
 		string newLine = Environment.NewLine;
 		string entry =
@@ -34,8 +44,10 @@ internal static class ExecutionAuditLog
 			$"{new string('-', 80)}{newLine}" +
 			$"{dialog.Text}{newLine}";
 
-		_ = Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-		File.AppendAllText(_path, entry);
+		string directory = releaseYear is int year ? Path.Combine(LogRoot, year.ToString(CultureInfo.InvariantCulture)) : LogRoot;
+
+		_ = Directory.CreateDirectory(directory);
+		File.AppendAllText(Path.Combine(directory, "executed-code.log"), entry);
 	}
 
 	/// <summary>

@@ -14,18 +14,38 @@ namespace InventorMcp.Server.Tests.Unit;
 /// <summary>
 /// 	Takes the place of the add-in: hosts a pipe with a unique name, and answers what the test tells it to.
 /// </summary>
-internal sealed class TestPipeServer : IAsyncDisposable
+/// <remarks>
+/// 	The name is <c>&lt;prefix&gt;.&lt;year&gt;</c> like a release pipe, with a prefix that no real add-in uses.
+/// 	Several servers of one test share the prefix, to play several Inventor releases.
+/// </remarks>
+/// <param name="releaseYear">
+/// 	The release the pipe belongs to. Null gives the legacy name, which is the prefix alone.
+/// </param>
+/// <param name="prefix">
+/// 	The start of the pipe name, or null for a new unique prefix.
+/// </param>
+internal sealed class TestPipeServer(int? releaseYear = 2025, string? prefix = null) : IAsyncDisposable
 {
 	private readonly List<TestConnection> _connections = [];
+	private NamedPipeServerStream? _listening;
 
-	public string PipeName { get; } = $"InventorMcp.Test.{Guid.NewGuid():N}";
+	public string Prefix { get; } = prefix ?? $"InventorMcp.Test.{Guid.NewGuid():N}";
+
+	public string PipeName => releaseYear is int year ? $"{Prefix}.{year}" : Prefix;
+
+	/// <summary>
+	/// 	Creates the pipe now, so that it exists before the client looks for it.
+	/// </summary>
+	public void Listen() =>
+		_listening ??= new NamedPipeServerStream(PipeName, PipeDirection.InOut, 4, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
 
 	/// <summary>
 	/// 	Waits for the next client connection.
 	/// </summary>
 	public async Task<TestConnection> AcceptAsync()
 	{
-		NamedPipeServerStream pipe = new(PipeName, PipeDirection.InOut, 4, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+		NamedPipeServerStream pipe = _listening ?? new(PipeName, PipeDirection.InOut, 4, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+		_listening = null;
 		await pipe.WaitForConnectionAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
 		TestConnection connection = new(pipe);
@@ -36,6 +56,9 @@ internal sealed class TestPipeServer : IAsyncDisposable
 
 	public async ValueTask DisposeAsync()
 	{
+		if (_listening is not null)
+			await _listening.DisposeAsync();
+
 		foreach (TestConnection connection in _connections)
 			await connection.DisposeAsync();
 	}
@@ -139,7 +162,17 @@ internal sealed class TestBridge : IAsyncDisposable
 
 	public BridgeClient Client { get; }
 
-	public TestBridge() => Client = new BridgeClient(NullLogger<BridgeClient>.Instance, Dialogs, Time, Server.PipeName);
+	public ReleaseSelection Selection { get; }
+
+	/// <summary>
+	/// 	Chooses release 2025, which is the release of <see cref="Server"/>, so a call waits for the pipe to appear.
+	/// </summary>
+	public TestBridge()
+	{
+		Selection = new ReleaseSelection(Server.Prefix, environmentValue: string.Empty);
+		Selection.Choose(2025);
+		Client = new BridgeClient(NullLogger<BridgeClient>.Instance, Dialogs, Time, Selection);
+	}
 
 	/// <summary>
 	/// 	Starts a ping, and returns it with the request that the fake add-in received.

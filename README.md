@@ -23,7 +23,7 @@ graph LR
 | Hop | Transport | Notes |
 | --- | --- | --- |
 | Client to server | stdio | Claude Code, Claude Desktop, Visual Studio or Visual Studio Code starts the server with `dotnet tool exec`. |
-| Server to add-in | Named pipe `InventorMcp.Bridge` | Only the current Windows user can connect. |
+| Server to add-in | Named pipe `InventorMcp.Bridge.<year>`, one for each Inventor release | Only the current Windows user can connect. |
 | Add-in to Inventor | In-process COM | Every call runs on Inventor's main thread. |
 
 The server targets `net10.0`. The add-in targets `net8.0-windows` on Inventor 2025 and 2026, and `net10.0-windows` on 2027.
@@ -95,7 +95,7 @@ setup of every client starts the server from. The feed is empty until the first 
 a client. See "Connecting a client".
 
 Restart Inventor.
-Confirm the bridge started by checking `%LOCALAPPDATA%\InventorMcp\addin.log`.
+Confirm the bridge started by checking `%LOCALAPPDATA%\InventorMcp\<year>\addin.log`, ex. `2027\addin.log`.
 
 ## Connecting a client
 
@@ -394,12 +394,36 @@ That is the reason for the two process design.
 - One such release: it starts with no question.
 - More than one: Claude Code shows a form with "Autodesk Inventor 2025", "2026" and "2027".
 	A client that cannot show a form returns `version-required`, and Claude asks you instead.
-- An Inventor already running, with or without the bridge: nothing starts.
+- The release already running, with or without the bridge: nothing starts. A different release that runs does not
+	stop the start.
+- After a start, this session uses the release it started. See "More than one Inventor release".
 
 Inventor starts with Explorer as its parent, so closing Claude does not close Inventor.
 The call waits up to 45 s for the add-in. After that it returns `still-starting`, because a sign-in or recovery
 dialog can hold Inventor, and `inventor_session` connects later.
 Set `INVENTOR_MCP_RELEASES` (ex. `2025`) on the server to limit the releases it considers.
+
+### More than one Inventor release
+
+Inventor 2025, 2026 and 2027 can run at the same time. Each add-in listens on its own pipe, and each Claude session
+uses one release.
+
+- `inventor_start` with `version` starts a release next to the others, and sets the release of the session.
+- `inventor_use_release` sets it with no start. A version of 0 clears the choice.
+- `INVENTORMCP_RELEASE` in the `env` of the MCP entry fixes the release for a project, ex.
+	`claude mcp add-json ... -s local`. The repository holds no client configuration, so this is your choice.
+- With none of these, the server uses the one release that runs. When more than one runs, a tool returns
+	`release-required` with the years, and Claude asks you.
+
+A chosen release never falls back to another release. If its Inventor is closed, the result is `inventor-not-running`
+and names the release. Two Inventor processes of the same release still compete for one pipe.
+
+| Error | Meaning |
+| --- | --- |
+| `release-required` | More than one release runs, and this session has not chosen one. Call `inventor_use_release`. |
+| `bridge-outdated` | An Inventor hosts an add-in from before protocol version 2, which uses the old pipe name. Close Inventor, redeploy the add-in for each release, and start it again. |
+
+A Claude session that started before an upgrade keeps its old server, with the old pipe name, until you restart it.
 
 ### Debugging the add-in
 
@@ -443,7 +467,8 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | Tool | Purpose |
 | --- | --- |
 | `inventor_session` | Is Inventor reachable, which version, which document is active, the active project, and which open documents are modifiable |
-| `inventor_start` | Start Inventor when no session hosts the bridge, asking which release when several can |
+| `inventor_start` | Start an Inventor release when its bridge is not running, asking which release when several can, and use it |
+| `inventor_use_release` | Choose the Inventor release this session talks to, with no restart of the server |
 | `inventor_documents` | Every open document with path, type, and unsaved state |
 | `inventor_close_documents` | Close the open documents under a folder, drawings first, and never one outside it |
 | `inventor_file_info` | Saved release, model states, iProperties, work points and iMates of many files, in pages |
@@ -547,8 +572,12 @@ See `Docs/Research/Blocking-Dialog-Detection.md`.
 
 | Path | Contents |
 | --- | --- |
-| `%LOCALAPPDATA%\InventorMcp\addin.log` | Add-in lifecycle and handler failures |
-| `%LOCALAPPDATA%\InventorMcp\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
-| `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity |
-| `%LOCALAPPDATA%\InventorMcp\executed-code.log` | Every snippet run through the execution tools |
+| `%LOCALAPPDATA%\InventorMcp\<year>\addin.log` | Add-in lifecycle and handler failures of that release |
+| `%LOCALAPPDATA%\InventorMcp\<year>\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
+| `%LOCALAPPDATA%\InventorMcp\<year>\executed-code.log` | Every snippet run through the execution tools, and each dialog the server clicked |
+| `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity, one file for each server process. Each tool call has a line with the release it used. |
+| `%LOCALAPPDATA%\InventorMcp\addin.log`, `executed-code.log` | From before the folder for each release, or written before the release was known |
 | `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log` | Claude Desktop: a server that failed to start |
+
+Each Inventor release has its own folder, ex. `%LOCALAPPDATA%\InventorMcp\2025`, because two releases can run at the
+same time. The server logs stay at the top, because one server can talk to different releases during its life.

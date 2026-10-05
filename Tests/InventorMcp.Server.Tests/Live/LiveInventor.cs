@@ -30,8 +30,16 @@ internal static class LiveInventor
 	/// <summary>
 	/// 	A client of the real pipe, with the real detector and the real clock.
 	/// </summary>
-	public static BridgeClient CreateClient() =>
-		new(new TestOutputLogger<BridgeClient>(), new BlockingDialogs(), TimeProvider.System);
+	/// <param name="releaseYear">
+	/// 	The release to use. Null follows <c>INVENTORMCP_RELEASE</c>, and then the one running release.
+	/// </param>
+	public static BridgeClient CreateClient(int? releaseYear = null)
+	{
+		ReleaseSelection selection = new();
+		selection.Choose(releaseYear);
+
+		return new BridgeClient(new TestOutputLogger<BridgeClient>(), new BlockingDialogs(), TimeProvider.System, selection);
+	}
 
 	/// <summary>
 	/// 	The longest a live call may take, so a call that hangs fails its test and does not stop the run.

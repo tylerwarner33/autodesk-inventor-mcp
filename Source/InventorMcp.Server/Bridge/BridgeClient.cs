@@ -29,14 +29,14 @@ namespace InventorMcp.Server.Bridge;
 /// <param name="timeProvider">
 /// 	The clock of the dialog watchdog.
 /// </param>
-/// <param name="pipeName">
-/// 	The pipe name, or null for <see cref="BridgeProtocol.PipeName"/>.
+/// <param name="selection">
+/// 	Gives the pipe of the release this session uses. A change of the release closes the connection.
 /// </param>
 internal sealed class BridgeClient(
 	ILogger<BridgeClient> logger,
 	IBlockingDialogs dialogs,
 	TimeProvider timeProvider,
-	string? pipeName = null) : IAsyncDisposable
+	ReleaseSelection selection) : IAsyncDisposable
 {
 	/// <summary>
 	/// 	The wait before the first dialog check. Most calls return before it.
@@ -63,16 +63,21 @@ internal sealed class BridgeClient(
 	private readonly ILogger<BridgeClient> _logger = logger;
 	private readonly IBlockingDialogs _dialogs = dialogs;
 	private readonly TimeProvider _timeProvider = timeProvider;
-	private readonly string _pipeName = pipeName ?? BridgeProtocol.PipeName;
+	private readonly ReleaseSelection _selection = selection;
 	private readonly SemaphoreSlim _gate = new(1, 1);
 
 	/// <summary>
-	/// 	Inventor release last seen on the pipe, ex. 2025, or null until a session call has succeeded.
+	/// 	Inventor release of the connected pipe, ex. 2025, or null with no connection.
+	/// </summary>
+	public int? ReleaseYear { get; private set; }
+
+	/// <summary>
+	/// 	The release that version specific data, such as the API documentation, follows.
 	/// </summary>
 	/// <remarks>
-	/// 	Lets version specific data, such as the API documentation, follow whichever session answered.
+	/// 	The connected release when there is one, and else the release this session chose. Null when neither is known.
 	/// </remarks>
-	public int? ReleaseYear { get; private set; }
+	public int? EffectiveReleaseYear => ReleaseYear ?? _selection.Chosen;
 
 	/// <summary>
 	/// 	The process that hosts the add-in, from the pipe, or null with no connection.
@@ -90,6 +95,16 @@ internal sealed class BridgeClient(
 	/// 	Each client starts its own server, so one name holds for the whole process.
 	/// </remarks>
 	public string? ClientName { get; set; }
+
+	private int _connectedGeneration;
+
+	/// <summary>
+	/// 	The release an automatic selection connected to, so a reconnect never moves to another release unasked.
+	/// </summary>
+	/// <remarks>
+	/// 	Cleared when the selection changes, ex. <c>inventor_use_release</c> with 0.
+	/// </remarks>
+	private int? _automaticRelease;
 
 	private NamedPipeClientStream? _pipe;
 	private StreamReader? _reader;
@@ -211,7 +226,8 @@ internal sealed class BridgeClient(
 	/// </returns>
 	public async Task<BlockState?> GetBlockStateAsync(CancellationToken cancellationToken)
 	{
-		if (InventorProcessId is null && await TryConnectAsync(cancellationToken).ConfigureAwait(false) is false)
+		if ((InventorProcessId is null || _connectedGeneration != _selection.Generation)
+			&& await TryConnectAsync(cancellationToken).ConfigureAwait(false) is false)
 			return null;
 
 		return InventorProcessId is int processId
@@ -426,7 +442,7 @@ internal sealed class BridgeClient(
 	{
 		try
 		{
-			ExecutionAuditLog.WriteDialogClick(dialog, button, "watchdog");
+			ExecutionAuditLog.WriteDialogClick(dialog, button, "watchdog", ReleaseYear);
 		}
 		catch (IOException exception)
 		{
@@ -436,12 +452,38 @@ internal sealed class BridgeClient(
 
 	private async Task EnsureConnectedAsync(CancellationToken cancellationToken)
 	{
-		if (_pipe is { IsConnected: true })
+		// A change of the release makes the open connection stale, even when it still works.
+		if (_pipe is { IsConnected: true } && _connectedGeneration == _selection.Generation)
 			return;
 
 		await CloseAsync().ConfigureAwait(false);
 
-		NamedPipeClientStream pipe = new(".", _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+		if (_connectedGeneration != _selection.Generation)
+			_automaticRelease = null;
+
+		_connectedGeneration = _selection.Generation;
+
+		PipeResolution resolution = _selection.Resolve();
+
+		if (resolution.PipeName is not string pipeName)
+		{
+			throw new InventorBridgeException(
+				resolution.ErrorCode!,
+				resolution.ErrorCode == BridgeErrorCodes.NotRunning ? NotRunningMessage(_automaticRelease) : resolution.Message!);
+		}
+
+		// The release this session used closed, and a different one is the only pipe now. The documents differ, so a call
+		// (ex. the retry of a write after the pipe dropped) must not go there without a choice.
+		if (_selection.Chosen is null && _automaticRelease is int previous && resolution.ReleaseYear != previous)
+		{
+			throw new InventorBridgeException(
+				BridgeErrorCodes.ReleaseRequired,
+				$"Autodesk Inventor {previous}, which this session used, no longer hosts the MCP bridge. Autodesk Inventor " +
+				$"{resolution.ReleaseYear} does, but this session does not move to another release unasked. Ask the user which " +
+				$"release to use, then call inventor_use_release (ex. with {resolution.ReleaseYear}), or start {previous} again.");
+		}
+
+		NamedPipeClientStream pipe = new(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
 
 		try
 		{
@@ -453,26 +495,42 @@ internal sealed class BridgeClient(
 
 			// The code stays NotRunning even with Inventor open, because inventor_start polls on it while Inventor loads.
 			// Only the message tells the model not to start a second Inventor.
-			throw new InventorBridgeException(
-				BridgeErrorCodes.NotRunning,
-				InventorInstallations.FindRunning().Count > 0
-					? "Inventor is running, but its MCP bridge accepted no connection within " +
-						$"{ConnectTimeout.TotalSeconds:0} s. The add-in may still be loading or may not be loaded, or every bridge " +
-						"connection may be in use by other MCP clients. Do not call inventor_start. Retry shortly, and if it " +
-						"persists, ask the user to check Tools > Add-Ins in Inventor or to close another MCP client."
-					: "No Inventor session is hosting the MCP bridge. Ask the user whether to start Inventor, then call " +
-						"inventor_start. If Inventor is already open, make sure the Inventor MCP Bridge add-in is loaded.");
+			throw new InventorBridgeException(BridgeErrorCodes.NotRunning, NotRunningMessage(resolution.ReleaseYear));
 		}
 
 		_pipe = pipe;
+		ReleaseYear = resolution.ReleaseYear;
+
+		if (_selection.Chosen is null)
+			_automaticRelease = resolution.ReleaseYear;
 		_reader = new StreamReader(pipe, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: false, leaveOpen: true);
 		_writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
 		InventorProcessId = GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint processId) ? (int)processId : null;
 
 		_logger.LogInformation(
 			"Connected to the Inventor bridge on pipe {PipeName}, hosted by process {ProcessId}.",
-			_pipeName,
+			pipeName,
 			InventorProcessId);
+	}
+
+	/// <summary>
+	/// 	Says why no bridge answered, and counts only the Inventor processes of the release that was asked for.
+	/// </summary>
+	private static string NotRunningMessage(int? releaseYear)
+	{
+		string subject = releaseYear is int year ? $"Autodesk Inventor {year}" : "Inventor";
+
+		return InventorInstallations.FindRunning(releaseYear).Count > 0
+			? $"{subject} is running, but its MCP bridge accepted no connection within " +
+				$"{ConnectTimeout.TotalSeconds:0} s. The add-in may still be loading or may not be loaded, or every bridge " +
+				"connection may be in use by other MCP clients. Do not call inventor_start. Retry shortly, and if it " +
+				"persists, ask the user to check Tools > Add-Ins in Inventor or to close another MCP client."
+			: releaseYear is null
+				? "No Inventor session is hosting the MCP bridge. Ask the user whether to start Inventor, then call " +
+					"inventor_start. If Inventor is already open, make sure the Inventor MCP Bridge add-in is loaded."
+				: $"{subject} is not hosting the MCP bridge. This session uses that release only, and does not fall back to " +
+					$"another one. Ask the user whether to start it, then call inventor_start with version {releaseYear}. " +
+					"Or call inventor_use_release to use a different release.";
 	}
 
 	private async Task CloseAsync()

@@ -31,10 +31,11 @@ Run it once for each release you use. Building a release does not install it.
 Restart Inventor, then confirm the bridge started:
 
 ```
-type %LOCALAPPDATA%\InventorMcp\addin.log
+type %LOCALAPPDATA%\InventorMcp\2027\addin.log
 ```
 
-A line reading `Bridge started on pipe 'InventorMcp.Bridge' in process <id>` means it is working.
+Use the year of the release. A line reading `Bridge started on pipe 'InventorMcp.Bridge.2027' in process <id>` means
+it is working.
 
 If it is missing, open **Tools > Add-Ins** in Inventor and check that **Inventor MCP Bridge** is loaded,
 with **Load Automatically** ticked.
@@ -85,16 +86,30 @@ Claude can start Inventor for you. Say "start Inventor", or agree when Claude as
 - If one release has the add-in, it starts with no question.
 - If several have, Claude Code shows a form where you pick, ex. "Autodesk Inventor 2025".
 	Other clients ask you in the conversation instead.
-- If Inventor is already running, nothing starts.
+- If that release is already running, nothing starts. A different release that runs does not stop the start.
 
 Inventor starts as if you had started it from the Start menu, so closing Claude does not close it.
 If a sign-in or recovery dialog appears, answer it. Claude connects once Inventor is ready.
 
 The MCP connection itself stays healthy, so you can close and reopen Inventor without restarting Claude.
 
-Only one Inventor session can host the bridge, whatever its version. The first session to start owns it.
-A second session, of the same release or another, logs the conflict and does not compete for it.
+Each release hosts its own bridge, so Inventor 2025, 2026 and 2027 can run at the same time. A second Inventor of
+the same release logs the conflict and does not compete for the bridge of the first.
 `inventor_session` reports which release is connected.
+
+### Two releases at the same time
+
+1. Start both Inventors. Say "start Inventor 2025" in one Claude session and "start Inventor 2027" in the other.
+2. Each session now uses the release that it started. Nothing else is required.
+
+A session never reaches another release by accident. If its Inventor closes, the tools say so, and name the release.
+To change the release of a session, ask Claude to use another one (`inventor_use_release`).
+To fix a release for a project, add `INVENTORMCP_RELEASE` (ex. `2025`) to the `env` of the MCP entry in the project
+scope. If more than one release runs and the session has not chosen one, Claude asks you which to use.
+
+Two sessions on one release share its documents and its active document, and Inventor handles their calls one at a
+time. If Claude says that the bridge is outdated, an add-in from before this feature is loaded. Close Inventor,
+build and deploy the add-in again for each release, and start Inventor again.
 
 ## What you can ask for
 
@@ -162,8 +177,11 @@ older Inventor, ex. a Design Automation engine.
 | Symptom | Cause |
 | --- | --- |
 | "No Inventor session is hosting the MCP bridge" | Inventor is closed, or the add-in is not loaded |
+| "Autodesk Inventor 2025 is not hosting the MCP bridge" | The release this session uses is closed. Start it, or ask Claude to use another release. |
+| `release-required` | More than one release runs. Tell Claude which one to use. |
+| `bridge-outdated` | The add-in is from before protocol version 2. Close Inventor, redeploy the add-in, and start it again. |
 | The add-in is missing from **Tools > Add-Ins** | The manifest was never deployed for that release. Run the install command with its `AutodeskVersion`. |
-| `addin.log` has no entry for today on 2025 or 2026 | The loader failed before the add-in started. Read `addin-startup.log`. |
+| `<year>\addin.log` has no entry for today on 2025 or 2026 | The loader failed before the add-in started. Read `<year>\addin-startup.log`. |
 | "Inventor rejected the call because it is busy" | A command or modal dialog is running. Finish it and retry. |
 | "Inventor is blocked by a modal dialog" | A dialog waits for an answer. Read it on the screen, or ask Claude what it says, and answer it. |
 | A tool reports success but the model looks wrong | Ask for a health check. An API call can succeed while the feature cuts nothing. |
@@ -176,8 +194,9 @@ older Inventor, ex. a Design Automation engine.
 
 | Path | Contents |
 | --- | --- |
-| `%LOCALAPPDATA%\InventorMcp\addin.log` | Add-in lifecycle and failures |
-| `%LOCALAPPDATA%\InventorMcp\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
+| `%LOCALAPPDATA%\InventorMcp\<year>\addin.log` | Add-in lifecycle and failures of that release |
+| `%LOCALAPPDATA%\InventorMcp\<year>\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
 | `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity |
-| `%LOCALAPPDATA%\InventorMcp\executed-code.log` | Every snippet run against your session |
+| `%LOCALAPPDATA%\InventorMcp\<year>\executed-code.log` | Every snippet run against your session |
+| `%LOCALAPPDATA%\InventorMcp\addin.log`, `executed-code.log` | From before the folder for each release |
 | `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log` | Claude Desktop: a server that failed to start |

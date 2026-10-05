@@ -97,8 +97,11 @@ internal static partial class InventorTool
 		It also gives the active project (.ipj), its workspace and library paths, whether iLogic rules are on, and for
 		each open document (up to 200) whether it is modifiable. A write to a document that is not modifiable, ex. one
 		in a library path or checked in to Vault, fails with only E_FAIL.
+
+		release says how this session picked its Inventor release (selection: chosen, environment or automatic), which
+		release it chose, and which releases run now. Change the release with inventor_use_release.
 		""")]
-	public static Task<object> Session(BridgeClient bridge, CancellationToken cancellationToken) =>
+	public static Task<object> Session(BridgeClient bridge, ReleaseSelection selection, CancellationToken cancellationToken) =>
 		UnlessBlockedAsync(
 			bridge,
 			() => SafeAsync(async () =>
@@ -106,7 +109,12 @@ internal static partial class InventorTool
 				Contracts.Models.SessionInfo session = await bridge.InvokeAsync<Contracts.Models.SessionInfo>(BridgeOperations.Session, null, cancellationToken).ConfigureAwait(false);
 				JsonElement state = await ReadSessionStateAsync(bridge, documentName: null, cancellationToken).ConfigureAwait(false);
 
-				return (object)new { session, state };
+				return (object)new
+				{
+					session,
+					release = new { selection = selection.Source, chosen = selection.Chosen, running = selection.RunningReleases() },
+					state
+				};
 			}),
 			cancellationToken);
 

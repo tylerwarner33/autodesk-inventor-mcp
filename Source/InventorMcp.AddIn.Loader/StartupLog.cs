@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace InventorMcp.AddIn.Loader;
 
 /// <summary>
@@ -9,6 +11,15 @@ namespace InventorMcp.AddIn.Loader;
 /// </remarks>
 internal static class StartupLog
 {
+	/// <summary>
+	/// 	The log folder of the release this loader is built for, from the <c>AutodeskVersion</c> metadata of its assembly.
+	/// </summary>
+	/// <remarks>
+	/// 	The loader runs before the add-in has Inventor, so it cannot ask the application for the release.
+	/// 	It is built for 2025 and 2026 only, so its build input is the release.
+	/// </remarks>
+	private static readonly string _releaseFolder = ReadReleaseFolder();
+
 	/// <summary>
 	/// 	Appends one timestamped entry describing a failure during add-in startup.
 	/// </summary>
@@ -24,7 +35,8 @@ internal static class StartupLog
 		{
 			string directory = Path.Combine(
 				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-				"InventorMcp");
+				"InventorMcp",
+				_releaseFolder);
 
 			_ = Directory.CreateDirectory(directory);
 
@@ -37,4 +49,9 @@ internal static class StartupLog
 			// Logging must never be the reason startup fails harder than it already has.
 		}
 	}
+
+	private static string ReadReleaseFolder() =>
+		typeof(StartupLog).Assembly
+			.GetCustomAttributes<AssemblyMetadataAttribute>()
+			.FirstOrDefault(static attribute => attribute.Key == "AutodeskVersion")?.Value ?? string.Empty;
 }

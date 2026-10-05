@@ -308,8 +308,8 @@ internal sealed partial class InventorOperations
 	{
 		try
 		{
-			_ = Directory.CreateDirectory(BridgeLog.LogDirectory);
-			System.IO.File.AppendAllText(System.IO.Path.Combine(BridgeLog.LogDirectory, "executed-code.log"), text);
+			_ = Directory.CreateDirectory(BridgeLog.ReleaseDirectory);
+			System.IO.File.AppendAllText(BridgeLog.AuditLogPath, text);
 		}
 		catch (Exception exception)
 		{

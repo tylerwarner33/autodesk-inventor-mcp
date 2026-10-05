@@ -9,7 +9,7 @@ For installing and using it, see `Setup-and-Usage-Guide.md`.
 MCP client (Claude Code, Claude Desktop, Visual Studio, Visual Studio Code)
     | stdio, through dotnet tool exec from a local feed
 InventorMcp.Server            net10.0    every MCP tool lives here
-    | named pipe  InventorMcp.Bridge     restricted to the current Windows user
+    | named pipe  InventorMcp.Bridge.<year>  one for each release, restricted to the current Windows user
 InventorMcp.AddIn             net8.0-windows (2025, 2026) or net10.0-windows (2027)
     |                                    thin bridge: pipe listener, dispatch, main thread marshaling
     | in-process COM on Inventor's main thread
@@ -45,8 +45,11 @@ A loopback TCP port is reachable by every process and every logged on user unles
 
 That matters here because the endpoint can execute arbitrary code inside the CAD process.
 
-The pipe name is fixed, so the server connects with no discovery step.
-Only one Inventor session can host it; a second logs the conflict rather than competing.
+The pipe name is fixed for a release (`InventorMcp.Bridge.<year>`, ex. `InventorMcp.Bridge.2026`), so the server
+connects with no discovery step. Inventor 2025, 2026 and 2027 can run at the same time, each with its own pipe.
+A second Inventor of the same release cannot claim its pipe, and logs the conflict rather than competing.
+The add-in reads the release from `Application.SoftwareVersion`, not from a build constant, so a wrong build input
+cannot give a pipe name that does not match the process.
 
 The add-in serves up to 16 connections (`MaxPipeInstances`), one for each server. Each MCP client starts its own
 server and Claude Desktop starts two, so four clients already made six to seven servers. The ACL admits only the
@@ -60,8 +63,29 @@ failed at once with "All pipe instances are busy", and the loop retried with no 
 connections each connected in about 40 ms, the 17th and 18th got a readable message, and the loop wrote no lines.
 
 A server that cannot connect within 3 s keeps the code `inventor-not-running`, because `inventor_start` polls on
-it while Inventor loads. When an Inventor process is running, the message says so and tells the model not to call
-`inventor_start`.
+it while Inventor loads. When an Inventor process of the selected release is running, the message says so and tells
+the model not to call `inventor_start`.
+
+Which release a server uses (`ReleaseSelection`), in order:
+
+1. The release the session chose with `inventor_use_release` or `inventor_start`.
+2. `INVENTORMCP_RELEASE` in the `env` of the MCP entry.
+3. The release pipes that exist now. One pipe is used. More than one gives `release-required`.
+
+A chosen release never falls back to another release. An automatic session keeps the release it connected to: if that
+release closes and a different one is then the only pipe, the call returns `release-required` and is not sent, because
+the retry after a dropped pipe could otherwise repeat a write in the other release. Each Claude session has its own server process, so one session
+cannot change the release of another. The release is not a parameter of every tool, because about 50 tools would
+each carry it in every call. Not selected: a pipe for each process ID (it would also allow two Inventors of one
+release, but needs a discovery step), and a broker process (a third process and a new failure point).
+
+Changed on 2026-10-05 (protocol version 2): the pipe was one fixed name, `InventorMcp.Bridge`, so only one Inventor
+on the machine could host the bridge. A new server with an old add-in finds only the old name, and returns
+`bridge-outdated` and not `inventor-not-running`, so that the model does not start a second Inventor. Each release
+writes its logs to its own folder (`<year>\addin.log`, `<year>\addin-startup.log`, `<year>\executed-code.log`),
+because the lock in `BridgeLog` covers one process, and two Inventors appended to one file. A folder makes the release
+obvious, and leaves the files at the top from before this change clearly separate. The server logs stay at the top,
+because a server belongs to a session and not to a release, so each tool call writes a line with the release it used.
 
 ### stdio rather than HTTP to Claude
 

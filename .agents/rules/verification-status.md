@@ -249,3 +249,40 @@ its startup files and knew its content, but could not answer from `build.md` or 
 loads at startup. The old `.claude/rules/` loaded all six rules into every session. A second fresh session, allowed
 only `Read`, opened `.agents/rules/build.md` for a build question, so a rule loads when its trigger fits.
 Not yet verified: Copilot in Visual Studio Code reading `AGENTS.md`.
+
+## Multiple releases (2026-10-05)
+
+Verified:
+
+- The unit level (default run): the release map, the pipe names, `ReleaseSelection` (order, no fallback, a change of
+  the choice closes the connection, the legacy pipe) and the reset of `ReleaseYear` and `InventorProcessId`.
+- The three add-in targets compile (2025, 2026 and 2027). The 2025 output could not be copied, because Inventor 2025
+  had the build folder loaded.
+- Against a running Inventor 2025 that still had the old add-in, a server driven by hand returned `bridge-outdated`
+  for `inventor_session`, and `inventor_use_release` returned `version-not-supported` for 2099. This shows that
+  the enumeration of `\\.\pipe\` finds the legacy pipe, and that the guard stops the model from starting a second
+  Inventor.
+- `GetActiveObject` and `GetObject` are not used in the source or the tests (risk 2 of the plan).
+- The logs of each release go to their own folder (`%LOCALAPPDATA%\InventorMcp\<year>\`). A test run wrote its fake
+  dialog clicks to `%TEMP%\InventorMcp.Tests\<process ID>\2025\executed-code.log`, and the real audit trail did not
+  change. A server driven by hand wrote "Tool inventor_session finished. Release not connected, selection automatic."
+  to its log. The test run deletes its folder when it ends.
+
+Live on 2026-10-05, with Inventor 2026 and 2027 on the redeployed add-in, next to Inventor 2025 on the old add-in:
+
+- Two releases at one time (risk 1): `inventor_start` in two server processes started 2026, then 2027. Each add-in
+  wrote "Bridge started on pipe 'InventorMcp.Bridge.<year>'" to its own `<year>\addin.log`. The .NET 8 loader (2026)
+  and .NET 10 (2027) ran together. The legacy pipe of 2025 did not affect the selection.
+- With no release chosen, `inventor_session` and `inventor_dialogs` returned `release-required` with 2026 and 2027.
+  `inventor_use_release` moved one server between the two releases.
+- A dialog in one release did not block another (risk 4): while a Vault error dialog blocked 2026, a call to 2027
+  succeeded. A click on that dialog was audited to `2026\executed-code.log`. A Desktop test with two fixture
+  processes was not written, because this live case covers the risk.
+- A part created in 2027 did not show in `inventor_documents` of a 2026 session. After Inventor 2026 closed, the
+  2027 session kept its connection, and `inventor_session` reported 2027 and bridge version 2.
+- Every test level: 180 passed with `INVENTORMCP_RELEASE=2027`, including the migration dialog tests with a part
+  saved by 2026. The live level passed with `INVENTORMCP_RELEASE=2026` (8 passed, the 2 migration tests skipped).
+- Inventor 2026 starts in more than 45 s here (Vault sign-in), so `inventor_start` returned `still-starting` both
+  times, and the bridge answered later.
+
+Not verified: the 2025 add-in on protocol version 2, because Inventor 2025 had the build folder loaded.

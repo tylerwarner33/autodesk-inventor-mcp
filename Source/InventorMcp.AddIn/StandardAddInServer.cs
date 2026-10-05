@@ -38,6 +38,18 @@ public sealed class StandardAddInServer : ApplicationAddInServer
 		{
 			_inventor = addInSiteObject.Application;
 
+			// The release comes from the running application, not from a build input, so a wrong build cannot give a
+			// pipe name that does not match the process.
+			int softwareVersion = _inventor.SoftwareVersion.Major;
+
+			if (Contracts.InventorReleases.TryGetYear(softwareVersion, out int releaseYear) is false)
+			{
+				BridgeLog.Write($"Inventor software version {softwareVersion} is not a supported release. The bridge did not start.");
+				return;
+			}
+
+			BridgeLog.UseRelease(releaseYear);
+
 			// Created here so the message only window belongs to Inventor's main thread.
 			_dispatcher = new MainThreadDispatcher();
 			_dispatcher.Start();
@@ -48,11 +60,11 @@ public sealed class StandardAddInServer : ApplicationAddInServer
 			OperationDispatcher operations = new(BridgeLog.Write);
 			InventorOperations.Register(operations, _inventor, _dispatcher, _activity);
 
-			_bridge = new BridgeServer(operations, BridgeLog.Write);
+			_bridge = new BridgeServer(operations, BridgeLog.Write, Contracts.BridgeProtocol.PipeNameFor(releaseYear));
 			_bridge.Start();
 
 			// Fully qualified: Inventor.Environment is the ribbon environment type, so the name collides.
-			BridgeLog.Write($"Bridge started on pipe '{Contracts.BridgeProtocol.PipeName}' in process {System.Environment.ProcessId}.");
+			BridgeLog.Write($"Bridge started on pipe '{_bridge.PipeName}' in process {System.Environment.ProcessId}.");
 		}
 		catch (Exception exception)
 		{

@@ -48,6 +48,26 @@ public sealed class BridgeClientTests
 	}
 
 	[Fact]
+	public async Task ChangeOfTheChoiceResetsTheReleaseAndTheProcess()
+	{
+		await using TestBridge bridge = new();
+		Task<TestConnection> accept = bridge.Server.AcceptAsync();
+
+		Assert.True(await bridge.Client.TryConnectAsync(TestContext.Current.CancellationToken));
+		_ = await accept;
+
+		Assert.Equal(2025, bridge.Client.ReleaseYear);
+		Assert.NotNull(bridge.Client.InventorProcessId);
+
+		// Release 2026 has no pipe, so the next connection fails. The old connection must not survive the change.
+		bridge.Selection.Choose(2026);
+
+		Assert.False(await bridge.Client.TryConnectAsync(TestContext.Current.CancellationToken));
+		Assert.Null(bridge.Client.ReleaseYear);
+		Assert.Null(bridge.Client.InventorProcessId);
+	}
+
+	[Fact]
 	public async Task LateResponseIsDiscarded()
 	{
 		await using TestBridge bridge = new();
