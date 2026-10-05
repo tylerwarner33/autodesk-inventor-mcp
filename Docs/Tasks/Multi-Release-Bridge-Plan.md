@@ -2,7 +2,7 @@
 
 Created: 2026-10-01
 
-Status: **implemented on 2026-10-05, live verification open.** Steps 1 to 6 and 8 of "Order of work" are done. Step 7 needs two releases running with the redeployed add-in, and Inventor closed first. See `.agents/rules/verification-status.md`, "Multiple releases". Delete this file after step 7. The bridge used one fixed pipe name, so only one Inventor session on the machine can host it. This
+Status: **implemented and verified on 2026-10-05 with Inventor 2026 and 2027.** Only the 2025 add-in on protocol version 2 is left, which needs Inventor 2025 closed. See `.agents/rules/verification-status.md`, "Multiple releases". Delete this file after that check. The bridge used one fixed pipe name, so only one Inventor session on the machine can host it. This
 plan lets Inventor 2025, 2026 and 2027 run at the same time, each with its own bridge, and lets each Claude session
 use a different release with no effect on the others.
 

@@ -19,5 +19,27 @@ internal static class AuditLogRedirect
 	public static string Folder { get; } = Path.Combine(Path.GetTempPath(), "InventorMcp.Tests", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
 	[ModuleInitializer]
-	internal static void Redirect() => ExecutionAuditLog.LogRoot = Folder;
+	internal static void Redirect()
+	{
+		ExecutionAuditLog.LogRoot = Folder;
+		AppDomain.CurrentDomain.ProcessExit += static (_, _) => Delete();
+	}
+
+	/// <summary>
+	/// 	Deletes the folder of this run when the test process ends.
+	/// </summary>
+	/// <remarks>
+	/// 	A failure is ignored, because a folder that is left behind only costs a little space.
+	/// </remarks>
+	private static void Delete()
+	{
+		try
+		{
+			if (Directory.Exists(Folder))
+				Directory.Delete(Folder, recursive: true);
+		}
+		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+		{
+		}
+	}
 }
