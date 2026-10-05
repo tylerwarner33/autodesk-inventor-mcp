@@ -15,7 +15,7 @@ namespace InventorMcp.Server.McpTools;
 /// <remarks>
 /// 	The iLogic tools are canned snippets through the execution operation, with the prelude helpers, so they need no
 /// 	add-in rebuild. Each snippet returns JSON text, which the server parses.
-/// 	See <c>Docs/Tasks/Usage-Findings-Implementation-Plan.md</c>, Phase 3.
+/// 	See <c>Docs/Research/Usage-Findings-And-Knowledge-Delivery.md</c>, R1.3 and R1.5.
 /// </remarks>
 internal static partial class InventorTool
 {

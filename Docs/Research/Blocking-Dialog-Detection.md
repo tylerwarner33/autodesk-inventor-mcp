@@ -9,8 +9,8 @@ method, and a proposal to put the method into the server. The tests are in `Test
 
 Related documents:
 
-- `Docs/Tasks/Usage-Findings-Implementation-Plan.md`, decision 6 ("Find a modal dialog from outside Inventor's
-	process") and Phase 4 (the dialog check in `inventor_session`). This document gives the tested method for them.
+- `Docs/Architecture.md`, "The server watches for dialogs from outside Inventor", and the dialog check in
+	`inventor_session`. This document gives the tested method for them.
 - `Docs/Research/Usage-Findings-And-Knowledge-Delivery.md` found one earlier block: an iLogic Security Alert after
 	a rule edit through the API. Its rule "Never answer a dialog on the user's behalf" conflicts with the automatic
 	close in this proposal. See "Decision needed" below.

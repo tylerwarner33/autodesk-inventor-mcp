@@ -14,7 +14,7 @@ namespace InventorMcp.Server.McpTools;
 /// <remarks>
 /// 	Tools for documents and files. The Inventor calls are canned snippets through the execution operation, and the
 /// 	test copy runs Apprentice in a child process, so none of them needs an add-in rebuild.
-/// 	See <c>Docs/Tasks/Usage-Findings-Implementation-Plan.md</c>, Phase 4.
+/// 	See <c>Docs/Research/Usage-Findings-And-Knowledge-Delivery.md</c>, R1.4 and R1.12.
 /// </remarks>
 internal static partial class InventorTool
 {

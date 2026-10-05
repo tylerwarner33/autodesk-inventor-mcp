@@ -31,6 +31,10 @@ binding works against a plugin built with embedded interop types, where `Type` i
 
 `inventor_run_plugin`'s log handling that reports only the lines a call wrote was verified later on 2026-09-22
 through eleven live calls against the reference plugin's shared rolling log.
+`logPattern` and `logMatchLines` ran in real use on 2026-09-26: 13 calls from Claude Code against the reference
+plugin's rolling log (`Cincinnati.InventorPlugin.McpServerLoop\Logs\log-.txt`), with patterns such as
+`Moved the balloon|Placed \d+ balloon|instances placed`, all `succeeded` in `executed-code.log` (6.7 s to 12.1 s).
+The audit log keeps the snippet, not its output, so the returned lines themselves are not on record.
 The server's warning on an execution result over 20 s was built then too, but no call has run that long since.
 
 `inventor_start` was verified on 2026-09-22 on Inventor 2025, with Inventor closed, by driving the server by hand
@@ -67,7 +71,41 @@ Advisor's radio buttons. Not yet exercised: the watchdog answering the Security 
 live call, a Security Alert for a rule inside a document, a dialog of a different process (ex. Vault), and Inventor
 running as administrator.
 
-The Phase 4 tools of `Docs/Tasks/Usage-Findings-Implementation-Plan.md` were verified on 2026-09-25 on Inventor
+The work from `Docs/Research/Usage-Findings-And-Knowledge-Delivery.md` was done in one plan, deleted on 2026-10-05.
+Its checks follow.
+
+Better errors and results, verified on 2026-09-25 against Inventor 2026 through the packed server: the
+`Face.RangeBox` hint, the removed CS8632, `wallClockMilliseconds`, and the result line in the server log.
+`Face.RangeBox` has no near member on `Face`, and 157 other types have `RangeBox`, so the hint can only point at some
+of them and at `inventor_api_lookup`. The hint for `CenterlineTypeEnum.kWorkFeatureCenterline` names
+`kWorkFeatureCenterlineType` (unit test).
+
+The script helpers (`ScriptPrelude.csx`), verified on 2026-09-25 against Inventor 2026 through the packed server:
+every helper, the diagnostic line number after a moved `using` directive, and the compile cost. The prelude costs 25
+to 90 ms against a median call of 0.29 s, so the helpers stay in the server, not in the add-in's script globals.
+
+The iLogic tools and `suppressRules`, verified on 2026-09-25 on Inventor 2025, on a test copy of
+`C:\Work\Designs\Frame\Master Frame.iam` (29 model files, copied with Apprentice `FileSaveAs` so no rule ran; the
+masters were not changed, and the copy was deleted the same day):
+
+| Measurement | Result |
+| --- | --- |
+| One parameter write with the rules on | 85 s |
+| Two writes with `suppressRules` | 73 ms, then `RulesEnabled` was true again |
+| One run of the top `Master` rule | 79 s |
+| Four writes with `suppressRules` and `runRuleAfter: Master` | 59 ms of writes, 67 s in total |
+
+- `RulesEnabled` was true after the batch, after a snippet that threw with `suppressRules`, and after the rule run.
+- One batch had a text parameter, a boolean parameter and a missing name (reported per parameter, no exception).
+- `inventor_ilogic_rule_set` refused an anchor that occurs 3 times, and inserted at a unique one with a backup and a
+	diff. The edited rule then ran by name through `inventor_run_ilogic` in 120 ms, with no Security Alert.
+- Opening the test copy took 4.7 s and made it dirty.
+- `RulesEnabled` is a setting of the session only. It was set to false, Inventor 2025 closed normally, and after a
+	start it was true. Inventor wrote no file and no registry key when it changed, so a crash cannot keep it either.
+- The Security Alert comes from the rule's contents, not from an edit through the API. See
+	`Docs/Research/Blocking-Dialog-Detection.md`, "The iLogic Security Alert".
+
+The session and read tools were verified on 2026-09-25 on Inventor
 2025.4 through the packed server, driven over stdio, on test copies in `C:\Work\_McpTest`
 (a Vault workspace project with the library paths `Designs` and `Libraries`):
 
@@ -124,7 +162,7 @@ By the user, on 2026-09-25, with the same task on the master part (read only, ru
 	and it compared the unit text to "Boolean" and "Text". After a restart of the server connection, Visual Studio
 	asked to trust the server again and listed the added tools as the change.
 
-The Phase 6 add-in release was verified on 2026-09-25 on Inventor 2025.4, with the add-in built for 2025 and 2026:
+The add-in release of the usage findings was verified on 2026-09-25 on Inventor 2025.4, with the add-in built for 2025 and 2026:
 
 - `executed-code.log` has `client='<name> <version>'` in each entry header and a `result` line after the code, with
 	the outcome, the exception, the milliseconds, and the documents that a failed snippet left open.

@@ -4,8 +4,8 @@ Created: 2026-09-24
 
 Status: **research.** Real usage of the server from 2026-09-21 to 2026-09-24 found traps, missing tools and
 knowledge that does not reach the clients. This document records the findings, where each one should go, and how
-the Skills over MCP extension fits. The work that comes from it is in
-`Docs/Tasks/Usage-Findings-Implementation-Plan.md`.
+the Skills over MCP extension fits. The work that came from it is done, and its checks are in
+`.agents/rules/verification-status.md`. The rest is in `Docs/Tasks/Skills-Over-Mcp-Plan.md`.
 
 ## Source of the findings
 
