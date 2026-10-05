@@ -41,62 +41,75 @@ internal static partial class InventorTool
 
 	[McpServerTool(Name = "inventor_start", Destructive = false, Idempotent = true, OpenWorld = false, ReadOnly = false)]
 	[Description("""
-		Starts Autodesk Inventor when no session hosts the MCP bridge, and waits for the bridge add-in to load.
+		Starts one Autodesk Inventor release when its bridge is not running, and waits for the bridge add-in to load.
+		Several releases can run at the same time, each with its own bridge. This session then uses the release it
+		started, and no other.
 
 		Call this only when the user asks to start Inventor, or after you ask them and they agree. Never call it only
 		because another tool returned inventor-not-running.
 
-		If Inventor already hosts the bridge, nothing starts. If an Inventor process runs without the bridge, nothing
-		starts either, and the result lists the processes. If more than one release has the add-in deployed and no
-		version is given, the user is asked to choose. When the client cannot ask, the result is version-required with
-		the release names: ask the user, then call again with version.
+		If the release already hosts the bridge, nothing starts, and this session uses that release. If a process of the
+		release runs without the bridge, nothing starts either, and the result lists the processes. A different release
+		that runs does not stop the start. If more than one release has the add-in deployed and no version is given,
+		the user is asked to choose. When the client cannot ask, the result is version-required with the release names:
+		ask the user, then call again with version.
 
 		On success, call inventor_session to confirm the session. Inventor can still be at a sign-in or recovery dialog.
 		""")]
 	public static async Task<object> Start(
 		BridgeClient bridge,
+		ReleaseSelection selection,
 		InventorInstallations installations,
 		RequestContext<CallToolRequestParams> context,
 		IProgress<ProgressNotificationValue> progress,
-		[Description("Release year to start, ex. 2025. Omit to start the only release with the add-in deployed, or to let the user choose.")] int? version = null,
+		[Description("Release year to start, ex. 2025. Omit to start the release this session uses, or the only release with the add-in deployed, or to let the user choose.")] int? version = null,
 		CancellationToken cancellationToken = default)
 	{
+		// A release that is named, or already chosen, is the one that this call is about.
+		int? requested = version ?? selection.Chosen;
+
 		// A retry after the form runs every check again, because the state can change while the form is open.
-		try
+		if (requested is int requestedYear)
 		{
-			Contracts.Models.SessionInfo session = await bridge
-				.InvokeAsync<Contracts.Models.SessionInfo>(BridgeOperations.Session, null, cancellationToken)
-				.ConfigureAwait(false);
-
-			return new
+			// Only the pipe of that release counts. A different release that runs is not "already running".
+			if (selection.RunningReleases().Contains(requestedYear))
 			{
-				status = "already-running",
-				message = "An Inventor session already hosts the MCP bridge. Nothing was started.",
-				session
-			};
-		}
-		catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
-		{
-		}
-		catch (InventorBridgeException exception)
-		{
-			// Any other failure came from a session that is running, so starting a second Inventor cannot help.
-			return new { error = exception.Code, message = exception.Message, detail = exception.Detail };
-		}
+				selection.Choose(requestedYear);
 
-		IReadOnlyList<RunningInventor> running = InventorInstallations.FindRunning();
-
-		if (running.Count > 0)
+				try
+				{
+					return await AlreadyRunningAsync(bridge, cancellationToken).ConfigureAwait(false);
+				}
+				catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
+				{
+				}
+				catch (InventorBridgeException exception)
+				{
+					return new { error = exception.Code, message = exception.Message, detail = exception.Detail };
+				}
+			}
+		}
+		else
 		{
-			return new
+			try
 			{
-				error = "inventor-starting-or-no-bridge",
-				message = "Inventor is running, but it does not host the MCP bridge. Either it is still starting, or the " +
-					"add-in did not load. Nothing was started, because a second Inventor never gets the bridge. A process with " +
-					"no main window is a hidden instance, ex. one started through COM. See %LOCALAPPDATA%\\InventorMcp\\addin.log " +
-					"and addin-startup.log.",
-				processes = running
-			};
+				return await AlreadyRunningAsync(bridge, cancellationToken).ConfigureAwait(false);
+			}
+			catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
+			{
+			}
+			catch (InventorBridgeException exception)
+			{
+				// Any other failure came from a session that is running, so starting a second Inventor cannot help.
+				return new
+				{
+					error = exception.Code,
+					message = exception.Code == BridgeErrorCodes.ReleaseRequired
+						? exception.Message + " To start a release that is not running, call inventor_start with version."
+						: exception.Message,
+					detail = exception.Detail
+				};
+			}
 		}
 
 		IReadOnlyList<InventorRelease> installed = installations.FindInstalled();
@@ -132,7 +145,7 @@ internal static partial class InventorTool
 
 			release = chosen;
 		}
-		else if (version is int year)
+		else if (requested is int year)
 		{
 			if (installed.FirstOrDefault(candidate => candidate.Year == year) is not InventorRelease named)
 			{
@@ -175,6 +188,23 @@ internal static partial class InventorTool
 			};
 		}
 
+		// Only a process of the target release can be the one that is still starting, or that has no bridge.
+		IReadOnlyList<RunningInventor> running = InventorInstallations.FindRunning(release.Year);
+
+		if (running.Count > 0)
+		{
+			return new
+			{
+				error = "inventor-starting-or-no-bridge",
+				message = $"{release.DisplayName} is running, but it does not host the MCP bridge. Either it is still starting, " +
+					"or the add-in did not load. Nothing was started, because a second Inventor of the same release never gets " +
+					"the bridge. A different release can be started with version. A process with no main window is a hidden " +
+					"instance, ex. one started through COM. See the logs in %LOCALAPPDATA%\\InventorMcp (addin.<year>.log and " +
+					"addin-startup.<year>.log).",
+				processes = running
+			};
+		}
+
 		DetachedProcess process;
 
 		try
@@ -191,10 +221,31 @@ internal static partial class InventorTool
 			};
 		}
 
+		// The session uses the release that it started, so the wait and every later call reach its pipe only.
+		selection.Choose(release.Year);
+
 		using (process)
 		{
 			return await WaitForBridgeAsync(bridge, release, process, progress, cancellationToken).ConfigureAwait(false);
 		}
+	}
+
+	/// <summary>
+	/// 	Calls the bridge of the selected release, and reports that nothing needs to start.
+	/// </summary>
+	private static async Task<object> AlreadyRunningAsync(BridgeClient bridge, CancellationToken cancellationToken)
+	{
+		Contracts.Models.SessionInfo session = await bridge
+			.InvokeAsync<Contracts.Models.SessionInfo>(BridgeOperations.Session, null, cancellationToken)
+			.ConfigureAwait(false);
+
+		return new
+		{
+			status = "already-running",
+			message = $"Autodesk Inventor {session.ReleaseYear} already hosts the MCP bridge. Nothing was started. " +
+				"This session uses that release.",
+			session
+		};
 	}
 
 	private static async Task<object> WaitForBridgeAsync(
@@ -229,13 +280,13 @@ internal static partial class InventorTool
 
 			// A launcher that hands over to another Inventor process would look like an exit, so only an exit with no
 			// Inventor left is a failure.
-			if (process.HasExited && InventorInstallations.FindRunning().Count == 0)
+			if (process.HasExited && InventorInstallations.FindRunning(release.Year).Count == 0)
 			{
 				return new
 				{
 					error = "inventor-exited",
 					message = $"{release.DisplayName} started and then exited before the MCP bridge answered. " +
-						"See %LOCALAPPDATA%\\InventorMcp\\addin-startup.log and addin.log.",
+						$"See %LOCALAPPDATA%\\InventorMcp\\addin-startup.{release.Year}.log and addin.{release.Year}.log.",
 					exitCode = process.ExitCode
 				};
 			}
