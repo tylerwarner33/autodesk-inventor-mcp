@@ -34,10 +34,12 @@ _ = builder.Logging.AddSerilog(Log.Logger, dispose: true);
 
 builder.Services.AddSingleton<IBlockingDialogs>(static _ => new BlockingDialogs());
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ReleaseSelection>();
 builder.Services.AddSingleton(static services => new BridgeClient(
 	services.GetRequiredService<ILogger<BridgeClient>>(),
 	services.GetRequiredService<IBlockingDialogs>(),
-	services.GetRequiredService<TimeProvider>()));
+	services.GetRequiredService<TimeProvider>(),
+	services.GetRequiredService<ReleaseSelection>()));
 
 // Singleton because it indexes a 12 MB documentation file once and holds the result.
 builder.Services.AddSingleton<ApiReferenceService>();

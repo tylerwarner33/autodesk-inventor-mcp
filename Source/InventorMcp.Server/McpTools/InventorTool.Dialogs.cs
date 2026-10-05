@@ -70,7 +70,7 @@ internal static partial class InventorTool
 		{
 			try
 			{
-				ExecutionAuditLog.WriteDialogClick(dialog, button, "inventor_dialog_click");
+				ExecutionAuditLog.WriteDialogClick(dialog, button, "inventor_dialog_click", bridge.ReleaseYear);
 			}
 			catch (IOException exception)
 			{

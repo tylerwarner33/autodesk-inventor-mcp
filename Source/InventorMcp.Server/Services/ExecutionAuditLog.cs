@@ -1,14 +1,13 @@
 namespace InventorMcp.Server.Services;
 
 /// <summary>
-/// 	Writes the server's entries to <c>executed-code.log</c>, which the add-in writes for each snippet.
+/// 	Writes the server's entries to <c>executed-code.&lt;year&gt;.log</c>, which the add-in of that release writes for each snippet.
 /// </summary>
 internal static class ExecutionAuditLog
 {
-	private static readonly string _path = Path.Combine(
+	private static readonly string _directory = Path.Combine(
 		Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-		"InventorMcp",
-		"executed-code.log");
+		"InventorMcp");
 
 	/// <summary>
 	/// 	Records a click on a dialog button, with the dialog text.
@@ -22,10 +21,13 @@ internal static class ExecutionAuditLog
 	/// <param name="clickedBy">
 	/// 	What clicked (ex. <c>watchdog</c> or <c>inventor_dialog_click</c>).
 	/// </param>
+	/// <param name="releaseYear">
+	/// 	The release of the Inventor with the dialog, which picks the file. Null writes the file with no year.
+	/// </param>
 	/// <exception cref="IOException">
 	/// 	The log could not be written.
 	/// </exception>
-	public static void WriteDialogClick(DialogSnapshot dialog, string buttonName, string clickedBy)
+	public static void WriteDialogClick(DialogSnapshot dialog, string buttonName, string clickedBy, int? releaseYear)
 	{
 		string newLine = Environment.NewLine;
 		string entry =
@@ -34,8 +36,8 @@ internal static class ExecutionAuditLog
 			$"{new string('-', 80)}{newLine}" +
 			$"{dialog.Text}{newLine}";
 
-		_ = Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-		File.AppendAllText(_path, entry);
+		_ = Directory.CreateDirectory(_directory);
+		File.AppendAllText(Path.Combine(_directory, releaseYear is int year ? $"executed-code.{year}.log" : "executed-code.log"), entry);
 	}
 
 	/// <summary>

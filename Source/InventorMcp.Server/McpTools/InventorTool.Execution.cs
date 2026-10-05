@@ -76,7 +76,7 @@ internal static partial class InventorTool
 						new ExecuteRequest(ScriptPrelude.Apply(code), documentName, allowUnsavedChanges),
 						cancellationToken).ConfigureAwait(false),
 					apiReference,
-					bridge.ReleaseYear),
+					bridge.EffectiveReleaseYear),
 				documentName,
 				cancellationToken).ConfigureAwait(false),
 			cancellationToken));
@@ -249,5 +249,5 @@ internal static partial class InventorTool
 		[Description("Restrict to one of: type, method, property, event, field. Omit for all kinds.")] string? kind = null,
 		[Description("Maximum members to return. Default 20.")] int maxResults = 20,
 		[Description("Inventor release to answer for, ex. 2025. Omit to follow the connected session.")] int? inventorRelease = null) =>
-		apiReference.Search(query, kind, maxResults <= 0 ? 20 : maxResults, inventorRelease ?? bridge.ReleaseYear);
+		apiReference.Search(query, kind, maxResults <= 0 ? 20 : maxResults, inventorRelease ?? bridge.EffectiveReleaseYear);
 }

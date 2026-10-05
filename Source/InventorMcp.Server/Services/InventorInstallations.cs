@@ -2,6 +2,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 
+using InventorMcp.Contracts;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
@@ -48,7 +50,10 @@ internal sealed record InventorRelease(int Year, int SoftwareVersion, string Exe
 /// <param name="HasMainWindow">
 /// 	False for a hidden instance, ex. one started through COM with <c>/Embedding</c>.
 /// </param>
-internal sealed record RunningInventor(int ProcessId, string? ExecutablePath, DateTime? StartTime, bool HasMainWindow);
+/// <param name="ReleaseYear">
+/// 	The release, read from the file version of the executable, or null when Windows refuses the path.
+/// </param>
+internal sealed record RunningInventor(int ProcessId, string? ExecutablePath, DateTime? StartTime, bool HasMainWindow, int? ReleaseYear);
 
 /// <summary>
 /// 	Finds the Inventor releases installed on this machine, and the Inventor processes running now.
@@ -64,19 +69,6 @@ internal sealed class InventorInstallations(ILogger<InventorInstallations> logge
 	public const string ReleaseFilterVariable = "INVENTOR_MCP_RELEASES";
 
 	private const string _addInName = "InventorMcp.AddIn";
-
-	/// <summary>
-	/// 	Release year to software version, for every release the add-in supports.
-	/// </summary>
-	/// <remarks>
-	/// 	Keep in step with <c>SupportedAutodeskVersions</c> and <c>InventorSoftwareVersion</c> in <c>Directory.Build.props</c>.
-	/// </remarks>
-	private static readonly IReadOnlyDictionary<int, int> _softwareVersionByYear = new Dictionary<int, int>
-	{
-		[2025] = 29,
-		[2026] = 30,
-		[2027] = 31
-	};
 
 	private readonly ILogger<InventorInstallations> _logger = logger;
 
@@ -95,8 +87,10 @@ internal sealed class InventorInstallations(ILogger<InventorInstallations> logge
 
 		List<InventorRelease> releases = [];
 
-		foreach ((int year, int softwareVersion) in _softwareVersionByYear.OrderBy(static pair => pair.Key))
+		foreach (int year in InventorReleases.Years)
 		{
+			_ = InventorReleases.TryGetSoftwareVersion(year, out int softwareVersion);
+
 			if (filter is not null && filter.Contains(year) is false)
 				continue;
 
@@ -131,11 +125,15 @@ internal sealed class InventorInstallations(ILogger<InventorInstallations> logge
 	/// </summary>
 	/// <remarks>
 	/// 	Other users' sessions are left out, because their Inventor cannot be the one this user means.
+	/// 	A process of unknown release stays in a filtered list, because it can be the release asked for.
 	/// </remarks>
+	/// <param name="releaseYear">
+	/// 	Keeps only the processes of this release, or null for every release.
+	/// </param>
 	/// <returns>
 	/// 	The running processes, or an empty list.
 	/// </returns>
-	public static IReadOnlyList<RunningInventor> FindRunning()
+	public static IReadOnlyList<RunningInventor> FindRunning(int? releaseYear = null)
 	{
 		int sessionId = Process.GetCurrentProcess().SessionId;
 
@@ -148,11 +146,18 @@ internal sealed class InventorInstallations(ILogger<InventorInstallations> logge
 				if (process.SessionId != sessionId)
 					continue;
 
+				string? executablePath = TryRead(() => process.MainModule?.FileName);
+				int? processRelease = ReadReleaseYear(executablePath);
+
+				if (releaseYear is not null && processRelease is not null && processRelease != releaseYear)
+					continue;
+
 				running.Add(new RunningInventor(
 					process.Id,
-					TryRead(() => process.MainModule?.FileName),
+					executablePath,
 					TryRead<DateTime?>(() => process.StartTime),
-					TryRead(() => process.MainWindowHandle != IntPtr.Zero)));
+					TryRead(() => process.MainWindowHandle != IntPtr.Zero),
+					processRelease));
 			}
 		}
 
@@ -173,6 +178,24 @@ internal sealed class InventorInstallations(ILogger<InventorInstallations> logge
 		string developmentManifest = Path.Combine(applicationData, "Autodesk", $"Inventor {year}", "Addins", $"{_addInName}.addin");
 
 		return File.Exists(bundleManifest) || File.Exists(developmentManifest);
+	}
+
+	/// <summary>
+	/// 	Maps the major part of the file version of <c>Inventor.exe</c> to the release.
+	/// </summary>
+	private static int? ReadReleaseYear(string? executablePath)
+	{
+		if (executablePath is null)
+			return null;
+
+		try
+		{
+			return InventorReleases.TryGetYear(FileVersionInfo.GetVersionInfo(executablePath).FileMajorPart, out int year) ? year : null;
+		}
+		catch (FileNotFoundException)
+		{
+			return null;
+		}
 	}
 
 	private static HashSet<int>? ReadReleaseFilter()
