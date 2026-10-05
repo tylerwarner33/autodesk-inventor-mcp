@@ -264,7 +264,7 @@ Verified:
   Inventor.
 - `GetActiveObject` and `GetObject` are not used in the source or the tests (risk 2 of the plan).
 - The logs of each release go to their own folder (`%LOCALAPPDATA%\InventorMcp\<year>\`). A test run wrote its fake
-  dialog clicks to `%TEMP%\InventorMcp.Tests\<process ID>5\executed-code.log`, and the real audit trail did not
+  dialog clicks to `%TEMP%\InventorMcp.Tests\<process ID>\2025\executed-code.log`, and the real audit trail did not
   change. A server driven by hand wrote "Tool inventor_session finished. Release not connected, selection automatic."
   to its log. The add-in folders are not verified yet, because they need the redeployed add-in.
 
