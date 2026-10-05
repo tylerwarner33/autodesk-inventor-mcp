@@ -1,11 +1,19 @@
+using System.Globalization;
+
 namespace InventorMcp.Server.Services;
 
 /// <summary>
-/// 	Writes the server's entries to <c>executed-code.&lt;year&gt;.log</c>, which the add-in of that release writes for each snippet.
+/// 	Writes the server's entries to <c>&lt;year&gt;\executed-code.log</c>, which the add-in of that release writes for each snippet.
 /// </summary>
 internal static class ExecutionAuditLog
 {
-	private static readonly string _directory = Path.Combine(
+	/// <summary>
+	/// 	The root of the logs. Each release has its own folder below it, ex. <c>2026</c>.
+	/// </summary>
+	/// <remarks>
+	/// 	Settable so that a test writes its fake dialog clicks to a temporary folder, not to the user's audit trail.
+	/// </remarks>
+	public static string LogRoot { get; set; } = Path.Combine(
 		Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
 		"InventorMcp");
 
@@ -22,7 +30,7 @@ internal static class ExecutionAuditLog
 	/// 	What clicked (ex. <c>watchdog</c> or <c>inventor_dialog_click</c>).
 	/// </param>
 	/// <param name="releaseYear">
-	/// 	The release of the Inventor with the dialog, which picks the file. Null writes the file with no year.
+	/// 	The release of the Inventor with the dialog, which picks the folder. Null writes to <see cref="LogRoot"/>.
 	/// </param>
 	/// <exception cref="IOException">
 	/// 	The log could not be written.
@@ -36,8 +44,10 @@ internal static class ExecutionAuditLog
 			$"{new string('-', 80)}{newLine}" +
 			$"{dialog.Text}{newLine}";
 
-		_ = Directory.CreateDirectory(_directory);
-		File.AppendAllText(Path.Combine(_directory, releaseYear is int year ? $"executed-code.{year}.log" : "executed-code.log"), entry);
+		string directory = releaseYear is int year ? Path.Combine(LogRoot, year.ToString(CultureInfo.InvariantCulture)) : LogRoot;
+
+		_ = Directory.CreateDirectory(directory);
+		File.AppendAllText(Path.Combine(directory, "executed-code.log"), entry);
 	}
 
 	/// <summary>

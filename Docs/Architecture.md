@@ -81,9 +81,11 @@ release, but needs a discovery step), and a broker process (a third process and 
 
 Changed on 2026-10-05 (protocol version 2): the pipe was one fixed name, `InventorMcp.Bridge`, so only one Inventor
 on the machine could host the bridge. A new server with an old add-in finds only the old name, and returns
-`bridge-outdated` and not `inventor-not-running`, so that the model does not start a second Inventor. The log files
-carry the year as well (`addin.<year>.log`, `addin-startup.<year>.log`, `executed-code.<year>.log`), because the lock in
-`BridgeLog` covers one process, and two Inventors appended to one file.
+`bridge-outdated` and not `inventor-not-running`, so that the model does not start a second Inventor. Each release
+writes its logs to its own folder (`<year>\addin.log`, `<year>\addin-startup.log`, `<year>\executed-code.log`),
+because the lock in `BridgeLog` covers one process, and two Inventors appended to one file. A folder makes the release
+obvious, and leaves the files at the top from before this change clearly separate. The server logs stay at the top,
+because a server belongs to a session and not to a release, so each tool call writes a line with the release it used.
 
 ### stdio rather than HTTP to Claude
 

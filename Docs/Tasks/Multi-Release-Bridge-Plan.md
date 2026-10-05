@@ -65,7 +65,7 @@ use a different release with no effect on the others.
 8. **Bump `BridgeProtocol.Version` to 2.** The pipe name is part of the contract. A server and an add-in that
 	disagree on it must not look compatible.
 9. **Each release writes its own log files.** Two Inventor processes append to one `addin.log` now. The lock in
-	`BridgeLog` covers one process only, so lines can be lost. Use `addin.<year>.log` and `addin-startup.<year>.log`.
+	`BridgeLog` covers one process only, so lines can be lost. Use a folder for each release (`<year>\addin.log`, `<year>\addin-startup.log`, `<year>\executed-code.log`).
 
 ## Changes
 

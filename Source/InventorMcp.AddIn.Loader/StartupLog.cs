@@ -12,13 +12,13 @@ namespace InventorMcp.AddIn.Loader;
 internal static class StartupLog
 {
 	/// <summary>
-	/// 	The release this loader is built for, from the <c>AutodeskVersion</c> metadata of its assembly.
+	/// 	The log folder of the release this loader is built for, from the <c>AutodeskVersion</c> metadata of its assembly.
 	/// </summary>
 	/// <remarks>
 	/// 	The loader runs before the add-in has Inventor, so it cannot ask the application for the release.
 	/// 	It is built for 2025 and 2026 only, so its build input is the release.
 	/// </remarks>
-	private static readonly string _fileName = ReadFileName();
+	private static readonly string _releaseFolder = ReadReleaseFolder();
 
 	/// <summary>
 	/// 	Appends one timestamped entry describing a failure during add-in startup.
@@ -35,12 +35,13 @@ internal static class StartupLog
 		{
 			string directory = Path.Combine(
 				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-				"InventorMcp");
+				"InventorMcp",
+				_releaseFolder);
 
 			_ = Directory.CreateDirectory(directory);
 
 			File.AppendAllText(
-				Path.Combine(directory, _fileName),
+				Path.Combine(directory, "addin-startup.log"),
 				$"{DateTimeOffset.UtcNow:O}  Add-in startup failed while {stage}.{Environment.NewLine}{exception}{Environment.NewLine}{Environment.NewLine}");
 		}
 		catch
@@ -49,12 +50,8 @@ internal static class StartupLog
 		}
 	}
 
-	private static string ReadFileName()
-	{
-		string? year = typeof(StartupLog).Assembly
+	private static string ReadReleaseFolder() =>
+		typeof(StartupLog).Assembly
 			.GetCustomAttributes<AssemblyMetadataAttribute>()
-			.FirstOrDefault(static attribute => attribute.Key == "AutodeskVersion")?.Value;
-
-		return string.IsNullOrEmpty(year) ? "addin-startup.log" : $"addin-startup.{year}.log";
-	}
+			.FirstOrDefault(static attribute => attribute.Key == "AutodeskVersion")?.Value ?? string.Empty;
 }

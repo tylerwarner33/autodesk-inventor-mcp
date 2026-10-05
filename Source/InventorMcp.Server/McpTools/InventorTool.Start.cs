@@ -199,8 +199,7 @@ internal static partial class InventorTool
 				message = $"{release.DisplayName} is running, but it does not host the MCP bridge. Either it is still starting, " +
 					"or the add-in did not load. Nothing was started, because a second Inventor of the same release never gets " +
 					"the bridge. A different release can be started with version. A process with no main window is a hidden " +
-					"instance, ex. one started through COM. See the logs in %LOCALAPPDATA%\\InventorMcp (addin.<year>.log and " +
-					"addin-startup.<year>.log).",
+					$"instance, ex. one started through COM. See the logs in %LOCALAPPDATA%\\InventorMcp\\{release.Year}.",
 				processes = running
 			};
 		}
@@ -286,7 +285,7 @@ internal static partial class InventorTool
 				{
 					error = "inventor-exited",
 					message = $"{release.DisplayName} started and then exited before the MCP bridge answered. " +
-						$"See %LOCALAPPDATA%\\InventorMcp\\addin-startup.{release.Year}.log and addin.{release.Year}.log.",
+						$"See addin-startup.log and addin.log in %LOCALAPPDATA%\\InventorMcp\\{release.Year}.",
 					exitCode = process.ExitCode
 				};
 			}

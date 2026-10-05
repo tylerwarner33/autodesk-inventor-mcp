@@ -31,7 +31,7 @@ Run it once for each release you use. Building a release does not install it.
 Restart Inventor, then confirm the bridge started:
 
 ```
-type %LOCALAPPDATA%\InventorMcp\addin.2027.log
+type %LOCALAPPDATA%\InventorMcp\2027\addin.log
 ```
 
 Use the year of the release. A line reading `Bridge started on pipe 'InventorMcp.Bridge.2027' in process <id>` means
@@ -181,7 +181,7 @@ older Inventor, ex. a Design Automation engine.
 | `release-required` | More than one release runs. Tell Claude which one to use. |
 | `bridge-outdated` | The add-in is from before protocol version 2. Close Inventor, redeploy the add-in, and start it again. |
 | The add-in is missing from **Tools > Add-Ins** | The manifest was never deployed for that release. Run the install command with its `AutodeskVersion`. |
-| `addin.<year>.log` has no entry for today on 2025 or 2026 | The loader failed before the add-in started. Read `addin-startup.<year>.log`. |
+| `<year>\addin.log` has no entry for today on 2025 or 2026 | The loader failed before the add-in started. Read `<year>\addin-startup.log`. |
 | "Inventor rejected the call because it is busy" | A command or modal dialog is running. Finish it and retry. |
 | "Inventor is blocked by a modal dialog" | A dialog waits for an answer. Read it on the screen, or ask Claude what it says, and answer it. |
 | A tool reports success but the model looks wrong | Ask for a health check. An API call can succeed while the feature cuts nothing. |
@@ -194,8 +194,9 @@ older Inventor, ex. a Design Automation engine.
 
 | Path | Contents |
 | --- | --- |
-| `%LOCALAPPDATA%\InventorMcp\addin.<year>.log` | Add-in lifecycle and failures, one file for each release |
-| `%LOCALAPPDATA%\InventorMcp\addin-startup.<year>.log` | Loader failures on 2025 and 2026, before `addin.<year>.log` exists |
+| `%LOCALAPPDATA%\InventorMcp\<year>\addin.log` | Add-in lifecycle and failures of that release |
+| `%LOCALAPPDATA%\InventorMcp\<year>\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
 | `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity |
-| `%LOCALAPPDATA%\InventorMcp\executed-code.<year>.log` | Every snippet run against your session |
+| `%LOCALAPPDATA%\InventorMcp\<year>\executed-code.log` | Every snippet run against your session |
+| `%LOCALAPPDATA%\InventorMcp\addin.log`, `executed-code.log` | From before the folder for each release |
 | `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log` | Claude Desktop: a server that failed to start |
