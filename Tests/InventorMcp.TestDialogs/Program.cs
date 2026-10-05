@@ -15,7 +15,7 @@ namespace InventorMcp.TestDialogs;
 /// 	Writes <c>READY &lt;main window handle&gt; &lt;dialog handle&gt;</c> to standard output when the dialog is visible,
 /// 	with handles in hexadecimal and 0 for no dialog.
 /// 	The process exits when the dialog closes, except in the mode <c>none</c>, which runs until it is stopped.
-/// 	See <c>Docs/Tasks/Server-Test-Project-Plan.md</c>, "The fixture process".
+/// 	See <c>.agents/rules/build.md</c>, "Tests", for the modes.
 /// </remarks>
 internal static class Program
 {

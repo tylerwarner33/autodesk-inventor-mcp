@@ -13,7 +13,7 @@ namespace InventorMcp.Server.Tests.Live;
 /// </summary>
 /// <remarks>
 /// 	Needs Inventor with the add-in loaded. Each test creates and closes its own documents.
-/// 	See <c>Docs/Tasks/Server-Test-Project-Plan.md</c>, "Live".
+/// 	See <c>.agents/rules/build.md</c>, "Tests", and <c>Docs/Research/Blocking-Dialog-Detection.md</c>, "Live test results".
 /// </remarks>
 [Trait("Level", "Live")]
 [Collection(DesktopCollection.Name)]

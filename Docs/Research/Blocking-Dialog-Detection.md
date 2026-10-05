@@ -4,8 +4,8 @@ Created: 2026-09-24
 
 Status: **research.** A modal dialog in Inventor blocked the server during real use. A test from a separate
 process found the dialog, read all of its text, and found its buttons. This document records the test, the
-method, and a proposal to put the method into the server. The test work is in
-`Docs/Tasks/Server-Test-Project-Plan.md`.
+method, and a proposal to put the method into the server. The tests are in `Tests/InventorMcp.Server.Tests`, and
+`.agents/rules/build.md`, "Tests", says how to run them.
 
 Related documents:
 
@@ -310,8 +310,7 @@ must not stop the watchdog.
 
 ### Tests
 
-The repository has no test project now. `Docs/Tasks/Server-Test-Project-Plan.md` sets up
-`Tests/InventorMcp.Server.Tests` with three levels (unit, desktop, live), a fixture process that shows real
+`Tests/InventorMcp.Server.Tests` has three levels (unit, desktop, live), a fixture process that shows real
 dialogs with no Inventor, and the live test cases for this feature.
 
 ## Live test results
@@ -513,7 +512,7 @@ differ, and then it stays open until a real example is read.
 	(`InventorOperations.Execution.cs`), and the snippet that ran the rule was a C# snippet. The iLogic error dialog
 	still opened. So `SilentOperation = true` does not suppress the iLogic error dialog when a rule runs through
 	`iLogicAutomation.RunRule`. The server cannot depend on it. The live test level confirms this again
-	(`Docs/Tasks/Server-Test-Project-Plan.md`).
+	(`LiveDialogTests`).
 - **Test copies outside the workspace.** A drawing copied to a scratchpad folder still runs its rules, but a
 	relative external rule folder does not resolve from there. Tell the model to examine
 	`auto.FileOptions.ExternalRuleDirectories` before it runs a rule on a copy.
