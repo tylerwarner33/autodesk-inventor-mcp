@@ -29,7 +29,7 @@ internal static class Program
 	{
 		if (args.Length == 0)
 		{
-			Console.Error.WriteLine("Give a mode: none, ok, yesno, okcancel, ilogic-like, wpf, unknown-ok or hang.");
+			Console.Error.WriteLine("Give a mode: none, ok, yesno, okcancel, ilogic-like, wpf, unknown-ok, advisor, advisor-folder or hang.");
 			return 2;
 		}
 
@@ -124,6 +124,12 @@ internal static class Program
 				ShowWpfDialog(owner);
 				break;
 
+			case "advisor":
+			case "advisor-folder":
+				using (WinForms.Form dialog = CreateAdvisorLikeDialog(trustFolder: mode == "advisor-folder"))
+					_ = dialog.ShowDialog(owner);
+				break;
+
 			default:
 				throw new ArgumentException($"Unknown mode '{mode}'.", nameof(mode));
 		}
@@ -163,6 +169,40 @@ internal static class Program
 
 		foreach (string hidden in new[] { "Apply", "Extra", "Second", "Cancel" })
 			dialog.Controls.Add(new WinForms.Button { Text = hidden, Visible = false });
+
+		return dialog;
+	}
+
+	/// <summary>
+	/// 	A copy of the iLogic Security Advisor: two radio buttons, OK, and three other buttons, one of them with no text.
+	/// </summary>
+	/// <remarks>
+	/// 	See <c>Docs/Research/Blocking-Dialog-Detection.md</c>, "The iLogic Security Alert".
+	/// </remarks>
+	private static WinForms.Form CreateAdvisorLikeDialog(bool trustFolder)
+	{
+		WinForms.Form dialog = new()
+		{
+			Text = "iLogic Security Advisor",
+			Width = 360,
+			Height = 230,
+			FormBorderStyle = WinForms.FormBorderStyle.FixedDialog,
+			MinimizeBox = false,
+			MaximizeBox = false,
+			StartPosition = WinForms.FormStartPosition.CenterParent
+		};
+
+		dialog.Controls.Add(new WinForms.Label { Text = "In the future:", Left = 10, Top = 10, AutoSize = true });
+		dialog.Controls.Add(new WinForms.RadioButton { Text = "Assume that this external rule is safe", Left = 20, Top = 35, Width = 300, Checked = trustFolder is false });
+		dialog.Controls.Add(new WinForms.RadioButton { Text = "Assume that all external rules in this folder are safe", Left = 20, Top = 60, Width = 320, Checked = trustFolder });
+		dialog.Controls.Add(new WinForms.Label { Text = "To change  these options later:", Left = 60, Top = 100, AutoSize = true });
+		dialog.Controls.Add(new WinForms.Button { Text = "Security Options", Left = 230, Top = 95, Width = 110 });
+		dialog.Controls.Add(new WinForms.Button { Text = string.Empty, Left = 10, Top = 150, Width = 30 });
+		dialog.Controls.Add(new WinForms.Button { Text = "<< Back", Left = 150, Top = 150 });
+
+		WinForms.Button ok = new() { Text = "OK", Left = 250, Top = 150, DialogResult = WinForms.DialogResult.OK };
+		dialog.Controls.Add(ok);
+		dialog.AcceptButton = ok;
 
 		return dialog;
 	}

@@ -279,7 +279,8 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 			window.ClassName,
 			content.Framework,
 			string.Join(_textSeparator, texts),
-			buttons);
+			buttons,
+			Choices: content.Options.Count > 0 ? content.Options : null);
 	}
 
 	/// <summary>
@@ -346,6 +347,12 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 			{
 				content.Buttons.Add((ReadButton(element, handle, parentType), element));
 			}
+			else if (controlType is UIA_ControlTypeIds.UIA_RadioButtonControlTypeId or UIA_ControlTypeIds.UIA_CheckBoxControlTypeId)
+			{
+				// OK confirms the selected option, so the policy and the user must see it (ex. the iLogic Security Advisor).
+				if (ReadOption(element, handle, controlType) is DialogOption option)
+					content.Options.Add(option);
+			}
 			else if (controlType is UIA_ControlTypeIds.UIA_TextControlTypeId or UIA_ControlTypeIds.UIA_EditControlTypeId or UIA_ControlTypeIds.UIA_DocumentControlTypeId)
 			{
 				// Some controls repeat the text of their parent, so each text is kept one time.
@@ -377,6 +384,30 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 			&& parentType is UIA_ControlTypeIds.UIA_TitleBarControlTypeId or UIA_ControlTypeIds.UIA_ScrollBarControlTypeId;
 
 		return new DialogButton(element.CurrentName ?? string.Empty, visible, enabled, windowFrame);
+	}
+
+	/// <summary>
+	/// 	Reads one radio button or check box, or null when it is hidden.
+	/// </summary>
+	/// <remarks>
+	/// 	The same visibility test as <see cref="ReadButton"/>.
+	/// </remarks>
+	private static DialogOption? ReadOption(IUIAutomationElement element, IntPtr handle, int controlType)
+	{
+		bool visible = handle != IntPtr.Zero ? IsWindowVisible(handle) : element.CurrentIsOffscreen == 0;
+
+		if (visible is false)
+			return null;
+
+		bool isRadioButton = controlType == UIA_ControlTypeIds.UIA_RadioButtonControlTypeId;
+
+		bool selected = isRadioButton
+			? element.GetCurrentPattern(UIA_PatternIds.UIA_SelectionItemPatternId) is IUIAutomationSelectionItemPattern selection
+				&& selection.CurrentIsSelected != 0
+			: element.GetCurrentPattern(UIA_PatternIds.UIA_TogglePatternId) is IUIAutomationTogglePattern toggle
+				&& toggle.CurrentToggleState == ToggleState.ToggleState_On;
+
+		return new DialogOption(element.CurrentName ?? string.Empty, isRadioButton ? "radio button" : "check box", selected);
 	}
 
 	private static List<IntPtr> ChildWindows(IntPtr parent)
@@ -522,6 +553,8 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 		public List<string> Texts { get; } = [];
 
 		public List<(DialogButton Button, IUIAutomationElement Element)> Buttons { get; } = [];
+
+		public List<DialogOption> Options { get; } = [];
 	}
 
 	[DllImport("user32.dll")]

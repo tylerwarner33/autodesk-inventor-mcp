@@ -1,0 +1,51 @@
+// How the server answers each dialog that blocks Inventor while one of its tool calls waits.
+//
+// Each value is the button that the server clicks, or "Ask" to leave the dialog open for a person.
+// The comment above each entry lists the values it accepts. A value that is not in that list counts as "Ask".
+// A dialog that is not in this file is always left open, and the call stops with blocked-by-dialog.
+// The server never answers a dialog that comes after a person's own action, only one that blocks its own call.
+//
+// To change a value for yourself only, put a file with the same name in %LOCALAPPDATA%\InventorMcp\.
+// Each entry in that file replaces the entry here, and the server reads it again at each dialog, with no restart.
+// Use it when you run the server from a package feed, where you cannot change this file.
+// A change to this file needs a build, because the server embeds it.
+//
+// INVENTORMCP_AUTOCLOSE_DIALOGS=false on the server makes every entry "Ask".
+// INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true makes "migration" "OK".
+//
+// See README.md, "Writes and dialogs", and Docs/Research/Blocking-Dialog-Detection.md for each dialog.
+{
+	// "Error on line N in rule: <rule>, in document: <document>", after a rule throws.
+	// Values: "OK", "Ask".
+	"iLogicError": "OK",
+
+	// "Rule Compile Errors in <rule>, in <document>", when a rule does not compile.
+	// Values: "OK", "Ask".
+	"iLogicCompileError": "OK",
+
+	// A Win32 message box with only an OK button.
+	// Values: "OK", "Ask".
+	"messageBox": "OK",
+
+	// "Microsoft .NET", "Cannot access a disposed object.", which can come after the server closes an iLogic error.
+	// The server never clicks "Quit", which ends Inventor.
+	// Values: "Continue", "Ask".
+	"dotNetDisposedObjectError": "Continue",
+
+	// "Data Format Has Changed", when a save migrates files to the running release.
+	// "OK" saves them in this release's format, which earlier releases (ex. a Design Automation engine) cannot open.
+	// Values: "OK", "Ask".
+	"migration": "Ask",
+
+	// "Security Alert": "iLogic has disabled a potentially harmful rule."
+	// "Run the rule" runs the rule, and the "iLogicSecurityAdvisor" entry then sets whether iLogic trusts it from now on.
+	// "Don't run the rule" disables the rule until a person enables it in Tools > Options > iLogic Configuration.
+	// Values: "Run the rule", "Don't run the rule", "Ask".
+	"iLogicSecurityAlert": "Run the rule",
+
+	// "iLogic Security Advisor", which comes after "Run the rule".
+	// "OK" trusts the one rule on this machine. The server clicks it only when the selected option is
+	// "Assume that this external rule is safe", and never when the option for all rules in the folder is selected.
+	// Values: "OK", "Ask".
+	"iLogicSecurityAdvisor": "OK"
+}

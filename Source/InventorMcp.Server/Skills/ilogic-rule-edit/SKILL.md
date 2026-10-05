@@ -21,5 +21,6 @@ description: The steps to change the text of an iLogic rule safely - read, back 
 7. **Check the result.** Read `blockingDialogs` in the result: an iLogic error dialog gives the line that failed. Then
    check the model with `inventor_health` and the measurement that the change is for.
 
-If the call returns `blocked-by-dialog`, iLogic can be asking the user to trust the changed rule (a Security Alert).
-Do not answer it. Read it with `inventor_dialogs` and tell the user.
+If the changed rule has code that iLogic flags (ex. a registry read), its run shows a Security Alert. The server
+answers it as the user set in its dialog settings, and lists the click in `blockingDialogs`: tell the user. If the
+call returns `blocked-by-dialog` instead, do not answer it. Read it with `inventor_dialogs` and tell the user.

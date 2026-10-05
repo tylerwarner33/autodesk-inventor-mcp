@@ -149,7 +149,7 @@ public sealed class BridgeClientTests
 		Assert.Equal("done", await call);
 		Assert.Equal(1, bridge.Dialogs.ClickCalls);
 		DialogReport report = Assert.Single(reports);
-		Assert.Equal("iLogic error", report.Type);
+		Assert.Equal("iLogicError", report.Type);
 		Assert.Equal("closed with OK", report.Action);
 		Assert.Contains("DoesNotExist", report.Text);
 	}
@@ -170,7 +170,7 @@ public sealed class BridgeClientTests
 
 		Assert.Equal("done", await call);
 		DialogReport report = Assert.Single(reports);
-		Assert.Equal(".NET error", report.Type);
+		Assert.Equal("dotNetDisposedObjectError", report.Type);
 		Assert.Equal("closed with Continue", report.Action);
 	}
 

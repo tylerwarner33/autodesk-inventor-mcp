@@ -39,6 +39,7 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
 | `Docs/Plugin-Development-Loop.md` | Plugin developers: running and iterating on a plugin in a live session, and making a plugin ready for it |
 | `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
+| `Source/InventorMcp.Server/DialogSettings.jsonc` | Users: how the server answers each Inventor dialog that blocks a call (ex. the iLogic Security Alert). Edit it for your choice. See "Dialog settings". |
 | `Docs/Research/` | Maintainers: findings and measurements that tasks and decisions come from. Kept after the task is done. |
 | `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
 | `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
@@ -551,21 +552,56 @@ Inventor answers a suppressed dialog with its own default, which is a real behav
 
 `SilentOperation` does not stop every dialog (ex. the iLogic error dialog). So the server watches from outside
 Inventor's process while a call waits. After 3 s, and then every 2 s, it checks whether the Inventor main window is
-disabled. If it is, the server reads each dialog with UI Automation and writes its text to the server log:
+disabled. If it is, the server reads each dialog with UI Automation (text, buttons, radio buttons and check boxes),
+writes it to the server log, and answers it as the dialog settings say:
 
-- A known information dialog with only `OK` (an iLogic error, or a Win32 message box) is closed with `OK`. The call
-	then returns, with the dialog text in `blockingDialogs`.
-- The .NET error dialog (**Microsoft .NET**, "Cannot access a disposed object.") is closed with `Continue`. It can
-	come after the server closes an iLogic error. Its only other choice ends Inventor.
-- Any other dialog stays open. The call stops with `blocked-by-dialog`, the dialog text and its buttons.
+- A dialog type with a button in the settings gets that button. The call then continues, and the result lists the
+	dialog and the click in `blockingDialogs`.
+- A dialog type set to `"Ask"`, a dialog that is not in the settings, or a dialog with a button that the server has
+	not seen before stays open. The call stops with `blocked-by-dialog`, the dialog text and its buttons.
 	`inventor_dialogs` reads it, and `inventor_dialog_click` clicks the button that the user chose.
 
-Set `INVENTORMCP_AUTOCLOSE_DIALOGS=false` on the server to close no dialog automatically.
+The server answers only a dialog that blocks one of its own calls, never one that comes after your own action.
 
-Inventor's migration dialog (**Data Format Has Changed**, `OK` and `Cancel`) asks a question, so it stays open by
-default. Set `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true` to let the server click its `OK`. A save then writes the files
-in the running release's format, which earlier releases cannot open. Leave it off when files go to an older Inventor
-(ex. a Design Automation engine).
+### Dialog settings: choose how each dialog is answered
+
+**Edit `Source/InventorMcp.Server/DialogSettings.jsonc` to choose the answer to each dialog.** It is the one place
+that sets this. Each entry is a dialog type, and its value is the button that the server clicks, or `"Ask"` to leave
+the dialog for you. The comment above each entry lists the values it accepts. A change needs a build, because the
+server embeds the file.
+
+| Entry | Dialog | Default | Other values |
+| --- | --- | --- | --- |
+| `iLogicError` | "Error on line N in rule: ...", after a rule throws | `"OK"` | `"Ask"` |
+| `iLogicCompileError` | "Rule Compile Errors in ...", when a rule does not compile | `"OK"` | `"Ask"` |
+| `messageBox` | A Win32 message box with only `OK` | `"OK"` | `"Ask"` |
+| `dotNetDisposedObjectError` | "Microsoft .NET", "Cannot access a disposed object.", which can come after an iLogic error | `"Continue"` | `"Ask"` |
+| `migration` | "Data Format Has Changed", when a save migrates files to the running release | `"Ask"` | `"OK"` |
+| `iLogicSecurityAlert` | "Security Alert", "iLogic has disabled a potentially harmful rule." | `"Run the rule"` | `"Don't run the rule"`, `"Ask"` |
+| `iLogicSecurityAdvisor` | "iLogic Security Advisor", which comes after "Run the rule" | `"OK"` | `"Ask"` |
+
+Before you change a default, know what each click does:
+
+- `migration` `"OK"` saves the files in the running release's format, which earlier releases cannot open. Leave it
+	`"Ask"` when files go to an older Inventor (ex. a Design Automation engine).
+- `iLogicSecurityAlert` `"Run the rule"` runs a rule that iLogic flagged as potentially harmful, ex. one that reads the
+	registry or writes files. Set it to `"Ask"` if rules can come from files that you do not trust.
+	`"Don't run the rule"` disables the rule until you enable it in Tools > Options > iLogic Configuration.
+- `iLogicSecurityAdvisor` `"OK"` trusts that one rule on this machine from now on. The server clicks it only when
+	"Assume that this external rule is safe" is selected, never when the option for all rules in the folder is.
+	You can remove a trusted rule in Tools > Options > iLogic Configuration > Security.
+
+**Your own settings, with no build.** Put a file of the same name, `DialogSettings.jsonc`, in
+`%LOCALAPPDATA%\InventorMcp\`. Each entry in it replaces the entry of the same name in the repository file, ex.
+`{ "iLogicSecurityAlert": "Ask" }`. The server reads it again at each dialog, so a change has an effect at once.
+Use it when you run the server from a team feed. A file that the server cannot read makes every dialog `"Ask"`, and
+`inventor_dialogs` lists the problems in `dialogSettingsProblems`.
+
+Two environment variables on the server still work, and apply after both files:
+`INVENTORMCP_AUTOCLOSE_DIALOGS=false` makes every dialog `"Ask"`, and `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true` makes
+`migration` `"OK"`.
+
+To add a dialog type, read a real example first, then add it to `Services/DialogPolicy.cs` and to the settings file.
 See `Docs/Research/Blocking-Dialog-Detection.md`.
 
 ## Logs

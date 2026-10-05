@@ -53,6 +53,11 @@
 		<EmbeddedResource Include="ServerInstructions.md" LogicalName="InventorMcp.Server.ServerInstructions.md" />
 	</ItemGroup>
 
+	<!-- How the server answers each blocking dialog. Services/DialogSettings.cs reads it. README.md points here. -->
+	<ItemGroup>
+		<EmbeddedResource Include="DialogSettings.jsonc" LogicalName="InventorMcp.Server.DialogSettings.jsonc" />
+	</ItemGroup>
+
 	<!-- The helpers put before an inventor_eval_csharp snippet that calls one. Services/ScriptPrelude.cs reads it. -->
 	<ItemGroup>
 		<EmbeddedResource Include="ScriptPrelude.csx" LogicalName="InventorMcp.Server.ScriptPrelude.csx" />

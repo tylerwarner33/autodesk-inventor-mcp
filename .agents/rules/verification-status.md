@@ -58,8 +58,14 @@ The migration dialog (`INVENTORMCP_ACCEPT_MIGRATION_DIALOG`) was verified later 
 through the same live level with `INVENTORMCP_LIVE_OLD_RELEASE_PART` set to a 2024.3 part: read through the Win32
 fallback, left open by default and closed with Cancel through `WM_COMMAND`, and closed with OK when accepted. All
 eight live tests passed in that run. See `Docs/Research/Blocking-Dialog-Detection.md`, "The migration dialog".
-Not yet exercised: `inventor_dialogs` and `inventor_dialog_click` from a real MCP client while Inventor is blocked,
-an iLogic Security Alert, a dialog of a different process (ex. Vault), and Inventor running as administrator.
+On 2026-10-05 on Inventor 2027 (Build 310192000), from Claude Code: `inventor_dialogs` and `inventor_dialog_click`
+read and answered a Rule Compile Errors dialog, an iLogic Security Alert (`Run the rule`, a task dialog command link)
+and the iLogic Security Advisor (`OK`), all while Inventor was blocked. The server left each one open, as the policy
+then said. See `Docs/Research/Blocking-Dialog-Detection.md`, "The iLogic Security Alert".
+`DialogSettings.jsonc` was added after that run. The unit and desktop levels cover it, with a fixture that has the
+Advisor's radio buttons. Not yet exercised: the watchdog answering the Security Alert and the Advisor by itself in a
+live call, a Security Alert for a rule inside a document, a dialog of a different process (ex. Vault), and Inventor
+running as administrator.
 
 The Phase 4 tools of `Docs/Tasks/Usage-Findings-Implementation-Plan.md` were verified on 2026-09-25 on Inventor
 2025.4 through the packed server, driven over stdio, on test copies in `C:\Work\_McpTest`

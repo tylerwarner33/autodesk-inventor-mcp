@@ -42,8 +42,8 @@ public sealed class BlockingDialogsTests
 		Assert.Contains("Test message", dialog.Text);
 		Assert.Equal(["OK"], dialog.ClickableButtons);
 		Assert.Contains(dialog.Buttons, button => button.IsWindowFrame);
-		Assert.Equal("message box", DialogPolicy.Classify(dialog));
-		Assert.True(DialogPolicy.ShouldClose(dialog, autoCloseEnabled: true));
+		Assert.Equal("messageBox", DialogPolicy.Classify(dialog));
+		Assert.True(DialogPolicy.ShouldClose(dialog, DialogSettings.Defaults));
 	}
 
 	[Fact]
@@ -58,8 +58,8 @@ public sealed class BlockingDialogsTests
 		Assert.Equal(["OK"], dialog.ClickableButtons);
 		Assert.Contains(dialog.Buttons, button => button.IsWindowFrame && button.Name == "Line down");
 		Assert.Contains("Cannot find an external rule file", dialog.Text);
-		Assert.Equal("iLogic error", DialogPolicy.Classify(dialog));
-		Assert.True(DialogPolicy.ShouldClose(dialog, autoCloseEnabled: true));
+		Assert.Equal("iLogicError", DialogPolicy.Classify(dialog));
+		Assert.True(DialogPolicy.ShouldClose(dialog, DialogSettings.Defaults));
 	}
 
 	[Fact]
@@ -74,7 +74,7 @@ public sealed class BlockingDialogsTests
 		Assert.Equal(["OK"], dialog.ClickableButtons);
 
 		// Not in the catalog, so it stays open.
-		Assert.False(DialogPolicy.ShouldClose(dialog, autoCloseEnabled: true));
+		Assert.False(DialogPolicy.ShouldClose(dialog, DialogSettings.Defaults));
 	}
 
 	[Fact]
@@ -100,7 +100,31 @@ public sealed class BlockingDialogsTests
 		DialogSnapshot dialog = Assert.Single(_detector.Detect(fixture.ProcessId).Dialogs);
 
 		Assert.Equal(buttons, dialog.ClickableButtons);
-		Assert.False(DialogPolicy.ShouldClose(dialog, autoCloseEnabled: true));
+		Assert.False(DialogPolicy.ShouldClose(dialog, DialogSettings.Defaults));
+		Assert.False(fixture.HasExited);
+	}
+
+	[Fact]
+	public async Task AdvisorOptionsAreReadAndOnlyTheOneRuleIsTrusted()
+	{
+		using DialogFixture fixture = await DialogFixture.StartAsync("advisor");
+		DialogSnapshot dialog = Assert.Single(_detector.Detect(fixture.ProcessId).Dialogs);
+
+		Assert.Equal("iLogicSecurityAdvisor", DialogPolicy.Classify(dialog));
+		Assert.Equal(
+			[new DialogOption("Assume that this external rule is safe", "radio button", true), new DialogOption("Assume that all external rules in this folder are safe", "radio button", false)],
+			dialog.Options);
+		Assert.Equal("OK", DialogPolicy.ButtonToClick(dialog, DialogSettings.Defaults));
+	}
+
+	[Fact]
+	public async Task AdvisorThatTrustsTheFolderStaysOpen()
+	{
+		using DialogFixture fixture = await DialogFixture.StartAsync("advisor-folder");
+		DialogSnapshot dialog = Assert.Single(_detector.Detect(fixture.ProcessId).Dialogs);
+
+		Assert.Contains(dialog.Options, option => option.Name.Contains("all external rules", StringComparison.Ordinal) && option.IsSelected);
+		Assert.Null(DialogPolicy.ButtonToClick(dialog, DialogSettings.Defaults));
 		Assert.False(fixture.HasExited);
 	}
 
@@ -143,7 +167,7 @@ public sealed class BlockingDialogsTests
 		Assert.True(state.Blocked);
 		DialogSnapshot dialog = Assert.Single(state.Dialogs);
 		Assert.NotNull(dialog.ReadError);
-		Assert.False(DialogPolicy.ShouldClose(dialog, autoCloseEnabled: true));
+		Assert.False(DialogPolicy.ShouldClose(dialog, DialogSettings.Defaults));
 		Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10), $"The read took {stopwatch.Elapsed}.");
 	}
 
