@@ -40,15 +40,22 @@ internal sealed class BridgeServer : IDisposable
 
 	private readonly OperationDispatcher _dispatcher;
 	private readonly Action<string> _log;
+	private readonly string _pipeName;
 	private readonly CancellationTokenSource _shutdown = new();
 
 	private Task? _acceptLoop;
 	private bool _disposed;
 
-	public BridgeServer(OperationDispatcher dispatcher, Action<string> log)
+	/// <summary>
+	/// 	The name of the pipe this server listens on.
+	/// </summary>
+	public string PipeName => _pipeName;
+
+	public BridgeServer(OperationDispatcher dispatcher, Action<string> log, string pipeName)
 	{
 		_dispatcher = dispatcher;
 		_log = log;
+		_pipeName = pipeName;
 	}
 
 	/// <summary>
@@ -103,14 +110,14 @@ internal sealed class BridgeServer : IDisposable
 			}
 			catch (UnauthorizedAccessException exception)
 			{
-				// Another Inventor instance already owns the pipe name. Stop rather than spin.
-				_log($"Could not claim the pipe '{BridgeProtocol.PipeName}'. Another Inventor session is probably hosting the bridge. {exception.Message}");
+				// Another Inventor of this release already owns the pipe name. Stop rather than spin.
+				_log($"Could not claim the pipe '{_pipeName}'. Another Inventor of the same release is probably hosting the bridge. {exception.Message}");
 				return;
 			}
 		}
 	}
 
-	private static NamedPipeServerStream CreatePipe()
+	private NamedPipeServerStream CreatePipe()
 	{
 		PipeSecurity security = new();
 
@@ -120,7 +127,7 @@ internal sealed class BridgeServer : IDisposable
 		security.AddAccessRule(new PipeAccessRule(currentUser, PipeAccessRights.FullControl, AccessControlType.Allow));
 
 		return NamedPipeServerStreamAcl.Create(
-			BridgeProtocol.PipeName,
+			_pipeName,
 			PipeDirection.InOut,
 			MaxPipeInstances,
 			PipeTransmissionMode.Byte,

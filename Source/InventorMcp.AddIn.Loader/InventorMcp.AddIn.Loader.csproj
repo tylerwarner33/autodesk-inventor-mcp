@@ -16,6 +16,11 @@
 		<ComVisible>false</ComVisible>
 	</PropertyGroup>
 
+	<!-- StartupLog reads the release from here, to name its file. -->
+	<ItemGroup>
+		<AssemblyMetadata Include="AutodeskVersion" Value="$(AutodeskVersion)" />
+	</ItemGroup>
+
 	<!-- BCL and interop only. Anything more would load into the default context and could conflict. -->
 	<ItemGroup>
 		<Reference Include="Autodesk.Inventor.Interop">
