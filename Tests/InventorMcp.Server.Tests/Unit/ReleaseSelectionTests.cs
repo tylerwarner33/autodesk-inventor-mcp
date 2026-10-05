@@ -215,6 +215,58 @@ public sealed class ReleaseSelectionTests
 	}
 
 	[Fact]
+	public async Task AutomaticSessionDoesNotMoveToAnotherReleaseWhenItsReleaseCloses()
+	{
+		TestPipeServer older = new(2025);
+		await using TestPipeServer newer = new(2027, older.Prefix);
+		older.Listen();
+		await using BridgeClient client = ClientFor(new ReleaseSelection(older.Prefix, string.Empty));
+
+		Task<TestConnection> accept = older.AcceptAsync();
+		Assert.True(await client.TryConnectAsync(TestContext.Current.CancellationToken));
+		_ = await accept;
+
+		// Release 2025 closes, and 2027 is now the only pipe.
+		await older.DisposeAsync();
+		newer.Listen();
+
+		// A call that reached 2027 would wait forever for an answer, so the wait is limited.
+		InventorBridgeException exception = await Assert.ThrowsAsync<InventorBridgeException>(
+			() => client.InvokeAsync<string>(BridgeOperations.Ping, null, TestContext.Current.CancellationToken)
+				.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));
+
+		Assert.Equal(BridgeErrorCodes.ReleaseRequired, exception.Code);
+		Assert.Contains("2025", exception.Message);
+		Assert.Contains("2027", exception.Message);
+	}
+
+	[Fact]
+	public async Task AutomaticSessionReconnectsToTheSameReleaseAfterARestart()
+	{
+		TestPipeServer first = new(2025);
+		first.Listen();
+		await using BridgeClient client = ClientFor(new ReleaseSelection(first.Prefix, string.Empty));
+
+		Task<TestConnection> accept = first.AcceptAsync();
+		Assert.True(await client.TryConnectAsync(TestContext.Current.CancellationToken));
+		_ = await accept;
+
+		await first.DisposeAsync();
+		await using TestPipeServer restarted = new(2025, first.Prefix);
+		restarted.Listen();
+
+		// The dropped pipe shows only on use, so a call (not a connect) makes the client reconnect.
+		Task<TestConnection> acceptAgain = restarted.AcceptAsync();
+		Task<string> call = client.InvokeAsync<string>(BridgeOperations.Ping, null, TestContext.Current.CancellationToken);
+		TestConnection connection = await acceptAgain;
+		BridgeRequest request = await connection.ReadRequestAsync();
+		await connection.RespondAsync(request.Id, "pong");
+
+		Assert.Equal("pong", await call.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));
+		Assert.Equal(2025, client.ReleaseYear);
+	}
+
+	[Fact]
 	public async Task OnlyTheLegacyPipeFailsWithBridgeOutdated()
 	{
 		await using TestPipeServer legacy = new(null);

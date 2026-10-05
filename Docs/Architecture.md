@@ -72,7 +72,9 @@ Which release a server uses (`ReleaseSelection`), in order:
 2. `INVENTORMCP_RELEASE` in the `env` of the MCP entry.
 3. The release pipes that exist now. One pipe is used. More than one gives `release-required`.
 
-A chosen release never falls back to another release. Each Claude session has its own server process, so one session
+A chosen release never falls back to another release. An automatic session keeps the release it connected to: if that
+release closes and a different one is then the only pipe, the call returns `release-required` and is not sent, because
+the retry after a dropped pipe could otherwise repeat a write in the other release. Each Claude session has its own server process, so one session
 cannot change the release of another. The release is not a parameter of every tool, because about 50 tools would
 each carry it in every call. Not selected: a pipe for each process ID (it would also allow two Inventors of one
 release, but needs a discovery step), and a broker process (a third process and a new failure point).

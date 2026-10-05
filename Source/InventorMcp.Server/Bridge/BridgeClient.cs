@@ -97,6 +97,15 @@ internal sealed class BridgeClient(
 	public string? ClientName { get; set; }
 
 	private int _connectedGeneration;
+
+	/// <summary>
+	/// 	The release an automatic selection connected to, so a reconnect never moves to another release unasked.
+	/// </summary>
+	/// <remarks>
+	/// 	Cleared when the selection changes, ex. <c>inventor_use_release</c> with 0.
+	/// </remarks>
+	private int? _automaticRelease;
+
 	private NamedPipeClientStream? _pipe;
 	private StreamReader? _reader;
 	private StreamWriter? _writer;
@@ -449,6 +458,9 @@ internal sealed class BridgeClient(
 
 		await CloseAsync().ConfigureAwait(false);
 
+		if (_connectedGeneration != _selection.Generation)
+			_automaticRelease = null;
+
 		_connectedGeneration = _selection.Generation;
 
 		PipeResolution resolution = _selection.Resolve();
@@ -457,7 +469,18 @@ internal sealed class BridgeClient(
 		{
 			throw new InventorBridgeException(
 				resolution.ErrorCode!,
-				resolution.ErrorCode == BridgeErrorCodes.NotRunning ? NotRunningMessage(null) : resolution.Message!);
+				resolution.ErrorCode == BridgeErrorCodes.NotRunning ? NotRunningMessage(_automaticRelease) : resolution.Message!);
+		}
+
+		// The release this session used closed, and a different one is the only pipe now. The documents differ, so a call
+		// (ex. the retry of a write after the pipe dropped) must not go there without a choice.
+		if (_selection.Chosen is null && _automaticRelease is int previous && resolution.ReleaseYear != previous)
+		{
+			throw new InventorBridgeException(
+				BridgeErrorCodes.ReleaseRequired,
+				$"Autodesk Inventor {previous}, which this session used, no longer hosts the MCP bridge. Autodesk Inventor " +
+				$"{resolution.ReleaseYear} does, but this session does not move to another release unasked. Ask the user which " +
+				$"release to use, then call inventor_use_release (ex. with {resolution.ReleaseYear}), or start {previous} again.");
 		}
 
 		NamedPipeClientStream pipe = new(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
@@ -477,6 +500,9 @@ internal sealed class BridgeClient(
 
 		_pipe = pipe;
 		ReleaseYear = resolution.ReleaseYear;
+
+		if (_selection.Chosen is null)
+			_automaticRelease = resolution.ReleaseYear;
 		_reader = new StreamReader(pipe, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: false, leaveOpen: true);
 		_writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
 		InventorProcessId = GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint processId) ? (int)processId : null;

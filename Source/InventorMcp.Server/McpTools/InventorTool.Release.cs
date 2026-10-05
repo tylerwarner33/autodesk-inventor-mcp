@@ -16,7 +16,8 @@ internal static partial class InventorTool
 		Inventor is closed. The choice holds until you change it, and it does not affect other Claude sessions.
 
 		Call this when a tool returned release-required, or when the user asks to use a release. It returns the release
-		that this session uses, whether its bridge answers now, and the releases that run.
+		that this session uses, whether its bridge answers now, the release it is connected to (the one running release
+		when the choice is automatic), and the releases that run.
 
 		A version of 0, or no version, clears the choice. The session then follows INVENTORMCP_RELEASE when it is set,
 		and else the one release that runs.
@@ -56,6 +57,7 @@ internal static partial class InventorTool
 		{
 			release = selection.Chosen,
 			selection = selection.Source,
+			connectedRelease = bridge.ReleaseYear,
 			bridgeAnswers,
 			runningReleases = selection.RunningReleases(),
 			problem

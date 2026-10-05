@@ -20,10 +20,10 @@ internal static partial class InventorTool
 	[Description("Lists the modal dialogs that block Inventor, with the full text and the buttons of each. Works while Inventor is blocked, because it does not use Inventor's main thread. Call it when an Inventor call does not return or reports blocked-by-dialog.")]
 	public static async Task<object> Dialogs(BridgeClient bridge, CancellationToken cancellationToken)
 	{
-		BlockState? state = await bridge.GetBlockStateAsync(cancellationToken).ConfigureAwait(false);
+		(BlockState? state, object? failure) = await ReadBlockStateAsync(bridge, cancellationToken).ConfigureAwait(false);
 
 		if (state is null)
-			return NotConnected();
+			return failure!;
 
 		return new
 		{
@@ -48,10 +48,10 @@ internal static partial class InventorTool
 		if (TryParseHandle(handle, out long windowHandle) is false)
 			return new { error = "invalid-handle", message = $"'{handle}' is not a window handle. Give the handle from inventor_dialogs." };
 
-		BlockState? state = await bridge.GetBlockStateAsync(cancellationToken).ConfigureAwait(false);
+		(BlockState? state, object? failure) = await ReadBlockStateAsync(bridge, cancellationToken).ConfigureAwait(false);
 
 		if (state is null)
-			return NotConnected();
+			return failure!;
 
 		DialogSnapshot? dialog = state.Dialogs.FirstOrDefault(candidate => candidate.Handle == windowHandle);
 
@@ -99,8 +99,9 @@ internal static partial class InventorTool
 	{
 		BlockState? state = bridge.InventorProcessId is null
 			? null
-			: await bridge.GetBlockStateAsync(cancellationToken).ConfigureAwait(false);
+			: (await ReadBlockStateAsync(bridge, cancellationToken).ConfigureAwait(false)).State;
 
+		// With no state, the work runs, and its own call reports why the bridge cannot be reached.
 		if (state is not { Blocked: true })
 			return await work().ConfigureAwait(false);
 
@@ -127,6 +128,27 @@ internal static partial class InventorTool
 		readError = dialog.ReadError,
 		serverWouldClose = DialogPolicy.ShouldClose(dialog, DialogPolicy.IsAutoCloseEnabled, DialogPolicy.IsAcceptMigrationEnabled)
 	};
+
+	/// <summary>
+	/// 	Reads the block state, and turns a bridge that cannot be reached into a result the model can read.
+	/// </summary>
+	/// <remarks>
+	/// 	The connection can fail with more than <c>inventor-not-running</c>, ex. <c>release-required</c> when two
+	/// 	releases run, and a thrown exception would reach the client as an opaque protocol error.
+	/// </remarks>
+	private static async Task<(BlockState? State, object? Failure)> ReadBlockStateAsync(BridgeClient bridge, CancellationToken cancellationToken)
+	{
+		try
+		{
+			BlockState? state = await bridge.GetBlockStateAsync(cancellationToken).ConfigureAwait(false);
+
+			return (state, state is null ? NotConnected() : null);
+		}
+		catch (InventorBridgeException exception)
+		{
+			return (null, new { error = exception.Code, message = exception.Message });
+		}
+	}
 
 	private static object NotConnected() => new
 	{

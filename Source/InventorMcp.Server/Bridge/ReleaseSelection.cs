@@ -108,8 +108,12 @@ internal sealed class ReleaseSelection
 	/// <returns>
 	/// 	The release years.
 	/// </returns>
-	public IReadOnlyList<int> RunningReleases() =>
-		[.. InventorReleases.Years.Where(year => _listPipes().Contains(PipeNameFor(year), StringComparer.OrdinalIgnoreCase))];
+	public IReadOnlyList<int> RunningReleases()
+	{
+		IReadOnlyCollection<string> pipes = _listPipes();
+
+		return [.. InventorReleases.Years.Where(year => pipes.Contains(PipeNameFor(year), StringComparer.OrdinalIgnoreCase))];
+	}
 
 	/// <summary>
 	/// 	Picks the pipe to connect to.
@@ -174,7 +178,7 @@ internal sealed class ReleaseSelection
 		{
 			return [.. Directory.EnumerateFiles(_pipeDirectory, $"{_pipePrefix}*").Select(Path.GetFileName)!];
 		}
-		catch (IOException)
+		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
 		{
 			return [];
 		}
