@@ -40,8 +40,11 @@ changed. Check `inventor_documents` before a retry. The read tools of this serve
 - `inventor_run_ilogic` with `ruleName` runs a rule of the document. With `code`, it runs a temporary rule body in
   VB.NET and removes it.
 - The server closes an iLogic error dialog (it has only OK) and gives its text in `blockingDialogs`. The text often
-  says which line of which rule failed. A "Microsoft .NET" error ("Cannot access a disposed object") can come after
-  it. The server clicks its `Continue`. It is a fault in the error window, not in the model.
+  says which line of which rule failed. A "Rule Compile Errors" dialog is closed the same way, and its text gives
+  the line and the compiler error. A "Microsoft .NET" error ("Cannot access a disposed object") can come after
+  an iLogic error. The server clicks its `Continue`. It is a fault in the error window, not in the model.
+- A rule that uses `Microsoft.Win32.Registry` needs `AddReference "Microsoft.Win32.Registry"` at its top on .NET 8
+  and later, or it does not compile.
 - A rule can open a question dialog, ex. in a partial test setup. That blocks every call: see below.
 
 ## The Security Alert
@@ -52,15 +55,20 @@ machine, click Run the rule." It blocks Inventor until someone answers.
 
 - **Don't run the rule** disables the rule: it does not run again until the user enables it in the Disabled Rules
   dialog (Tools > Options > iLogic Configuration > Security).
-- **Run the rule** accepts the rule as safe on this machine.
+- **Run the rule** runs it, then opens the **iLogic Security Advisor**. Its radio buttons choose what iLogic trusts
+  from now on: "Assume that this external rule is safe", or all external rules in the folder. `OK` confirms it.
 
-The check is on the contents of the rule, with the security option "Inspect rules for malicious code". Autodesk
-does not list the code it flags. An example is code that opens another file or a website. An edit through the API
-does not cause the alert: two edits that added plain text opened none. A rule that is new on this machine, or an
-edit that adds such code, can. It is not confirmed whether an edit to an accepted rule makes it unknown again.
+The check is on the contents of the rule, when iLogic compiles it, with the security option "Inspect rules for
+malicious code". Autodesk does not list the code it flags. Code that reads the registry, or that opens another file
+or a website, is flagged. A rule that does not compile shows a compile error, never the alert. An edit that adds only
+plain text or a comment keeps an accepted rule trusted.
 
-Never answer it for the user: either answer changes the rule's state. When a call returns `blocked-by-dialog`, read the dialog with `inventor_dialogs`, tell
-the user, and click with `inventor_dialog_click` only the button the user chose.
+The server answers both dialogs as the user set in its dialog settings (`DialogSettings.jsonc`). By default it clicks
+**Run the rule**, then `OK` in the Advisor, but only when the option for the one rule is selected. The result lists
+each click in `blockingDialogs`: tell the user that the rule is now trusted. When the user set a dialog to "Ask", or
+the Advisor has the folder option selected, the call returns `blocked-by-dialog`. Then never answer it for the user:
+read the dialog with `inventor_dialogs`, tell the user, and click with `inventor_dialog_click` only the button the
+user chose.
 
 ## From C#
 

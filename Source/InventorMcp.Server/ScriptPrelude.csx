@@ -1,7 +1,7 @@
 // Helpers for inventor_eval_csharp snippets. The server puts this before a snippet that calls one of them.
 // Keep the names specific, so they cannot collide with a name that a snippet declares.
 // Only declarations: nothing here runs unless the snippet calls it.
-// See Source/InventorMcp.Server/Services/ScriptPrelude.cs and Docs/Tasks/Usage-Findings-Implementation-Plan.md.
+// See Source/InventorMcp.Server/Services/ScriptPrelude.cs and Docs/Architecture.md, "Script helpers travel with the snippet".
 
 #nullable enable
 

@@ -52,6 +52,9 @@ internal sealed record BlockState(int ProcessId, bool Blocked, bool MainWindowFo
 /// <param name="ReadError">
 /// 	Why the dialog could not be read (ex. it did not answer in time), or null.
 /// </param>
+/// <param name="Choices">
+/// 	The visible radio buttons and check boxes, with their state, or null when the dialog has none.
+/// </param>
 internal sealed record DialogSnapshot(
 	long Handle,
 	string Title,
@@ -59,13 +62,33 @@ internal sealed record DialogSnapshot(
 	string? Framework,
 	string Text,
 	IReadOnlyList<DialogButton> Buttons,
-	string? ReadError = null)
+	string? ReadError = null,
+	IReadOnlyList<DialogOption>? Choices = null)
 {
 	/// <summary>
 	/// 	The names of the buttons a user can click.
 	/// </summary>
 	public IReadOnlyList<string> ClickableButtons => [.. Buttons.Where(button => button.IsClickable).Select(button => button.Name)];
+
+	/// <summary>
+	/// 	The visible radio buttons and check boxes. A click on OK confirms the selected ones.
+	/// </summary>
+	public IReadOnlyList<DialogOption> Options => Choices ?? [];
 }
+
+/// <summary>
+/// 	One radio button or check box of a dialog.
+/// </summary>
+/// <param name="Name">
+/// 	The text beside it (ex. <c>Assume that this external rule is safe</c>).
+/// </param>
+/// <param name="Kind">
+/// 	<c>radio button</c> or <c>check box</c>.
+/// </param>
+/// <param name="IsSelected">
+/// 	True when the radio button is selected or the check box is checked.
+/// </param>
+internal sealed record DialogOption(string Name, string Kind, bool IsSelected);
 
 /// <summary>
 /// 	One button of a dialog.

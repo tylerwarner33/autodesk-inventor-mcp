@@ -15,7 +15,7 @@ namespace InventorMcp.Server.McpTools;
 /// <remarks>
 /// 	The iLogic tools are canned snippets through the execution operation, with the prelude helpers, so they need no
 /// 	add-in rebuild. Each snippet returns JSON text, which the server parses.
-/// 	See <c>Docs/Tasks/Usage-Findings-Implementation-Plan.md</c>, Phase 3.
+/// 	See <c>Docs/Research/Usage-Findings-And-Knowledge-Delivery.md</c>, R1.3 and R1.5.
 /// </remarks>
 internal static partial class InventorTool
 {
@@ -153,8 +153,10 @@ internal static partial class InventorTool
 		changes. Line ends are made the same as the rule's. The old text is written to a backup file first, and the
 		result has the backup path and a diff of the change.
 
-		If iLogic detects the changed rule to be potentially unsafe (ex. it opens another file), its next run shows an
-		iLogic Security Alert. Never answer that dialog for the user: 'Don't run the rule' disables the rule.
+		If iLogic detects the changed rule to be potentially unsafe (ex. it reads the registry), its next run shows an
+		iLogic Security Alert. The server answers it as the user's dialog settings say, and lists the click in
+		blockingDialogs. If the call returns blocked-by-dialog, never answer it for the user: 'Don't run the rule'
+		disables the rule.
 
 		Read the 'ilogic-rule-edit' skill (inventor_skill) before the first change: it has the steps before and after.
 		""")]

@@ -4,13 +4,13 @@ Created: 2026-09-24
 
 Status: **research.** A modal dialog in Inventor blocked the server during real use. A test from a separate
 process found the dialog, read all of its text, and found its buttons. This document records the test, the
-method, and a proposal to put the method into the server. The test work is in
-`Docs/Tasks/Server-Test-Project-Plan.md`.
+method, and a proposal to put the method into the server. The tests are in `Tests/InventorMcp.Server.Tests`, and
+`.agents/rules/build.md`, "Tests", says how to run them.
 
 Related documents:
 
-- `Docs/Tasks/Usage-Findings-Implementation-Plan.md`, decision 6 ("Find a modal dialog from outside Inventor's
-	process") and Phase 4 (the dialog check in `inventor_session`). This document gives the tested method for them.
+- `Docs/Architecture.md`, "The server watches for dialogs from outside Inventor", and the dialog check in
+	`inventor_session`. This document gives the tested method for them.
 - `Docs/Research/Usage-Findings-And-Knowledge-Delivery.md` found one earlier block: an iLogic Security Alert after
 	a rule edit through the API. Its rule "Never answer a dialog on the user's behalf" conflicts with the automatic
 	close in this proposal. See "Decision needed" below.
@@ -127,8 +127,7 @@ Make the automatic close a setting (ex. `InventorMcp:AutoCloseInformationDialogs
 turn it off.
 
 A dialog that is not in the catalog is always left open. The iLogic Security Alert that the usage research found
-is not in the catalog yet. It asks the user to trust a rule, so it is a question, and the server must leave it open.
-Read a real example with the appendix script before it is added.
+was added later, after a real example was read, with a setting for its answer. See "The iLogic Security Alert".
 
 #### Decision: close information dialogs, default on
 
@@ -311,8 +310,7 @@ must not stop the watchdog.
 
 ### Tests
 
-The repository has no test project now. `Docs/Tasks/Server-Test-Project-Plan.md` sets up
-`Tests/InventorMcp.Server.Tests` with three levels (unit, desktop, live), a fixture process that shows real
+`Tests/InventorMcp.Server.Tests` has three levels (unit, desktop, live), a fixture process that shows real
 dialogs with no Inventor, and the live test cases for this feature.
 
 ## Live test results
@@ -357,7 +355,7 @@ Findings:
 - **The text of the "More Info" tab was readable** in the real dialog, from a tab that was not selected. So the
 	limit found with the fixture applies only to a plain WinForms tab that was never shown.
 
-Not yet done: the manual check of an iLogic Security Alert (see the test plan).
+The manual check of an iLogic Security Alert was done on 2026-10-05. See "The iLogic Security Alert".
 
 ## The migration dialog
 
@@ -440,6 +438,56 @@ different exception, or with `Quit` or any other button, stays open, because no 
 
 Not yet done: a live test. The fixture cannot show this dialog on demand in Inventor.
 
+## The iLogic Security Alert
+
+Read on 2026-10-05 on Inventor 2027 (Build 310192000), Default project, through the server while an
+`inventor_eval_csharp` call ran `RunExternalRule` on a new, unsaved part. The external rule was a file in a
+temporary folder, not in a configured external rule folder. It read `Environment.UserName` and `MachineName`, opened
+`HKEY_CURRENT_USER\Software\Autodesk\Inventor` through `Microsoft.Win32.Registry`, listed the files of `%TEMP%`, wrote
+one file there, and set a custom iProperty.
+
+| Run | Result |
+| --- | --- |
+| 1, with no `AddReference` | The rule did not compile: `Microsoft.Win32.RegistryKey` is forwarded to the assembly `Microsoft.Win32.Registry`, which the rule did not reference. A **Rule Compile Errors** dialog opened. No Security Alert. |
+| 2, with `AddReference "Microsoft.Win32.Registry"` | The **Security Alert** opened before any line of the rule ran. |
+| After "Run the rule" | A second dialog opened: the **iLogic Security Advisor**. |
+| After the Advisor's `OK`, with "Assume that this external rule is safe" | The rule ran: the iProperty and the file were written. |
+| 3, no change | No alert. 172 ms. |
+| 4, after one comment line was added to the rule | No alert. 313 ms. |
+
+So iLogic checks a rule when it compiles it, and a rule that does not compile never shows the alert. That explains
+the earlier API edits that opened no alert: they added plain text only. An edit that adds only a comment keeps the
+trust. An edit that adds new system code was not tested.
+
+### The three dialogs
+
+| Dialog | Class and framework | Text | Buttons |
+| --- | --- | --- | --- |
+| Rule Compile Errors in McpSecurityTest, in Part1 | `WindowsForms10.Window.8.app.0.33ac0be_r3_ad1`, `WinForm` | "Error on Line 7 : Type 'Microsoft.Win32.RegistryKey' ... has been forwarded to assembly 'Microsoft.Win32.Registry' ..." | `OK`. Hidden: one with no text, `Apply`, `Extra`, `Second`, `Cancel` (the same template as the iLogic error dialog) |
+| Security Alert | `#32770`, `Win32`: a task dialog with command links | "iLogic has disabled a potentially harmful rule. (external rule "McpSecurityTest" running from file "Part1") If you trust the contents of this rule and would like to enable it on your machine, click Run the rule." | `Don't run the rule` ("This is the safe option; choose this if you are unsure."), `Run the rule` ("Enable this content if you trust it."), `Show details` |
+| iLogic Security Advisor | `WindowsForms10.Window.8.app.0.33ac0be_r3_ad1`, `WinForm` | "In the future:" and two radio buttons: "Assume that this external rule is safe" (selected), "Assume that all external rules in this folder are safe". Then "To change these options later:" | `Security Options`, `OK`, `<< Back`, and one with no text (the help icon) |
+
+UI Automation clicked `Run the rule`, a command link, as a button. The server then read the Advisor's text and
+buttons, but not its radio buttons, because the read collected only text, edit and document controls. The radio
+buttons are now read as options, with their selected state.
+
+### What the server does with them
+
+The user chose to let the server answer the Security Alert, and to make each answer a setting that another user can
+change. So the catalog has the three types, and `Source/InventorMcp.Server/DialogSettings.jsonc` sets the button for
+each type:
+
+- **Rule Compile Errors** is an information dialog like the iLogic error: `OK` by default.
+- **Security Alert**: `Run the rule` by default. `Don't run the rule` and `Ask` are the other values. The match needs
+	the title `Security Alert`, the class `#32770`, the text "iLogic has disabled a potentially harmful rule.", and the
+	buttons `Run the rule` and `Don't run the rule`, with only `Show details` or `Hide details` beside them.
+- **iLogic Security Advisor**: `OK` by default, and only when the one selected option is "Assume that this external
+	rule is safe". The folder option trusts every rule in a folder, so the server never confirms it, and a dialog with
+	no option read stays open.
+
+Not yet known: the text of the Advisor for a rule inside a document, not an external rule. Its option text can
+differ, and then it stays open until a real example is read.
+
 ## Risks and limits
 
 - **A click is a user decision.** A dialog can ask to save or discard data. Only an information dialog with one
@@ -464,7 +512,7 @@ Not yet done: a live test. The fixture cannot show this dialog on demand in Inve
 	(`InventorOperations.Execution.cs`), and the snippet that ran the rule was a C# snippet. The iLogic error dialog
 	still opened. So `SilentOperation = true` does not suppress the iLogic error dialog when a rule runs through
 	`iLogicAutomation.RunRule`. The server cannot depend on it. The live test level confirms this again
-	(`Docs/Tasks/Server-Test-Project-Plan.md`).
+	(`LiveDialogTests`).
 - **Test copies outside the workspace.** A drawing copied to a scratchpad folder still runs its rules, but a
 	relative external rule folder does not resolve from there. Tell the model to examine
 	`auto.FileOptions.ExternalRuleDirectories` before it runs a rule on a copy.

@@ -9,7 +9,7 @@ namespace InventorMcp.Server.McpTools;
 
 /// <remarks>
 /// 	Serves the embedded skills to every client through a tool, until the clients support the Skills over MCP
-/// 	extension. See <c>Docs/Tasks/Usage-Findings-Implementation-Plan.md</c>, decision 7.
+/// 	extension. See <c>Docs/Tasks/Skills-Over-Mcp-Plan.md</c>, decision 2.
 /// </remarks>
 internal static partial class InventorTool
 {

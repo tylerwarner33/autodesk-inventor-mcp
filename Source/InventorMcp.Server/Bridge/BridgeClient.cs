@@ -32,11 +32,15 @@ namespace InventorMcp.Server.Bridge;
 /// <param name="selection">
 /// 	Gives the pipe of the release this session uses. A change of the release closes the connection.
 /// </param>
+/// <param name="dialogSettings">
+/// 	Reads the button to click on each dialog type, or null for <see cref="DialogSettings.Load"/>.
+/// </param>
 internal sealed class BridgeClient(
 	ILogger<BridgeClient> logger,
 	IBlockingDialogs dialogs,
 	TimeProvider timeProvider,
-	ReleaseSelection selection) : IAsyncDisposable
+	ReleaseSelection selection,
+	Func<DialogSettings>? dialogSettings = null) : IAsyncDisposable
 {
 	/// <summary>
 	/// 	The wait before the first dialog check. Most calls return before it.
@@ -64,6 +68,7 @@ internal sealed class BridgeClient(
 	private readonly IBlockingDialogs _dialogs = dialogs;
 	private readonly TimeProvider _timeProvider = timeProvider;
 	private readonly ReleaseSelection _selection = selection;
+	private readonly Func<DialogSettings> _dialogSettings = dialogSettings ?? DialogSettings.Load;
 	private readonly SemaphoreSlim _gate = new(1, 1);
 
 	/// <summary>
@@ -353,14 +358,19 @@ internal sealed class BridgeClient(
 				"different process (ex. Vault or a licence service) can cause this. Ask the user to look at the screen.");
 		}
 
-		bool autoClose = DialogPolicy.IsAutoCloseEnabled;
-		bool acceptMigration = DialogPolicy.IsAcceptMigrationEnabled;
+		DialogSettings settings = _dialogSettings();
+
+		foreach (string problem in settings.Problems)
+			_logger.LogWarning("Dialog settings: {Problem}", problem);
+
 		List<DialogSnapshot> needPerson = [];
 
 		foreach (DialogSnapshot dialog in state.Dialogs)
 		{
 			// A dialog that is still open after the server clicked it needs a person.
-			if (watch.Clicked.Contains((dialog.Handle, dialog.Title)) || DialogPolicy.ShouldClose(dialog, autoClose, acceptMigration) is false)
+			string? button = watch.Clicked.Contains((dialog.Handle, dialog.Title)) ? null : DialogPolicy.ButtonToClick(dialog, settings);
+
+			if (button is null)
 			{
 				needPerson.Add(dialog);
 				continue;
@@ -368,18 +378,14 @@ internal sealed class BridgeClient(
 
 			_ = watch.Clicked.Add((dialog.Handle, dialog.Title));
 
-			string button = DialogPolicy.ButtonToClick(dialog);
-
 			ClickOutcome outcome = await Task.Run(
 				() => _dialogs.TryClick(processId, dialog, button),
 				cancellationToken).ConfigureAwait(false);
 
 			string action = outcome.Status switch
 			{
-				// The model must know that the save wrote the files in this release's format, which older releases cannot open.
-				ClickStatus.Clicked when DialogPolicy.Classify(dialog) == DialogPolicy.MigrationType =>
-					$"closed with {button}, so the files were saved in this release's format",
-				ClickStatus.Clicked => $"closed with {button}",
+				// The model must know what a click changed, ex. files saved in a format that older releases cannot open.
+				ClickStatus.Clicked => $"closed with {button}{DialogPolicy.ClickConsequence(DialogPolicy.Classify(dialog), button)}",
 				ClickStatus.DialogClosed => "closed by a different server or the user",
 				_ => $"left open: {outcome.Message}"
 			};
@@ -432,11 +438,18 @@ internal sealed class BridgeClient(
 			$"Dialog: '{dialog.Title}' ({dialog.Framework ?? "not read"}, {type ?? "not in the catalog"})" + Environment.NewLine +
 			(dialog.ReadError is null ? $"Text: {text}" : dialog.ReadError) + Environment.NewLine +
 			$"Visible buttons: {string.Join(", ", dialog.ClickableButtons)}" + Environment.NewLine +
+			(dialog.Options.Count == 0 ? string.Empty : $"Options: {DescribeOptions(dialog.Options)}" + Environment.NewLine) +
 			"Do not close a dialog that asks a question without asking the user. Read it with inventor_dialogs, and close it " +
 			"with inventor_dialog_click only after the user chose the button.";
 
 		return new InventorBridgeException(BridgeErrorCodes.BlockedByDialog, message, dialog.Text);
 	}
+
+	/// <summary>
+	/// 	Lists the options with the selected ones marked, ex. <c>[x] Assume that this external rule is safe</c>.
+	/// </summary>
+	internal static string DescribeOptions(IReadOnlyList<DialogOption> options) =>
+		string.Join(", ", options.Select(option => $"{(option.IsSelected ? "[x]" : "[ ]")} {option.Name}"));
 
 	private void WriteClickAudit(DialogSnapshot dialog, string button)
 	{

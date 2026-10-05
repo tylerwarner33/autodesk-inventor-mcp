@@ -13,7 +13,7 @@ namespace InventorMcp.Server.Tests.Live;
 /// </summary>
 /// <remarks>
 /// 	Needs Inventor with the add-in loaded. Each test creates and closes its own documents.
-/// 	See <c>Docs/Tasks/Server-Test-Project-Plan.md</c>, "Live".
+/// 	See <c>.agents/rules/build.md</c>, "Tests", and <c>Docs/Research/Blocking-Dialog-Detection.md</c>, "Live test results".
 /// </remarks>
 [Trait("Level", "Live")]
 [Collection(DesktopCollection.Name)]
@@ -35,7 +35,7 @@ public sealed class LiveDialogTests
 
 		// No report means that no dialog opened under SilentOperationScope. Record that in the research.
 		DialogReport report = Assert.Single(reports);
-		Assert.Equal("iLogic error", report.Type);
+		Assert.Equal("iLogicError", report.Type);
 		Assert.Equal("closed with OK", report.Action);
 		Assert.Contains(missingRule, report.Text);
 		Assert.True(result.Succeeded, LiveInventor.Describe(result));
@@ -84,7 +84,7 @@ public sealed class LiveDialogTests
 		ExecutionResult result = await LiveInventor.EvalAsync(client, LiveInventor.MessageBoxSnippet("McpTest OK", "OK"), Cancellation);
 
 		DialogReport report = Assert.Single(reports);
-		Assert.Equal("message box", report.Type);
+		Assert.Equal("messageBox", report.Type);
 		Assert.Equal("closed with OK", report.Action);
 		Assert.Contains("McpTest message text", report.Text);
 		Assert.Equal("OK", result.ReturnValue);

@@ -366,9 +366,12 @@ Inventor answers a suppressed dialog with its default, which is a real behaviour
 `SilentOperation` does not stop every dialog (ex. the iLogic error dialog of `RunRule`). A call that opens a modal
 dialog is also the call that waits on it, so only a process outside Inventor can see the dialog. The server does:
 `BridgeClient` checks the main frame 3 s into a wait and then every 2 s, finds the dialogs with Win32, reads them
-with the UI Automation COM API, closes a known information dialog with only `OK`, and stops the wait with
-`blocked-by-dialog` for any other dialog. It also checks before it sends a call, because the modal loop of an open
-dialog still runs the add-in's work, and a new call would run nested inside the call that opened it.
+with the UI Automation COM API, clicks the button that `DialogSettings.jsonc` sets for a known dialog type, and
+stops the wait with `blocked-by-dialog` for any other dialog. The settings are a file, not code, so each user
+chooses the answers (ex. to the iLogic Security Alert) with no change to the policy, and a user file in
+`%LOCALAPPDATA%\InventorMcp\` changes them with no build.
+It also checks before it sends a call, because the modal loop of an open dialog still runs the add-in's work, and a
+new call would run nested inside the call that opened it.
 `inventor_dialogs` and `inventor_dialog_click` use the same service with no bridge call.
 The UI Automation COM interop (`Interop.UIAutomationClient`) is used in place of `System.Windows.Automation`, so the
 server needs no .NET Desktop Runtime. See `Research/Blocking-Dialog-Detection.md`.

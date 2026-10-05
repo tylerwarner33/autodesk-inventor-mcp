@@ -15,7 +15,7 @@ namespace InventorMcp.Server.McpTools;
 /// 	A transient camera on the sheet renders it with no window, so the drawing can stay invisible.
 /// 	<c>Camera.SaveAsBitmap</c> ignores a camera change that was not applied, and a transient camera has no view to
 /// 	apply it to, so the image comes from <c>CreateImageWithOptions</c> with <c>IncludeEdits</c>.
-/// 	See <c>Docs/Tasks/Usage-Findings-Implementation-Plan.md</c>, Phase 4.
+/// 	See <c>Docs/Research/Usage-Findings-And-Knowledge-Delivery.md</c>, R1.12.
 /// </remarks>
 internal static partial class InventorTool
 {

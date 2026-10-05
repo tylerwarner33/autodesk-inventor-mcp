@@ -10,7 +10,7 @@ namespace InventorMcp.Server.McpTools;
 
 /// <remarks>
 /// 	Read tools for the model: features, pattern elements, holes and styles. Canned snippets through the execution
-/// 	operation, so they need no add-in rebuild. See <c>Docs/Tasks/Usage-Findings-Implementation-Plan.md</c>, Phase 4.
+/// 	operation, so they need no add-in rebuild. See <c>Docs/Research/Usage-Findings-And-Knowledge-Delivery.md</c>, R1.6.
 /// </remarks>
 internal static partial class InventorTool
 {

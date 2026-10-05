@@ -171,7 +171,8 @@ internal sealed class TestBridge : IAsyncDisposable
 	{
 		Selection = new ReleaseSelection(Server.Prefix, environmentValue: string.Empty);
 		Selection.Choose(2025);
-		Client = new BridgeClient(NullLogger<BridgeClient>.Instance, Dialogs, Time, Selection);
+		// The defaults only, so a user's own settings file does not change the tests.
+		Client = new BridgeClient(NullLogger<BridgeClient>.Instance, Dialogs, Time, Selection, static () => DialogSettings.Defaults);
 	}
 
 	/// <summary>

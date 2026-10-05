@@ -11,7 +11,7 @@ namespace InventorMcp.Server.Services;
 /// 	rebuild. A snippet that calls no helper is sent as it is, so it pays no compile cost and the audit log stays short.
 /// 	The snippet's own leading using directives go first, because C# allows them only before all other elements.
 /// 	<c>#line</c> keeps the line numbers of the diagnostics the same as in the snippet.
-/// 	See <c>Docs/Tasks/Usage-Findings-Implementation-Plan.md</c>, decisions 2 and 3.
+/// 	See <c>Docs/Architecture.md</c>, "Script helpers travel with the snippet".
 /// </remarks>
 internal static partial class ScriptPrelude
 {

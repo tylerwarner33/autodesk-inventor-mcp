@@ -25,13 +25,16 @@ internal static partial class InventorTool
 		if (state is null)
 			return failure!;
 
+		DialogSettings settings = DialogSettings.Load();
+
 		return new
 		{
 			processId = state.ProcessId,
 			blocked = state.Blocked,
 			mainWindowFound = state.MainWindowFound,
 			note = state.Blocked && state.Dialogs.Count == 0 ? $"Blocked by {state.Summary}." : null,
-			dialogs = state.Dialogs.Select(DescribeDialog)
+			dialogs = state.Dialogs.Select(dialog => DescribeDialog(dialog, settings)),
+			dialogSettingsProblems = settings.Problems.Count > 0 ? settings.Problems : null
 		};
 	}
 
@@ -111,11 +114,11 @@ internal static partial class InventorTool
 			message = "Inventor is blocked by a modal dialog, so this call was not sent. Read the dialog with inventor_dialogs. " +
 				"Do not close a dialog that asks a question without asking the user.",
 			blockedByDialog = state.Summary,
-			dialogs = state.Dialogs.Select(DescribeDialog)
+			dialogs = state.Dialogs.Select(dialog => DescribeDialog(dialog, DialogSettings.Load()))
 		};
 	}
 
-	private static object DescribeDialog(DialogSnapshot dialog) => new
+	private static object DescribeDialog(DialogSnapshot dialog, DialogSettings settings) => new
 	{
 		handle = $"0x{dialog.Handle:X8}",
 		title = dialog.Title,
@@ -125,8 +128,9 @@ internal static partial class InventorTool
 		text = dialog.Text,
 		buttons = dialog.ClickableButtons,
 		hiddenOrDisabledButtons = dialog.Buttons.Where(button => button.IsClickable is false && button.IsWindowFrame is false).Select(button => button.Name),
+		options = dialog.Options.Count > 0 ? dialog.Options.Select(option => new { name = option.Name, kind = option.Kind, selected = option.IsSelected }) : null,
 		readError = dialog.ReadError,
-		serverWouldClose = DialogPolicy.ShouldClose(dialog, DialogPolicy.IsAutoCloseEnabled, DialogPolicy.IsAcceptMigrationEnabled)
+		serverWouldClick = DialogPolicy.ButtonToClick(dialog, settings)
 	};
 
 	/// <summary>
