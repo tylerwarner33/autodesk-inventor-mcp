@@ -262,7 +262,8 @@ Verified:
   for `inventor_session`, and `inventor_use_release` returned `version-not-supported` for 2099. This shows that
   the enumeration of `\\.\pipe\` finds the legacy pipe, and that the guard stops the model from starting a second
   Inventor.
-- `GetActiveObject` and `GetObject` are not used in the source or the tests (risk 2 of the plan).
+- `GetActiveObject` and `GetObject` are not used in the source or the tests, so no code can reach the last
+  Inventor that registered with COM instead of the one that hosts the add-in.
 - The logs of each release go to their own folder (`%LOCALAPPDATA%\InventorMcp\<year>\`). A test run wrote its fake
   dialog clicks to `%TEMP%\InventorMcp.Tests\<process ID>\2025\executed-code.log`, and the real audit trail did not
   change. A server driven by hand wrote "Tool inventor_session finished. Release not connected, selection automatic."
@@ -270,12 +271,12 @@ Verified:
 
 Live on 2026-10-05, with Inventor 2026 and 2027 on the redeployed add-in, next to Inventor 2025 on the old add-in:
 
-- Two releases at one time (risk 1): `inventor_start` in two server processes started 2026, then 2027. Each add-in
+- Two releases at one time: `inventor_start` in two server processes started 2026, then 2027. Each add-in
   wrote "Bridge started on pipe 'InventorMcp.Bridge.<year>'" to its own `<year>\addin.log`. The .NET 8 loader (2026)
   and .NET 10 (2027) ran together. The legacy pipe of 2025 did not affect the selection.
 - With no release chosen, `inventor_session` and `inventor_dialogs` returned `release-required` with 2026 and 2027.
   `inventor_use_release` moved one server between the two releases.
-- A dialog in one release did not block another (risk 4): while a Vault error dialog blocked 2026, a call to 2027
+- A dialog in one release did not block another: while a Vault error dialog blocked 2026, a call to 2027
   succeeded. A click on that dialog was audited to `2026\executed-code.log`. A Desktop test with two fixture
   processes was not written, because this live case covers the risk.
 - A part created in 2027 did not show in `inventor_documents` of a 2026 session. After Inventor 2026 closed, the
@@ -285,4 +286,5 @@ Live on 2026-10-05, with Inventor 2026 and 2027 on the redeployed add-in, next t
 - Inventor 2026 starts in more than 45 s here (Vault sign-in), so `inventor_start` returned `still-starting` both
   times, and the bridge answered later.
 
-Not verified: the 2025 add-in on protocol version 2, because Inventor 2025 had the build folder loaded.
+Not run live: the 2025 add-in on protocol version 2, because Inventor 2025 had the build folder loaded. It is taken to
+work like 2026, which uses the same .NET 8 loader and passed every check above.
