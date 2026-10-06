@@ -10,6 +10,8 @@
 // Use it when you run the server from a package feed, where you cannot change this file.
 // A change to this file needs a build, because the server embeds it.
 //
+// The server skips comments, the same as in appsettings.json. An editor can mark them, but they are valid here.
+//
 // INVENTORMCP_AUTOCLOSE_DIALOGS=false on the server makes every entry "Ask".
 // INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true makes "migration" "OK".
 //

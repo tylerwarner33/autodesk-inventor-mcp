@@ -474,7 +474,7 @@ buttons are now read as options, with their selected state.
 ### What the server does with them
 
 The user chose to let the server answer the Security Alert, and to make each answer a setting that another user can
-change. So the catalog has the three types, and `Source/InventorMcp.Server/DialogSettings.jsonc` sets the button for
+change. So the catalog has the three types, and `Source/InventorMcp.Server/DialogSettings.json` sets the button for
 each type:
 
 - **Rule Compile Errors** is an information dialog like the iLogic error: `OK` by default.

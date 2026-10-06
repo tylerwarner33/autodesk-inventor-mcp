@@ -286,7 +286,7 @@ public sealed class DialogPolicyTests
 
 	private static string DefaultText()
 	{
-		using Stream stream = typeof(DialogSettings).Assembly.GetManifestResourceStream("InventorMcp.Server.DialogSettings.jsonc")!;
+		using Stream stream = typeof(DialogSettings).Assembly.GetManifestResourceStream("InventorMcp.Server.DialogSettings.json")!;
 		using StreamReader reader = new(stream);
 
 		return reader.ReadToEnd();

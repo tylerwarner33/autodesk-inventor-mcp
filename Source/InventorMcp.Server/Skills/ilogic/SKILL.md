@@ -63,7 +63,7 @@ malicious code". Autodesk does not list the code it flags. Code that reads the r
 or a website, is flagged. A rule that does not compile shows a compile error, never the alert. An edit that adds only
 plain text or a comment keeps an accepted rule trusted.
 
-The server answers both dialogs as the user set in its dialog settings (`DialogSettings.jsonc`). By default it leaves
+The server answers both dialogs as the user set in its dialog settings (`DialogSettings.json`). By default it leaves
 both open for the user. A user can set it to click **Run the rule**, then `OK` in the Advisor, but only when the
 option for the one rule is selected. The result lists each click in `blockingDialogs`: tell the user that the rule is
 now trusted. When the user set a dialog to "Ask", or

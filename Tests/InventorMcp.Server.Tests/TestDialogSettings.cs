@@ -32,7 +32,7 @@ internal static class TestDialogSettings
 
 	private static string ReadDefaultText()
 	{
-		using Stream stream = typeof(DialogSettings).Assembly.GetManifestResourceStream("InventorMcp.Server.DialogSettings.jsonc")!;
+		using Stream stream = typeof(DialogSettings).Assembly.GetManifestResourceStream("InventorMcp.Server.DialogSettings.json")!;
 		using StreamReader reader = new(stream);
 
 		return reader.ReadToEnd();

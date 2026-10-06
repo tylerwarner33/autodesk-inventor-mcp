@@ -7,10 +7,10 @@ namespace InventorMcp.Server.Services;
 /// </summary>
 /// <remarks>
 /// 	A click is a user decision, so the server clicks only on a dialog type of the catalog, with the button that
-/// 	<c>DialogSettings.jsonc</c> sets for that type, and only when the dialog has exactly the buttons of the example that
+/// 	<c>DialogSettings.json</c> sets for that type, and only when the dialog has exactly the buttons of the example that
 /// 	was read. Any other button makes it a dialog the server has not read, so it stays open.
 /// 	Add a dialog type to the catalog only after a real example was read, and add its entry to
-/// 	<c>DialogSettings.jsonc</c>.
+/// 	<c>DialogSettings.json</c>.
 /// 	See <c>Docs/Research/Blocking-Dialog-Detection.md</c>.
 /// </remarks>
 internal static partial class DialogPolicy
@@ -101,7 +101,7 @@ internal static partial class DialogPolicy
 	private static readonly string[] _securityAdvisorOtherButtons = ["Security Options", "<< Back", ""];
 
 	/// <summary>
-	/// 	The buttons that <c>DialogSettings.jsonc</c> may name for each dialog type, apart from "Ask".
+	/// 	The buttons that <c>DialogSettings.json</c> may name for each dialog type, apart from "Ask".
 	/// </summary>
 	public static IReadOnlyDictionary<string, IReadOnlyList<string>> Choices { get; } = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
 	{
@@ -121,7 +121,7 @@ internal static partial class DialogPolicy
 	/// 	The dialog.
 	/// </param>
 	/// <returns>
-	/// 	A key of <see cref="Choices"/>, the same as the entry in <c>DialogSettings.jsonc</c>, or null for a type that is
+	/// 	A key of <see cref="Choices"/>, the same as the entry in <c>DialogSettings.json</c>, or null for a type that is
 	/// 	not in the catalog.
 	/// </returns>
 	public static string? Classify(DialogSnapshot dialog)

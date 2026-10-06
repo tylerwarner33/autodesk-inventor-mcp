@@ -66,7 +66,7 @@ On 2026-10-05 on Inventor 2027 (Build 310192000), from Claude Code: `inventor_di
 read and answered a Rule Compile Errors dialog, an iLogic Security Alert (`Run the rule`, a task dialog command link)
 and the iLogic Security Advisor (`OK`), all while Inventor was blocked. The server left each one open, as the policy
 then said. See `Docs/Research/Blocking-Dialog-Detection.md`, "The iLogic Security Alert".
-`DialogSettings.jsonc` was added after that run. The unit and desktop levels cover it, with a fixture that has the
+`DialogSettings.json` was added after that run. The unit and desktop levels cover it, with a fixture that has the
 Advisor's radio buttons. Not yet exercised: the watchdog answering the Security Alert and the Advisor by itself in a
 live call, a Security Alert for a rule inside a document, a dialog of a different process (ex. Vault), and Inventor
 running as administrator.

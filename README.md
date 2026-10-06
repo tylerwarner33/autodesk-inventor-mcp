@@ -39,7 +39,7 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
 | `Docs/Plugin-Development-Loop.md` | Plugin developers: running and iterating on a plugin in a live session, and making a plugin ready for it |
 | `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
-| `Source/InventorMcp.Server/DialogSettings.jsonc` | Users: how the server answers each Inventor dialog that blocks a call (ex. the iLogic Security Alert). Edit it for your choice. See "Dialog settings". |
+| `Source/InventorMcp.Server/DialogSettings.json` | Users: how the server answers each Inventor dialog that blocks a call (ex. the iLogic Security Alert). Edit it for your choice. See "Dialog settings". |
 | `Docs/Research/` | Maintainers: findings and measurements that tasks and decisions come from. Kept after the task is done. |
 | `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
 | `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
@@ -565,7 +565,7 @@ The server answers only a dialog that blocks one of its own calls, never one tha
 
 ### Dialog settings: choose how each dialog is answered
 
-**Edit `Source/InventorMcp.Server/DialogSettings.jsonc` to choose the answer to each dialog.** It is the one place
+**Edit `Source/InventorMcp.Server/DialogSettings.json` to choose the answer to each dialog.** It is the one place
 that sets this. Each entry is a dialog type, and its value is the button that the server clicks, or `"Ask"` to leave
 the dialog for you. The comment above each entry lists the values it accepts. A change needs a build, because the
 server embeds the file.
@@ -592,7 +592,7 @@ Before you change a default, know what each click does:
 	"Assume that this external rule is safe" is selected, never when the option for all rules in the folder is.
 	You can remove a trusted rule in Tools > Options > iLogic Configuration > Security.
 
-**Your own settings, with no build.** Put a file of the same name, `DialogSettings.jsonc`, in
+**Your own settings, with no build.** Put a file of the same name, `DialogSettings.json`, in
 `%LOCALAPPDATA%\InventorMcp\`. Each entry in it replaces the entry of the same name in the repository file, ex.
 `{ "iLogicSecurityAlert": "Run the rule", "iLogicSecurityAdvisor": "OK" }`. The server reads it again at each
 dialog, so a change has an effect at once. An entry that is not in your file keeps the repository default, so a new

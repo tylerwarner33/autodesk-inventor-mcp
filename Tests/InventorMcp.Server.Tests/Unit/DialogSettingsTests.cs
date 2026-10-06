@@ -3,7 +3,7 @@ using InventorMcp.Server.Services;
 namespace InventorMcp.Server.Tests.Unit;
 
 /// <summary>
-/// 	<c>DialogSettings.jsonc</c> sets the button for each dialog type, a user file replaces single entries, and anything
+/// 	<c>DialogSettings.json</c> sets the button for each dialog type, a user file replaces single entries, and anything
 /// 	the server cannot read makes the dialog "Ask".
 /// </summary>
 [Trait("Level", "Unit")]
@@ -98,7 +98,7 @@ public sealed class DialogSettingsTests
 
 	private static string DefaultText()
 	{
-		using Stream stream = typeof(DialogSettings).Assembly.GetManifestResourceStream("InventorMcp.Server.DialogSettings.jsonc")!;
+		using Stream stream = typeof(DialogSettings).Assembly.GetManifestResourceStream("InventorMcp.Server.DialogSettings.json")!;
 		using StreamReader reader = new(stream);
 
 		return reader.ReadToEnd();
