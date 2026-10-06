@@ -370,6 +370,8 @@ with the UI Automation COM API, clicks the button that `DialogSettings.json` set
 stops the wait with `blocked-by-dialog` for any other dialog. The settings are a file, not code, so each user
 chooses the answers (ex. to the iLogic Security Alert) with no change to the policy, and a user file in
 `%LOCALAPPDATA%\InventorMcp\` changes them with no build.
+The server reads both files one time, at start. An agent that runs as the user can write the user file, so a looser
+setting has no effect until a person restarts the server.
 The server checks that the process at the other end of the pipe is this user's installed Inventor before it uses the
 pipe, because a process of any user can create a pipe name first (`Bridge/PipeHost.cs`).
 It also checks before it sends a call, because the modal loop of an open dialog still runs the add-in's work, and a

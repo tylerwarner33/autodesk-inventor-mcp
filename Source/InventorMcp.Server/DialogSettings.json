@@ -6,7 +6,8 @@
 // The server never answers a dialog that comes after a person's own action, only one that blocks its own call.
 //
 // To change a value for yourself only, put a file with the same name in %LOCALAPPDATA%\InventorMcp\.
-// Each entry in that file replaces the entry here, and the server reads it again at each dialog, with no restart.
+// Each entry in that file replaces the entry here. The server reads it when it starts, so restart the server in the
+// client after a change.
 // Use it when you run the server from a package feed, where you cannot change this file.
 // A change to this file needs a build, because the server embeds it.
 //

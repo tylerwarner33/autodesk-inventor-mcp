@@ -594,8 +594,9 @@ Before you change a default, know what each click does:
 
 **Your own settings, with no build.** Put a file of the same name, `DialogSettings.json`, in
 `%LOCALAPPDATA%\InventorMcp\`. Each entry in it replaces the entry of the same name in the repository file, ex.
-`{ "iLogicSecurityAlert": "Run the rule", "iLogicSecurityAdvisor": "OK" }`. The server reads it again at each
-dialog, so a change has an effect at once. An entry that is not in your file keeps the repository default, so a new
+`{ "iLogicSecurityAlert": "Run the rule", "iLogicSecurityAdvisor": "OK" }`. The server reads it one
+time, when it starts, so restart the server in the client after a change. An agent that runs as you can write the
+file too, and the restart keeps you in the loop before a looser setting has an effect. An entry that is not in your file keeps the repository default, so a new
 dialog type or a changed default needs no change to your file. Use it when you run the server from a team feed, or to
 keep a setting that differs from the default while you work on the repository.
 The file is outside the repository, so git never commits it. A file that the server cannot read makes every dialog `"Ask"`, and

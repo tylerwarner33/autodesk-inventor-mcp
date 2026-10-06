@@ -33,7 +33,7 @@ namespace InventorMcp.Server.Bridge;
 /// 	Gives the pipe of the release this session uses. A change of the release closes the connection.
 /// </param>
 /// <param name="dialogSettings">
-/// 	Reads the button to click on each dialog type, or null for <see cref="DialogSettings.Load"/>.
+/// 	Gives the button to click on each dialog type, or null for <see cref="DialogSettings.Load"/>, called one time here.
 /// </param>
 /// <param name="checkHost">
 /// 	Gives why the process that hosts the pipe is not this user's Inventor, or null when it is.
@@ -73,7 +73,7 @@ internal sealed class BridgeClient(
 	private readonly IBlockingDialogs _dialogs = dialogs;
 	private readonly TimeProvider _timeProvider = timeProvider;
 	private readonly ReleaseSelection _selection = selection;
-	private readonly Func<DialogSettings> _dialogSettings = dialogSettings ?? DialogSettings.Load;
+	private readonly Func<DialogSettings> _dialogSettings = dialogSettings ?? LoadOnce();
 	private readonly Func<int, string?> _checkHost = checkHost ?? PipeHost.Check;
 	private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -106,6 +106,11 @@ internal sealed class BridgeClient(
 	/// 	Each client starts its own server, so one name holds for the whole process.
 	/// </remarks>
 	public string? ClientName { get; set; }
+
+	/// <summary>
+	/// 	The dialog settings that the watchdog and the dialog tools use.
+	/// </summary>
+	public DialogSettings DialogSettings => _dialogSettings();
 
 	private int _connectedGeneration;
 
@@ -610,6 +615,13 @@ internal sealed class BridgeClient(
 	{
 		await CloseAsync().ConfigureAwait(false);
 		_gate.Dispose();
+	}
+
+	private static Func<DialogSettings> LoadOnce()
+	{
+		DialogSettings settings = DialogSettings.Load();
+
+		return () => settings;
 	}
 
 	[DllImport("kernel32.dll", SetLastError = true)]

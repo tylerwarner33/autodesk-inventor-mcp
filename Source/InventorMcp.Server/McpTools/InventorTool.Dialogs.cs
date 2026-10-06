@@ -25,7 +25,7 @@ internal static partial class InventorTool
 		if (state is null)
 			return failure!;
 
-		DialogSettings settings = DialogSettings.Load();
+		DialogSettings settings = bridge.DialogSettings;
 
 		return new
 		{
@@ -114,7 +114,7 @@ internal static partial class InventorTool
 			message = "Inventor is blocked by a modal dialog, so this call was not sent. Read the dialog with inventor_dialogs. " +
 				"Do not close a dialog that asks a question without asking the user.",
 			blockedByDialog = state.Summary,
-			dialogs = state.Dialogs.Select(dialog => DescribeDialog(dialog, DialogSettings.Load()))
+			dialogs = state.Dialogs.Select(dialog => DescribeDialog(dialog, bridge.DialogSettings))
 		};
 	}
 

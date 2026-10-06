@@ -64,8 +64,9 @@ internal sealed class DialogSettings
 	/// 	Reads the embedded defaults, the user's own file and the environment variables.
 	/// </summary>
 	/// <remarks>
-	/// 	It reads the user file at each call, so a change has an effect with no restart. It runs only while Inventor is
-	/// 	blocked, so the cost does not matter.
+	/// 	The server calls it one time, when it starts, so a change to the user file needs a restart of the server.
+	/// 	An agent that runs as the user can write the file, and the restart keeps a person in the loop before a looser
+	/// 	setting has an effect.
 	/// </remarks>
 	public static DialogSettings Load()
 	{
