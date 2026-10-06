@@ -35,12 +35,17 @@ namespace InventorMcp.Server.Bridge;
 /// <param name="dialogSettings">
 /// 	Reads the button to click on each dialog type, or null for <see cref="DialogSettings.Load"/>.
 /// </param>
+/// <param name="checkHost">
+/// 	Gives why the process that hosts the pipe is not this user's Inventor, or null when it is.
+/// 	Null for <see cref="PipeHost.Check(int)"/>.
+/// </param>
 internal sealed class BridgeClient(
 	ILogger<BridgeClient> logger,
 	IBlockingDialogs dialogs,
 	TimeProvider timeProvider,
 	ReleaseSelection selection,
-	Func<DialogSettings>? dialogSettings = null) : IAsyncDisposable
+	Func<DialogSettings>? dialogSettings = null,
+	Func<int, string?>? checkHost = null) : IAsyncDisposable
 {
 	/// <summary>
 	/// 	The wait before the first dialog check. Most calls return before it.
@@ -69,6 +74,7 @@ internal sealed class BridgeClient(
 	private readonly TimeProvider _timeProvider = timeProvider;
 	private readonly ReleaseSelection _selection = selection;
 	private readonly Func<DialogSettings> _dialogSettings = dialogSettings ?? DialogSettings.Load;
+	private readonly Func<int, string?> _checkHost = checkHost ?? PipeHost.Check;
 	private readonly SemaphoreSlim _gate = new(1, 1);
 
 	/// <summary>
@@ -511,6 +517,23 @@ internal sealed class BridgeClient(
 			throw new InventorBridgeException(BridgeErrorCodes.NotRunning, NotRunningMessage(resolution.ReleaseYear));
 		}
 
+		// Every request, and every dialog read and click, goes to this process, so it must be this user's Inventor.
+		// See PipeHost.
+		string? refusal = GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint processId)
+			? _checkHost((int)processId)
+			: "Windows did not give the process that hosts the pipe.";
+
+		if (refusal is not null)
+		{
+			await pipe.DisposeAsync().ConfigureAwait(false);
+			_logger.LogWarning("Refused the bridge pipe {PipeName}: {Refusal}", pipeName, refusal);
+
+			throw new InventorBridgeException(
+				BridgeErrorCodes.UntrustedHost,
+				$"The process that hosts the MCP bridge pipe '{pipeName}' is not this user's Inventor, so the server did not " +
+				$"use it: {refusal} Tell the user. Do not retry until the user has closed that process.");
+		}
+
 		_pipe = pipe;
 		ReleaseYear = resolution.ReleaseYear;
 
@@ -518,7 +541,7 @@ internal sealed class BridgeClient(
 			_automaticRelease = resolution.ReleaseYear;
 		_reader = new StreamReader(pipe, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: false, leaveOpen: true);
 		_writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
-		InventorProcessId = GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint processId) ? (int)processId : null;
+		InventorProcessId = (int)processId;
 
 		_logger.LogInformation(
 			"Connected to the Inventor bridge on pipe {PipeName}, hosted by process {ProcessId}.",

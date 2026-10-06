@@ -17,8 +17,9 @@ public sealed class ReleaseSelectionTests
 	private static ReleaseSelection Selection(string environmentValue = "", params string[] pipes) =>
 		new(_prefix, environmentValue, () => pipes);
 
+	// The test process hosts the fake pipes, so the host check accepts it.
 	private static BridgeClient ClientFor(ReleaseSelection selection) =>
-		new(NullLogger<BridgeClient>.Instance, new FakeDialogs(), new FakeTimeProvider(), selection);
+		new(NullLogger<BridgeClient>.Instance, new FakeDialogs(), new FakeTimeProvider(), selection, checkHost: static _ => null);
 
 	[Fact]
 	public void NoChoiceAndOnePipeUsesThatPipe()
