@@ -114,7 +114,8 @@ public sealed class BlockingDialogsTests
 		Assert.Equal(
 			[new DialogOption("Assume that this external rule is safe", "radio button", true), new DialogOption("Assume that all external rules in this folder are safe", "radio button", false)],
 			dialog.Options);
-		Assert.Equal("OK", DialogPolicy.ButtonToClick(dialog, DialogSettings.Defaults));
+		Assert.Null(DialogPolicy.ButtonToClick(dialog, DialogSettings.Defaults));
+		Assert.Equal("OK", DialogPolicy.ButtonToClick(dialog, TestDialogSettings.TrustsRules));
 	}
 
 	[Fact]
@@ -124,7 +125,7 @@ public sealed class BlockingDialogsTests
 		DialogSnapshot dialog = Assert.Single(_detector.Detect(fixture.ProcessId).Dialogs);
 
 		Assert.Contains(dialog.Options, option => option.Name.Contains("all external rules", StringComparison.Ordinal) && option.IsSelected);
-		Assert.Null(DialogPolicy.ButtonToClick(dialog, DialogSettings.Defaults));
+		Assert.Null(DialogPolicy.ButtonToClick(dialog, TestDialogSettings.TrustsRules));
 		Assert.False(fixture.HasExited);
 	}
 

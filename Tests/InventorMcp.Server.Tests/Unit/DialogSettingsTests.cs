@@ -32,8 +32,8 @@ public sealed class DialogSettingsTests
 	[InlineData("messageBox", "OK")]
 	[InlineData("dotNetDisposedObjectError", "Continue")]
 	[InlineData("migration", null)]
-	[InlineData("iLogicSecurityAlert", "Run the rule")]
-	[InlineData("iLogicSecurityAdvisor", "OK")]
+	[InlineData("iLogicSecurityAlert", null)]
+	[InlineData("iLogicSecurityAdvisor", null)]
 	public void EmbeddedDefaults(string type, string? button) =>
 		Assert.Equal(button, DialogSettings.Defaults.ButtonFor(type));
 

@@ -478,10 +478,10 @@ change. So the catalog has the three types, and `Source/InventorMcp.Server/Dialo
 each type:
 
 - **Rule Compile Errors** is an information dialog like the iLogic error: `OK` by default.
-- **Security Alert**: `Run the rule` by default. `Don't run the rule` and `Ask` are the other values. The match needs
+- **Security Alert**: `Ask` by default. `Run the rule` and `Don't run the rule` are the other values. The match needs
 	the title `Security Alert`, the class `#32770`, the text "iLogic has disabled a potentially harmful rule.", and the
 	buttons `Run the rule` and `Don't run the rule`, with only `Show details` or `Hide details` beside them.
-- **iLogic Security Advisor**: `OK` by default, and only when the one selected option is "Assume that this external
+- **iLogic Security Advisor**: `Ask` by default. `OK` clicks only when the one selected option is "Assume that this external
 	rule is safe". The folder option trusts every rule in a folder, so the server never confirms it, and a dialog with
 	no option read stays open.
 

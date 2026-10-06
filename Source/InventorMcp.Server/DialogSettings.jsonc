@@ -40,12 +40,14 @@
 	// "Security Alert": "iLogic has disabled a potentially harmful rule."
 	// "Run the rule" runs the rule, and the "iLogicSecurityAdvisor" entry then sets whether iLogic trusts it from now on.
 	// "Don't run the rule" disables the rule until a person enables it in Tools > Options > iLogic Configuration.
+	// "Ask" by default, because "Run the rule" runs code that iLogic flagged, from any file that a call opens.
 	// Values: "Run the rule", "Don't run the rule", "Ask".
-	"iLogicSecurityAlert": "Run the rule",
+	"iLogicSecurityAlert": "Ask",
 
 	// "iLogic Security Advisor", which comes after "Run the rule".
 	// "OK" trusts the one rule on this machine. The server clicks it only when the selected option is
 	// "Assume that this external rule is safe", and never when the option for all rules in the folder is selected.
+	// "Ask" by default, because "OK" trusts the rule from now on.
 	// Values: "OK", "Ask".
-	"iLogicSecurityAdvisor": "OK"
+	"iLogicSecurityAdvisor": "Ask"
 }
