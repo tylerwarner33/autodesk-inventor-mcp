@@ -57,6 +57,11 @@ internal interface IBlockingDialogs
 /// </param>
 internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow = null, TimeSpan? readTimeout = null) : IBlockingDialogs
 {
+	/// <summary>
+	/// 	The text read in place of the value of a password field.
+	/// </summary>
+	public const string PasswordFieldText = "[password field]";
+
 	private const string _textSeparator = "\r\n---\r\n";
 	private const string _win32DialogClass = "#32770";
 	private const uint _getAncestorRoot = 2;
@@ -355,8 +360,9 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 			}
 			else if (controlType is UIA_ControlTypeIds.UIA_TextControlTypeId or UIA_ControlTypeIds.UIA_EditControlTypeId or UIA_ControlTypeIds.UIA_DocumentControlTypeId)
 			{
+				// Dialog text goes to the model, so a password field gives only that it exists, never its value.
 				// Some controls repeat the text of their parent, so each text is kept one time.
-				string text = ReadText(element);
+				string text = element.CurrentIsPassword != 0 ? PasswordFieldText : ReadText(element);
 
 				if (text.Length > 0 && content.Texts.Contains(text) is false)
 					content.Texts.Add(text);

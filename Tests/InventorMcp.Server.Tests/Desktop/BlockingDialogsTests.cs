@@ -119,6 +119,18 @@ public sealed class BlockingDialogsTests
 	}
 
 	[Fact]
+	public async Task PasswordFieldIsReadWithoutItsValue()
+	{
+		using DialogFixture fixture = await DialogFixture.StartAsync("password");
+		DialogSnapshot dialog = Assert.Single(_detector.Detect(fixture.ProcessId).Dialogs);
+
+		Assert.Null(dialog.ReadError);
+		Assert.Contains("test-user", dialog.Text);
+		Assert.Contains(BlockingDialogs.PasswordFieldText, dialog.Text);
+		Assert.DoesNotContain("test-secret", dialog.Text);
+	}
+
+	[Fact]
 	public async Task AdvisorThatTrustsTheFolderStaysOpen()
 	{
 		using DialogFixture fixture = await DialogFixture.StartAsync("advisor-folder");

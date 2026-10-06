@@ -374,6 +374,7 @@ The server reads both files one time, at start. An agent that runs as the user c
 setting has no effect until a person restarts the server.
 The server checks that the process at the other end of the pipe is this user's installed Inventor before it uses the
 pipe, because a process of any user can create a pipe name first (`Bridge/PipeHost.cs`).
+Dialog reads replace the text of a password field, so a dialog's secret never reaches the model.
 It also checks before it sends a call, because the modal loop of an open dialog still runs the add-in's work, and a
 new call would run nested inside the call that opened it.
 `inventor_dialogs` and `inventor_dialog_click` use the same service with no bridge call.

@@ -43,7 +43,8 @@ In `cmd`, quote the assignment: `set "INVENTORMCP_LIVE_TESTS=1" && dotnet test .
 `Tests/InventorMcp.TestDialogs` is the fixture of the desktop level. `InventorMcp.TestDialogs.exe <mode>
 [--close-after <ms>]` shows one modal dialog over a main window, and writes `READY <main> <dialog>` when it is
 visible. The modes: `none`, `ok`, `yesno`, `okcancel`, `ilogic-like` (hidden template buttons), `wpf`, `unknown-ok`,
-`advisor` and `advisor-folder` (the iLogic Security Advisor with each radio button selected), and `hang` (a dialog
+`advisor` and `advisor-folder` (the iLogic Security Advisor with each radio button selected), `password` (a
+	user name field and a password field), and `hang` (a dialog
 that does not answer).
 
 xunit.v3 runs on Microsoft.Testing.Platform, which the root `global.json` selects. A filter that selects no test
