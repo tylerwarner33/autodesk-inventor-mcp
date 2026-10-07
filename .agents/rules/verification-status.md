@@ -48,9 +48,15 @@ Not yet exercised for `inventor_start`: the form inside Claude Code itself, a na
 Claude Code while Inventor runs, `inventor-starting-or-no-bridge`, `addin-not-deployed`, `inventor-exited`,
 `still-starting` and `start-failed`. To see `still-starting`, start with a recovery dialog pending.
 
-Not yet exercised: `inventor_session` with `waitSeconds` against a live Inventor start. Built 2026-10-07 and covered
-by the build and the unit level only. To verify, call `inventor_start`, and on `still-starting` call `inventor_session`
-with `waitSeconds` 45 until it reports the session.
+`inventor_session` with `waitSeconds` was verified on 2026-10-07 on Inventor 2026.2, by driving the server by hand
+over stdio as a 2025-11-25 client. `inventor_start` with version 2026 returned `still-starting` after 48.5 s. The
+first `inventor_session` with `waitSeconds` 45 returned `inventor-not-running` after 48.5 s, with the new message.
+The second connected and returned the session after 17.7 s, so the wait ends early when the bridge answers. Each
+call sent progress notifications. The session still had `isBusy` true. A wait can run about 3 s over `waitSeconds`,
+because the last connection attempt has its own 3 s timeout.
+
+Not yet exercised for `waitSeconds`: an Inventor that the user starts by hand, and the early end on a different
+release or an untrusted pipe host.
 
 Not yet run: the plugin loop on Inventor 2027.
 
