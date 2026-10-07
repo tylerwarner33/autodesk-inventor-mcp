@@ -48,6 +48,10 @@ Not yet exercised for `inventor_start`: the form inside Claude Code itself, a na
 Claude Code while Inventor runs, `inventor-starting-or-no-bridge`, `addin-not-deployed`, `inventor-exited`,
 `still-starting` and `start-failed`. To see `still-starting`, start with a recovery dialog pending.
 
+Not yet exercised: `inventor_session` with `waitSeconds` against a live Inventor start. Built 2026-10-07 and covered
+by the build and the unit level only. To verify, call `inventor_start`, and on `still-starting` call `inventor_session`
+with `waitSeconds` 45 until it reports the session.
+
 Not yet run: the plugin loop on Inventor 2027.
 
 Not yet exercised: the ring buffer's `droppedEntries` counter, which needs more than 2000 buffered events.
