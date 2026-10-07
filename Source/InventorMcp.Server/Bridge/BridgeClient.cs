@@ -564,7 +564,8 @@ internal sealed class BridgeClient(
 		return InventorInstallations.FindRunning(releaseYear).Count > 0
 			? $"{subject} is running, but its MCP bridge accepted no connection within " +
 				$"{ConnectTimeout.TotalSeconds:0} s. The add-in may still be loading or may not be loaded, or every bridge " +
-				"connection may be in use by other MCP clients. Do not call inventor_start. Retry shortly, and if it " +
+				"connection may be in use by other MCP clients. Do not call inventor_start. Wait with inventor_session and " +
+				"waitSeconds, and if it " +
 				"persists, ask the user to check Tools > Add-Ins in Inventor or to close another MCP client."
 			: releaseYear is null
 				? "No Inventor session is hosting the MCP bridge. Ask the user whether to start Inventor, then call " +
