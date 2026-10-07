@@ -367,7 +367,7 @@ from a snippet, and it holds the main thread until a person answers. On 2026-09-
 ### It is a decision, so the server clicks it only when the user turns that on
 
 `OK` writes the files in the running release's format, and no earlier release can open them after that. That
-matters when files go to an older Inventor. Example: the Design Automation engine of the StrobicConfigurator project
+matters when files go to an older Inventor. Example: the Design Automation engine of one project
 runs Inventor 2025.3, and a job fails with `E_INVALIDARG` before any plugin code runs when a part in its workfiles
 was saved by 2025.4. So the automatic close of information dialogs does not cover it. It is closed only when the
 user sets `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true`, and only while `INVENTORMCP_AUTOCLOSE_DIALOGS` is on too.
