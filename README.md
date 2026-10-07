@@ -401,7 +401,7 @@ That is the reason for the two process design.
 
 Inventor starts with Explorer as its parent, so closing Claude does not close Inventor.
 The call waits up to 45 s for the add-in. After that it returns `still-starting`, because a sign-in or recovery
-dialog can hold Inventor, and `inventor_session` connects later.
+dialog can hold Inventor. To wait longer, `inventor_session` takes `waitSeconds` (up to 45 s for each call).
 Set `INVENTOR_MCP_RELEASES` (ex. `2025`) on the server to limit the releases it considers.
 
 ### More than one Inventor release
@@ -467,7 +467,7 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 
 | Tool | Purpose |
 | --- | --- |
-| `inventor_session` | Is Inventor reachable, which version, which document is active, the active project, and which open documents are modifiable |
+| `inventor_session` | Is Inventor reachable, which version, which document is active, the active project, and which open documents are modifiable. `waitSeconds` waits for an Inventor that is still starting |
 | `inventor_start` | Start an Inventor release when its bridge is not running, asking which release when several can, and use it |
 | `inventor_use_release` | Choose the Inventor release this session talks to, with no restart of the server |
 | `inventor_documents` | Every open document with path, type, and unsaved state |
