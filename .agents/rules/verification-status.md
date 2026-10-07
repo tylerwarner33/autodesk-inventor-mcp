@@ -55,8 +55,12 @@ The second connected and returned the session after 17.7 s, so the wait ends ear
 call sent progress notifications. The session still had `isBusy` true. A wait can run about 3 s over `waitSeconds`,
 because the last connection attempt has its own 3 s timeout.
 
-Not yet exercised for `waitSeconds`: an Inventor that the user starts by hand, and the early end on a different
-release or an untrusted pipe host.
+The same day, through Claude Code after a server restart, on an Inventor 2025.4 that the user started by hand:
+`inventor_use_release` 2025, then `inventor_session` with `waitSeconds` 45 returned the session at once. Inventor had
+already loaded, so this shows no wait.
+
+Not yet exercised for `waitSeconds`: a wait while an Inventor that the user started by hand still loads, and the
+early end on a different release or an untrusted pipe host.
 
 Not yet run: the plugin loop on Inventor 2027.
 
