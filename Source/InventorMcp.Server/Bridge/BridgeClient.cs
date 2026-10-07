@@ -517,9 +517,16 @@ internal sealed class BridgeClient(
 		{
 			await pipe.DisposeAsync().ConfigureAwait(false);
 
-			// The code stays NotRunning even with Inventor open, because inventor_start polls on it while Inventor loads.
+			// The code stays NotRunning even with Inventor open, because inventor_start and inventor_session with
+			// waitSeconds poll on it while Inventor loads.
 			// Only the message tells the model not to start a second Inventor.
 			throw new InventorBridgeException(BridgeErrorCodes.NotRunning, NotRunningMessage(resolution.ReleaseYear));
+		}
+		catch (OperationCanceledException)
+		{
+			await pipe.DisposeAsync().ConfigureAwait(false);
+
+			throw;
 		}
 
 		// Every request, and every dialog read and click, goes to this process, so it must be this user's Inventor.

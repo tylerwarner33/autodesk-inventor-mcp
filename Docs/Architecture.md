@@ -282,8 +282,9 @@ and survived `taskkill /T /F` of the server.
 takes `waitSeconds` (0 to 45), and polls the bridge every 2 s before its normal report. It never starts Inventor.
 The wait uses the same connection as every other call, so it keeps the release of the session and refuses a pipe
 host that is not this user's Inventor. It sends no request until the pipe connects, so a dialog at startup cannot
-block it. It ends when the bridge answers, and it can run about 3 s over `waitSeconds`, because the last connection
-attempt has its own 3 s timeout.
+block it. It ends when the bridge answers, and never runs longer than `waitSeconds`: each connection attempt and each
+pause gets only the time that is left. A client limit of 60 s for one call is common, so the limit of 45 s leaves
+room for the session report after the wait.
 
 Before this, the messages said "call inventor_session later" and "retry shortly", but no tool could wait. On
 2026-10-07 a model then wrote its own wait loop in Git Bash, which cannot list named pipes, and the loop never saw

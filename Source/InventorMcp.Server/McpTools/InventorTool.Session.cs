@@ -139,12 +139,14 @@ internal static partial class InventorTool
 	/// </summary>
 	/// <remarks>
 	/// 	Returns quietly in each case. The call after it reports why the bridge cannot be reached.
+	/// 	Never runs longer than the wait, so a client's limit for one call allows for the wait alone.
 	/// </remarks>
-	private static async Task WaitForAnswerAsync(BridgeClient bridge, TimeSpan wait, IProgress<ProgressNotificationValue> progress, CancellationToken cancellationToken)
+	internal static async Task WaitForAnswerAsync(BridgeClient bridge, TimeSpan wait, IProgress<ProgressNotificationValue> progress, CancellationToken cancellationToken)
 	{
 		Stopwatch stopwatch = Stopwatch.StartNew();
+		TimeSpan left;
 
-		while (stopwatch.Elapsed < wait)
+		while ((left = wait - stopwatch.Elapsed) > TimeSpan.Zero)
 		{
 			progress.Report(new ProgressNotificationValue
 			{
@@ -153,10 +155,18 @@ internal static partial class InventorTool
 				Message = "Waiting for Inventor to load the MCP bridge add-in."
 			});
 
+			// An attempt on a busy pipe waits for the bridge's connect timeout, so it gets only the time that is left.
+			using CancellationTokenSource attempt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			attempt.CancelAfter(left);
+
 			try
 			{
-				if (await bridge.TryConnectAsync(cancellationToken).ConfigureAwait(false))
+				if (await bridge.TryConnectAsync(attempt.Token).ConfigureAwait(false))
 					return;
+			}
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested is false)
+			{
+				return;
 			}
 			catch (InventorBridgeException)
 			{
@@ -164,7 +174,12 @@ internal static partial class InventorTool
 				return;
 			}
 
-			await Task.Delay(_startPollInterval, cancellationToken).ConfigureAwait(false);
+			left = wait - stopwatch.Elapsed;
+
+			if (left <= TimeSpan.Zero)
+				return;
+
+			await Task.Delay(left < _startPollInterval ? left : _startPollInterval, cancellationToken).ConfigureAwait(false);
 		}
 	}
 
