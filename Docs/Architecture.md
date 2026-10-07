@@ -87,6 +87,9 @@ because the lock in `BridgeLog` covers one process, and two Inventors appended t
 obvious, and leaves the files at the top from before this change clearly separate. The server logs stay at the top,
 because a server belongs to a session and not to a release, so each tool call writes a line with the release it used.
 
+No code uses `GetActiveObject` or `GetObject`. With several releases open, they return the last Inventor that
+registered with COM, not the one that hosts the bridge pipe. Do not add them.
+
 ### stdio rather than HTTP to Claude
 
 A single user developer tool, with the pipe already carrying the trust boundary.
@@ -279,7 +282,8 @@ and survived `taskkill /T /F` of the server.
 takes `waitSeconds` (0 to 45), and polls the bridge every 2 s before its normal report. It never starts Inventor.
 The wait uses the same connection as every other call, so it keeps the release of the session and refuses a pipe
 host that is not this user's Inventor. It sends no request until the pipe connects, so a dialog at startup cannot
-block it.
+block it. It ends when the bridge answers, and it can run about 3 s over `waitSeconds`, because the last connection
+attempt has its own 3 s timeout.
 
 Before this, the messages said "call inventor_session later" and "retry shortly", but no tool could wait. On
 2026-10-07 a model then wrote its own wait loop in Git Bash, which cannot list named pipes, and the loop never saw

@@ -25,7 +25,7 @@ These come from the deleted plan. Phase 1 records them in `Docs/Architecture.md`
 	no two copies that drift apart.
 4. **Tell the model when to read a skill.** `ServerInstructions.md` has one line that names the skills and tells a
 	model to read `interop` before its first snippet. A list of the skills alone did not make a client read one (see
-	`.agents/rules/verification-status.md`, the skills check of 2026-09-25).
+	`Docs/Research/Usage-Findings-And-Knowledge-Delivery.md`, "Checks of the skill delivery").
 
 ## Phases
 
@@ -49,5 +49,5 @@ release.
 
 ## When the plan is done
 
-- Record the client check of Phase 2 in `.agents/rules/verification-status.md`.
+- Record what the client check of Phase 2 changes in the delivery decisions in `Docs/Architecture.md`.
 - Delete this document.

@@ -16,6 +16,7 @@ The same writes with the rules off took under 0.1 s.
 - `inventor_set_parameter` and `inventor_eval_csharp` also take `suppressRules`.
 - `RulesEnabled` is a setting of the whole Inventor session, not of one document. The tools restore it in a
   `finally` block. If a result says that the restore failed, tell the user and restore it when Inventor answers.
+  Inventor does not save the setting, so a restart of Inventor turns the rules on again.
   `inventor_session` gives `iLogicRulesEnabled`.
 - `RulesOnEventsEnabled` does not stop the runs that a parameter change causes.
 - A long rule cannot be stopped: it runs on Inventor's main thread until it returns.
