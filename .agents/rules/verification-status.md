@@ -32,7 +32,7 @@ binding works against a plugin built with embedded interop types, where `Type` i
 `inventor_run_plugin`'s log handling that reports only the lines a call wrote was verified later on 2026-09-22
 through eleven live calls against the reference plugin's shared rolling log.
 `logPattern` and `logMatchLines` ran in real use on 2026-09-26: 13 calls from Claude Code against the reference
-plugin's rolling log (`Cincinnati.InventorPlugin.McpServerLoop\Logs\log-.txt`), with patterns such as
+plugin's rolling log (`Logs\log-.txt` in the plugin folder), with patterns such as
 `Moved the balloon|Placed \d+ balloon|instances placed`, all `succeeded` in `executed-code.log` (6.7 s to 12.1 s).
 The audit log keeps the snippet, not its output, so the returned lines themselves are not on record.
 The server's warning on an execution result over 20 s was built then too, but no call has run that long since.
@@ -99,7 +99,7 @@ every helper, the diagnostic line number after a moved `using` directive, and th
 to 90 ms against a median call of 0.29 s, so the helpers stay in the server, not in the add-in's script globals.
 
 The iLogic tools and `suppressRules`, verified on 2026-09-25 on Inventor 2025, on a test copy of
-`C:\Work\Designs\Frame\Master Frame.iam` (29 model files, copied with Apprentice `FileSaveAs` so no rule ran; the
+a production master assembly (29 model files, copied with Apprentice `FileSaveAs` so no rule ran; the
 masters were not changed, and the copy was deleted the same day):
 
 | Measurement | Result |
@@ -120,7 +120,7 @@ masters were not changed, and the copy was deleted the same day):
 	`Docs/Research/Blocking-Dialog-Detection.md`, "The iLogic Security Alert".
 
 The session and read tools were verified on 2026-09-25 on Inventor
-2025.4 through the packed server, driven over stdio, on test copies in `C:\Work\_McpTest`
+2025.4 through the packed server, driven over stdio, on test copies in a scratch folder
 (a Vault workspace project with the library paths `Designs` and `Libraries`):
 
 - `inventor_test_copy`: 28 files of a tree with suppressed components in one pass, 27 references pointed at the

@@ -65,10 +65,10 @@ public sealed class RuleEditTests
 
 		try
 		{
-			string path = RuleEdit.WriteBackup(@"C:\Work\Master Frame.iam", "Main Rule", _rule);
+			string path = RuleEdit.WriteBackup(@"C:\Designs\Top Assembly.iam", "Main Rule", _rule);
 
 			Assert.Equal(_rule, File.ReadAllText(path));
-			Assert.EndsWith("_Master Frame_Main Rule.iLogicVb", path);
+			Assert.EndsWith("_Top Assembly_Main Rule.iLogicVb", path);
 		}
 		finally
 		{
