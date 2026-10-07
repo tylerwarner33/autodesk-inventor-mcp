@@ -32,14 +32,27 @@ Log.Logger = new LoggerConfiguration()
 builder.Logging.ClearProviders();
 _ = builder.Logging.AddSerilog(Log.Logger, dispose: true);
 
+// Read one time, at start, so an edit of the user's file has no effect until a person restarts the server.
+// See DialogSettings.Load.
+DialogSettings dialogSettings = DialogSettings.Load();
+
+Log.Information(
+	"Dialog settings read. User file {UserFile} {UserFileState}.",
+	DialogSettings.UserFilePath,
+	File.Exists(DialogSettings.UserFilePath) ? "applied" : "not found");
+
+foreach (string problem in dialogSettings.Problems)
+	Log.Warning("Dialog settings: {Problem}", problem);
+
 builder.Services.AddSingleton<IBlockingDialogs>(static _ => new BlockingDialogs());
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ReleaseSelection>();
-builder.Services.AddSingleton(static services => new BridgeClient(
+builder.Services.AddSingleton(services => new BridgeClient(
 	services.GetRequiredService<ILogger<BridgeClient>>(),
 	services.GetRequiredService<IBlockingDialogs>(),
 	services.GetRequiredService<TimeProvider>(),
-	services.GetRequiredService<ReleaseSelection>()));
+	services.GetRequiredService<ReleaseSelection>(),
+	() => dialogSettings));
 
 // Singleton because it indexes a 12 MB documentation file once and holds the result.
 builder.Services.AddSingleton<ApiReferenceService>();

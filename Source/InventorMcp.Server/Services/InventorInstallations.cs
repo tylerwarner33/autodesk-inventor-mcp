@@ -121,6 +121,35 @@ internal sealed class InventorInstallations(ILogger<InventorInstallations> logge
 	}
 
 	/// <summary>
+	/// 	Lists the path of <c>Inventor.exe</c> for each supported release that the machine registry names.
+	/// </summary>
+	/// <remarks>
+	/// 	The install locations are in <c>HKEY_LOCAL_MACHINE</c>, which only an administrator can change.
+	/// 	<see cref="ReleaseFilterVariable"/> does not apply, because it limits what the server offers, not what is installed.
+	/// </remarks>
+	/// <returns>
+	/// 	The paths, or an empty list.
+	/// </returns>
+	public static IReadOnlyList<string> RegisteredExecutablePaths()
+	{
+		using RegistryKey localMachine = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+
+		List<string> paths = [];
+
+		foreach (int year in InventorReleases.Years)
+		{
+			_ = InventorReleases.TryGetSoftwareVersion(year, out int softwareVersion);
+
+			using RegistryKey? key = localMachine.OpenSubKey($@"SOFTWARE\Autodesk\Inventor\RegistryVersion{softwareVersion}.0");
+
+			if (key?.GetValue("InstallLocation") is string installLocation && string.IsNullOrWhiteSpace(installLocation) is false)
+				paths.Add(Path.GetFullPath(Path.Combine(installLocation, "Bin", "Inventor.exe")));
+		}
+
+		return paths;
+	}
+
+	/// <summary>
 	/// 	Lists the <c>Inventor.exe</c> processes in the user's Windows session.
 	/// </summary>
 	/// <remarks>

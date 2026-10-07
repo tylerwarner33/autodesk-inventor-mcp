@@ -167,12 +167,15 @@ internal sealed class TestBridge : IAsyncDisposable
 	/// <summary>
 	/// 	Chooses release 2025, which is the release of <see cref="Server"/>, so a call waits for the pipe to appear.
 	/// </summary>
-	public TestBridge()
+	/// <param name="checkHost">
+	/// 	The check of the process that hosts the pipe, or null to accept the test process, which is not Inventor.
+	/// </param>
+	public TestBridge(Func<int, string?>? checkHost = null)
 	{
 		Selection = new ReleaseSelection(Server.Prefix, environmentValue: string.Empty);
 		Selection.Choose(2025);
 		// The defaults only, so a user's own settings file does not change the tests.
-		Client = new BridgeClient(NullLogger<BridgeClient>.Instance, Dialogs, Time, Selection, static () => DialogSettings.Defaults);
+		Client = new BridgeClient(NullLogger<BridgeClient>.Instance, Dialogs, Time, Selection, static () => DialogSettings.Defaults, checkHost ?? (static _ => null));
 	}
 
 	/// <summary>

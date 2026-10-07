@@ -39,7 +39,7 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
 | `Docs/Plugin-Development-Loop.md` | Plugin developers: running and iterating on a plugin in a live session, and making a plugin ready for it |
 | `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
-| `Source/InventorMcp.Server/DialogSettings.jsonc` | Users: how the server answers each Inventor dialog that blocks a call (ex. the iLogic Security Alert). Edit it for your choice. See "Dialog settings". |
+| `Source/InventorMcp.Server/DialogSettings.json` | Users: how the server answers each Inventor dialog that blocks a call (ex. the iLogic Security Alert). Edit it for your choice. See "Dialog settings". |
 | `Docs/Research/` | Maintainers: findings and measurements that tasks and decisions come from. Kept after the task is done. |
 | `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
 | `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
@@ -565,7 +565,7 @@ The server answers only a dialog that blocks one of its own calls, never one tha
 
 ### Dialog settings: choose how each dialog is answered
 
-**Edit `Source/InventorMcp.Server/DialogSettings.jsonc` to choose the answer to each dialog.** It is the one place
+**Edit `Source/InventorMcp.Server/DialogSettings.json` to choose the answer to each dialog.** It is the one place
 that sets this. Each entry is a dialog type, and its value is the button that the server clicks, or `"Ask"` to leave
 the dialog for you. The comment above each entry lists the values it accepts. A change needs a build, because the
 server embeds the file.
@@ -577,24 +577,29 @@ server embeds the file.
 | `messageBox` | A Win32 message box with only `OK` | `"OK"` | `"Ask"` |
 | `dotNetDisposedObjectError` | "Microsoft .NET", "Cannot access a disposed object.", which can come after an iLogic error | `"Continue"` | `"Ask"` |
 | `migration` | "Data Format Has Changed", when a save migrates files to the running release | `"Ask"` | `"OK"` |
-| `iLogicSecurityAlert` | "Security Alert", "iLogic has disabled a potentially harmful rule." | `"Run the rule"` | `"Don't run the rule"`, `"Ask"` |
-| `iLogicSecurityAdvisor` | "iLogic Security Advisor", which comes after "Run the rule" | `"OK"` | `"Ask"` |
+| `iLogicSecurityAlert` | "Security Alert", "iLogic has disabled a potentially harmful rule." | `"Ask"` | `"Run the rule"`, `"Don't run the rule"` |
+| `iLogicSecurityAdvisor` | "iLogic Security Advisor", which comes after "Run the rule" | `"Ask"` | `"OK"` |
 
 Before you change a default, know what each click does:
 
 - `migration` `"OK"` saves the files in the running release's format, which earlier releases cannot open. Leave it
 	`"Ask"` when files go to an older Inventor (ex. a Design Automation engine).
 - `iLogicSecurityAlert` `"Run the rule"` runs a rule that iLogic flagged as potentially harmful, ex. one that reads the
-	registry or writes files. Set it to `"Ask"` if rules can come from files that you do not trust.
+	registry or writes files. It is `"Ask"` by default, because a call can open a file from a source that you do not
+	trust. Set `"Run the rule"` in your own file (below) only if you trust every rule that your calls run.
 	`"Don't run the rule"` disables the rule until you enable it in Tools > Options > iLogic Configuration.
 - `iLogicSecurityAdvisor` `"OK"` trusts that one rule on this machine from now on. The server clicks it only when
 	"Assume that this external rule is safe" is selected, never when the option for all rules in the folder is.
 	You can remove a trusted rule in Tools > Options > iLogic Configuration > Security.
 
-**Your own settings, with no build.** Put a file of the same name, `DialogSettings.jsonc`, in
+**Your own settings, with no build.** Put a file of the same name, `DialogSettings.json`, in
 `%LOCALAPPDATA%\InventorMcp\`. Each entry in it replaces the entry of the same name in the repository file, ex.
-`{ "iLogicSecurityAlert": "Ask" }`. The server reads it again at each dialog, so a change has an effect at once.
-Use it when you run the server from a team feed. A file that the server cannot read makes every dialog `"Ask"`, and
+`{ "iLogicSecurityAlert": "Run the rule", "iLogicSecurityAdvisor": "OK" }`. The server reads it one
+time, when it starts, so restart the server in the client after a change. An agent that runs as you can write the
+file too, and the restart keeps you in the loop before a looser setting has an effect. An entry that is not in your file keeps the repository default, so a new
+dialog type or a changed default needs no change to your file. Use it when you run the server from a team feed, or to
+keep a setting that differs from the default while you work on the repository.
+The file is outside the repository, so git never commits it. A file that the server cannot read makes every dialog `"Ask"`, and
 `inventor_dialogs` lists the problems in `dialogSettingsProblems`.
 
 Two environment variables on the server still work, and apply after both files:

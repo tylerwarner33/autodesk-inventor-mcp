@@ -21,6 +21,7 @@ public sealed class DialogPolicyTests
 
 	private static readonly string _defaultText = DefaultText();
 	private static readonly DialogSettings _defaults = DialogSettings.Defaults;
+	private static readonly DialogSettings _trustsRules = TestDialogSettings.TrustsRules;
 
 	private const string _unhandledExceptionText =
 		"Unhandled exception has occurred in a component in your application. If you click Continue, the application will " +
@@ -181,13 +182,19 @@ public sealed class DialogPolicyTests
 			autoCloseEnabled: true));
 
 	[Fact]
-	public void SecurityAlertRunsTheRuleByDefault()
+	public void SecurityAlertStaysOpenByDefault()
 	{
 		DialogSnapshot dialog = SecurityAlert(Button("Don't run the rule"), Button("Run the rule"), Button("Show details"));
 
 		Assert.Equal("iLogicSecurityAlert", DialogPolicy.Classify(dialog));
-		Assert.Equal("Run the rule", DialogPolicy.ButtonToClick(dialog, _defaults));
+		Assert.Null(DialogPolicy.ButtonToClick(dialog, _defaults));
 	}
+
+	[Fact]
+	public void SecurityAlertCanBeSetToRunTheRule() =>
+		Assert.Equal(
+			"Run the rule",
+			DialogPolicy.ButtonToClick(SecurityAlert(Button("Don't run the rule"), Button("Run the rule"), Button("Show details")), _trustsRules));
 
 	[Fact]
 	public void SecurityAlertCanBeSetToNotRunTheRule() =>
@@ -205,7 +212,7 @@ public sealed class DialogPolicyTests
 
 	[Fact]
 	public void SecurityAlertWithAnUnknownButtonStaysOpen() =>
-		Assert.Null(DialogPolicy.ButtonToClick(SecurityAlert(Button("Don't run the rule"), Button("Run the rule"), Button("Always run")), _defaults));
+		Assert.Null(DialogPolicy.ButtonToClick(SecurityAlert(Button("Don't run the rule"), Button("Run the rule"), Button("Always run")), _trustsRules));
 
 	[Fact]
 	public void SecurityAlertWithoutItsMessageIsAMessageBox() =>
@@ -216,16 +223,20 @@ public sealed class DialogPolicyTests
 		Assert.False(ShouldClose(SecurityAlert(Button("Don't run the rule"), Button("Run the rule")), autoCloseEnabled: false));
 
 	[Fact]
+	public void AdvisorStaysOpenByDefault() =>
+		Assert.Null(DialogPolicy.ButtonToClick(Advisor(Option(_trustThisRule, true), Option(_trustTheFolder, false)), _defaults));
+
+	[Fact]
 	public void AdvisorTrustingTheRuleClosesWithOk() =>
-		Assert.Equal("OK", DialogPolicy.ButtonToClick(Advisor(Option(_trustThisRule, true), Option(_trustTheFolder, false)), _defaults));
+		Assert.Equal("OK", DialogPolicy.ButtonToClick(Advisor(Option(_trustThisRule, true), Option(_trustTheFolder, false)), _trustsRules));
 
 	[Fact]
 	public void AdvisorTrustingTheFolderStaysOpen() =>
-		Assert.Null(DialogPolicy.ButtonToClick(Advisor(Option(_trustThisRule, false), Option(_trustTheFolder, true)), _defaults));
+		Assert.Null(DialogPolicy.ButtonToClick(Advisor(Option(_trustThisRule, false), Option(_trustTheFolder, true)), _trustsRules));
 
 	[Fact]
 	public void AdvisorWithNoOptionReadStaysOpen() =>
-		Assert.Null(DialogPolicy.ButtonToClick(Advisor(), _defaults));
+		Assert.Null(DialogPolicy.ButtonToClick(Advisor(), _trustsRules));
 
 	[Fact]
 	public void AdvisorAskStaysOpen() =>
@@ -275,7 +286,7 @@ public sealed class DialogPolicyTests
 
 	private static string DefaultText()
 	{
-		using Stream stream = typeof(DialogSettings).Assembly.GetManifestResourceStream("InventorMcp.Server.DialogSettings.jsonc")!;
+		using Stream stream = typeof(DialogSettings).Assembly.GetManifestResourceStream("InventorMcp.Server.DialogSettings.json")!;
 		using StreamReader reader = new(stream);
 
 		return reader.ReadToEnd();

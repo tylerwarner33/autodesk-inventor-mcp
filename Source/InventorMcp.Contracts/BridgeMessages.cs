@@ -65,4 +65,5 @@ public static class BridgeErrorCodes
 	public const string Internal = "internal-error";
 	public const string ReleaseRequired = "release-required";
 	public const string BridgeOutdated = "bridge-outdated";
+	public const string UntrustedHost = "untrusted-bridge-host";
 }

@@ -29,7 +29,7 @@ internal static class Program
 	{
 		if (args.Length == 0)
 		{
-			Console.Error.WriteLine("Give a mode: none, ok, yesno, okcancel, ilogic-like, wpf, unknown-ok, advisor, advisor-folder or hang.");
+			Console.Error.WriteLine("Give a mode: none, ok, yesno, okcancel, ilogic-like, wpf, unknown-ok, advisor, advisor-folder, password or hang.");
 			return 2;
 		}
 
@@ -130,6 +130,11 @@ internal static class Program
 					_ = dialog.ShowDialog(owner);
 				break;
 
+			case "password":
+				using (WinForms.Form dialog = CreatePasswordDialog())
+					_ = dialog.ShowDialog(owner);
+				break;
+
 			default:
 				throw new ArgumentException($"Unknown mode '{mode}'.", nameof(mode));
 		}
@@ -201,6 +206,32 @@ internal static class Program
 		dialog.Controls.Add(new WinForms.Button { Text = "<< Back", Left = 150, Top = 150 });
 
 		WinForms.Button ok = new() { Text = "OK", Left = 250, Top = 150, DialogResult = WinForms.DialogResult.OK };
+		dialog.Controls.Add(ok);
+		dialog.AcceptButton = ok;
+
+		return dialog;
+	}
+
+	/// <summary>
+	/// 	A sign in dialog with a user name field and a password field that both hold text.
+	/// </summary>
+	private static WinForms.Form CreatePasswordDialog()
+	{
+		WinForms.Form dialog = new()
+		{
+			Text = "Test Sign In",
+			Width = 320,
+			Height = 180,
+			FormBorderStyle = WinForms.FormBorderStyle.FixedDialog,
+			MinimizeBox = false,
+			MaximizeBox = false,
+			StartPosition = WinForms.FormStartPosition.CenterParent
+		};
+
+		dialog.Controls.Add(new WinForms.TextBox { Text = "test-user", Left = 10, Top = 10, Width = 280 });
+		dialog.Controls.Add(new WinForms.TextBox { Text = "test-secret", UseSystemPasswordChar = true, Left = 10, Top = 40, Width = 280 });
+
+		WinForms.Button ok = new() { Text = "OK", Left = 220, Top = 100, DialogResult = WinForms.DialogResult.OK };
 		dialog.Controls.Add(ok);
 		dialog.AcceptButton = ok;
 

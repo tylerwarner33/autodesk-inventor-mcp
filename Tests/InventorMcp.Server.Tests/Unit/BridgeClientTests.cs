@@ -36,6 +36,28 @@ public sealed class BridgeClientTests
 		[new DialogButton("Yes", true, true), new DialogButton("No", true, true)]);
 
 	[Fact]
+	public async Task PipeOfAProcessThatIsNotInventorIsRefused()
+	{
+		int? checkedProcess = null;
+
+		await using TestBridge bridge = new(processId =>
+		{
+			checkedProcess = processId;
+			return "It is not Inventor.";
+		});
+
+		bridge.Server.Listen();
+
+		InventorBridgeException exception = await Assert.ThrowsAsync<InventorBridgeException>(
+			() => bridge.Client.InvokeAsync<string>(BridgeOperations.Ping, null, TestContext.Current.CancellationToken));
+
+		Assert.Equal(BridgeErrorCodes.UntrustedHost, exception.Code);
+		Assert.Contains("It is not Inventor.", exception.Message);
+		Assert.Equal(Environment.ProcessId, checkedProcess);
+		Assert.Null(bridge.Client.InventorProcessId);
+	}
+
+	[Fact]
 	public async Task PipeGivesTheProcessThatHostsIt()
 	{
 		await using TestBridge bridge = new();
