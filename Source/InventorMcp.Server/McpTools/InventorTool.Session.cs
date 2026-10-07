@@ -1,9 +1,12 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text.Json;
 
 using InventorMcp.Contracts;
 using InventorMcp.Server.Bridge;
 
+using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace InventorMcp.Server.McpTools;
@@ -100,9 +103,21 @@ internal static partial class InventorTool
 
 		release says how this session picked its Inventor release (selection: chosen, environment or automatic), which
 		release it chose, and which releases run now. Change the release with inventor_use_release.
+
+		To wait for an Inventor that is still starting, set waitSeconds: the server polls the bridge for you, and never
+		starts Inventor. Do not write your own wait loop in a shell (ex. a loop that lists named pipes or Inventor
+		processes). Git Bash cannot list named pipes, and a pipe name alone does not prove that Inventor is ready.
 		""")]
-	public static Task<object> Session(BridgeClient bridge, ReleaseSelection selection, CancellationToken cancellationToken) =>
-		UnlessBlockedAsync(
+	public static async Task<object> Session(
+		BridgeClient bridge,
+		ReleaseSelection selection,
+		IProgress<ProgressNotificationValue> progress,
+		[Description("Seconds to wait for the bridge to answer before the result, 0 to 45. Default 0. Use it after inventor_start returns still-starting, or while the user starts Inventor. Call again to wait longer.")] int waitSeconds = 0,
+		CancellationToken cancellationToken = default)
+	{
+		await WaitForAnswerAsync(bridge, TimeSpan.FromSeconds(Math.Clamp(waitSeconds, 0, (int)_startWaitLimit.TotalSeconds)), progress, cancellationToken).ConfigureAwait(false);
+
+		return await UnlessBlockedAsync(
 			bridge,
 			() => SafeAsync(async () =>
 			{
@@ -116,7 +131,57 @@ internal static partial class InventorTool
 					state
 				};
 			}),
-			cancellationToken);
+			cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>
+	/// 	Polls the bridge until it answers, or until the wait ends.
+	/// </summary>
+	/// <remarks>
+	/// 	Returns quietly in each case. The call after it reports why the bridge cannot be reached.
+	/// 	Never runs longer than the wait, so a client's limit for one call allows for the wait alone.
+	/// </remarks>
+	internal static async Task WaitForAnswerAsync(BridgeClient bridge, TimeSpan wait, IProgress<ProgressNotificationValue> progress, CancellationToken cancellationToken)
+	{
+		Stopwatch stopwatch = Stopwatch.StartNew();
+		TimeSpan left;
+
+		while ((left = wait - stopwatch.Elapsed) > TimeSpan.Zero)
+		{
+			progress.Report(new ProgressNotificationValue
+			{
+				Progress = (float)stopwatch.Elapsed.TotalSeconds,
+				Total = (float)wait.TotalSeconds,
+				Message = "Waiting for Inventor to load the MCP bridge add-in."
+			});
+
+			// An attempt on a busy pipe waits for the bridge's connect timeout, so it gets only the time that is left.
+			using CancellationTokenSource attempt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			attempt.CancelAfter(left);
+
+			try
+			{
+				if (await bridge.TryConnectAsync(attempt.Token).ConfigureAwait(false))
+					return;
+			}
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested is false)
+			{
+				return;
+			}
+			catch (InventorBridgeException)
+			{
+				// Another release, or a host that is not this user's Inventor. Waiting cannot change that.
+				return;
+			}
+
+			left = wait - stopwatch.Elapsed;
+
+			if (left <= TimeSpan.Zero)
+				return;
+
+			await Task.Delay(left < _startPollInterval ? left : _startPollInterval, cancellationToken).ConfigureAwait(false);
+		}
+	}
 
 	[McpServerTool(Name = "inventor_documents")]
 	[Description("Lists every document open in the Inventor session, with its full path, type, unsaved state, and whether it needs a rebuild.")]

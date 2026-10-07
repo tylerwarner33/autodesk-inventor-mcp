@@ -55,6 +55,7 @@ internal static partial class InventorTool
 		ask the user, then call again with version.
 
 		On success, call inventor_session to confirm the session. Inventor can still be at a sign-in or recovery dialog.
+		On still-starting or inventor-starting-or-no-bridge, wait with inventor_session and waitSeconds.
 		""")]
 	public static async Task<object> Start(
 		BridgeClient bridge,
@@ -299,7 +300,7 @@ internal static partial class InventorTool
 					processId = process.Id,
 					message = $"{release.DisplayName} is running, but the MCP bridge did not answer within " +
 						$"{_startWaitLimit.TotalSeconds:0} s. Inventor may be waiting for the user at a sign-in or recovery dialog. " +
-						"Call inventor_session later. Do not call inventor_start again."
+						"Call inventor_session with waitSeconds to wait longer. Do not call inventor_start again."
 				};
 			}
 

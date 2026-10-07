@@ -89,7 +89,8 @@ Claude can start Inventor for you. Say "start Inventor", or agree when Claude as
 - If that release is already running, nothing starts. A different release that runs does not stop the start.
 
 Inventor starts as if you had started it from the Start menu, so closing Claude does not close it.
-If a sign-in or recovery dialog appears, answer it. Claude connects once Inventor is ready.
+If a sign-in or recovery dialog appears, answer it. Claude waits with `inventor_session` and connects once Inventor is
+ready.
 
 The MCP connection itself stays healthy, so you can close and reopen Inventor without restarting Claude.
 

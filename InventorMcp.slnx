@@ -20,7 +20,6 @@
     <File Path=".agents/rules/inventor-interop.md" />
     <File Path=".agents/rules/inventor-modeling.md" />
     <File Path=".agents/rules/plugin-loop.md" />
-    <File Path=".agents/rules/verification-status.md" />
   </Folder>
   <Folder Name="/Solution Items/Docs/">
     <File Path="Docs/Architecture.md" />

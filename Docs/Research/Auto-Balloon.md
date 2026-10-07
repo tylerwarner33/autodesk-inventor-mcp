@@ -9,7 +9,7 @@ The rules come from two production implementations:
 - `Drawing_GenerateShopDrawing.vb` (`AddPartBalloons`, `PlanBalloon`, `SpreadBalloonPlacements`), an iLogic rule in
   the Automation Library. It gave the side selection from the part's outline, the attach point nearest that side,
   the walk of the occurrences, and the removal of a repeated item number.
-- The Strobic drawing engine (`DrawingAnnotationService.cs`, and `Drawing-Engine-Internals.md` in that repository).
+- The drawing engine of a separate project, in its own repository.
   It gave the attach point chain on null, the median start of a packed group, the swap of neighbours whose leaders
   cross, and the per-occurrence curve query.
 

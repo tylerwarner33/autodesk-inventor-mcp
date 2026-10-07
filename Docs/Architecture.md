@@ -62,8 +62,8 @@ failed at once with "All pipe instances are busy", and the loop retried with no 
 `inventor-not-running`, which told the model to start Inventor although it was running. After the fix, 16
 connections each connected in about 40 ms, the 17th and 18th got a readable message, and the loop wrote no lines.
 
-A server that cannot connect within 3 s keeps the code `inventor-not-running`, because `inventor_start` polls on
-it while Inventor loads. When an Inventor process of the selected release is running, the message says so and tells
+A server that cannot connect within 3 s keeps the code `inventor-not-running`, because `inventor_start` and
+`inventor_session` with `waitSeconds` poll on it while Inventor loads. When an Inventor process of the selected release is running, the message says so and tells
 the model not to call `inventor_start`.
 
 Which release a server uses (`ReleaseSelection`), in order:
@@ -86,6 +86,9 @@ writes its logs to its own folder (`<year>\addin.log`, `<year>\addin-startup.log
 because the lock in `BridgeLog` covers one process, and two Inventors appended to one file. A folder makes the release
 obvious, and leaves the files at the top from before this change clearly separate. The server logs stay at the top,
 because a server belongs to a session and not to a release, so each tool call writes a line with the release it used.
+
+No code uses `GetActiveObject` or `GetObject`. With several releases open, they return the last Inventor that
+registered with COM, not the one that hosts the bridge pipe. Do not add them.
 
 ### stdio rather than HTTP to Claude
 
@@ -272,6 +275,22 @@ reaches it. `explorer.exe "<path>"` escapes both but returns no process ID or ex
 
 Verified on 2026-09-22: Inventor 2025 started this way had Explorer as its parent, survived the server's normal exit,
 and survived `taskkill /T /F` of the server.
+
+### The server waits for Inventor, not the model
+
+`inventor_start` waits up to 45 s, and a start with a sign-in or recovery dialog takes longer. So `inventor_session`
+takes `waitSeconds` (0 to 45), and polls the bridge every 2 s before its normal report. It never starts Inventor.
+The wait uses the same connection as every other call, so it keeps the release of the session and refuses a pipe
+host that is not this user's Inventor. It sends no request until the pipe connects, so a dialog at startup cannot
+block it. It ends when the bridge answers, and never runs longer than `waitSeconds`: each connection attempt and each
+pause gets only the time that is left. A client limit of 60 s for one call is common, so the limit of 45 s leaves
+room for the session report after the wait.
+
+Before this, the messages said "call inventor_session later" and "retry shortly", but no tool could wait. On
+2026-10-07 a model then wrote its own wait loop in Git Bash, which cannot list named pipes, and the loop never saw
+Inventor start. A pipe name in a shell listing is also a weaker signal than a connection: it does not prove that the
+add-in accepts calls or that the pipe host is this user's Inventor. So the server instructions tell the model to wait
+with `waitSeconds` and never with a shell loop.
 
 Since clients run the server through `dotnet tool exec`, the server sits inside a job object that kills its processes
 when the job closes. Explorer as the parent keeps Inventor out of that job too. Do not change `DetachedProcess`

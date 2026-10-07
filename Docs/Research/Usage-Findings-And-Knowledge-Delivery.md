@@ -4,8 +4,8 @@ Created: 2026-09-24
 
 Status: **research.** Real usage of the server from 2026-09-21 to 2026-09-24 found traps, missing tools and
 knowledge that does not reach the clients. This document records the findings, where each one should go, and how
-the Skills over MCP extension fits. The work that came from it is done, and its checks are in
-`.agents/rules/verification-status.md`. The rest is in `Docs/Tasks/Skills-Over-Mcp-Plan.md`.
+the Skills over MCP extension fits. The work that came from it is done. The checks of how the skills reach a
+client are in "Checks of the skill delivery" below. The rest is in `Docs/Tasks/Skills-Over-Mcp-Plan.md`.
 
 ## Source of the findings
 
@@ -140,7 +140,8 @@ The rest are the same snippet sent again for each case folder, which is a batchi
 ### 1. Tool changes
 
 These have the highest value, because they work for every model. Text does not reach a model that never calls the
-tool (see the Visual Studio GPT-5.3-Codex result in `verification-status.md`).
+tool (see the Visual Studio GPT-5.3-Codex result in `Docs/Architecture.md`, "The modelling rules travel in the
+initialize response").
 
 Ordered by value.
 
@@ -361,7 +362,7 @@ From earlier sessions in this repository:
 - A shared team feed and a release pipeline (not now). A team feed is also the route by which the skills below
 	reach other team members.
 - A signature check before `inventor_run_plugin` runs, which named binding made unnecessary.
-- The open items in `verification-status.md` that are marked "Not yet verified" or "Not yet exercised".
+- The open items in `Docs/Tasks/Live-Verification.md`.
 - A question in an earlier session: whether `inventor_session` is "a slash command or a skill with dynamic
 	loading". That is the gap that skills over MCP fill.
 
@@ -485,12 +486,33 @@ extension.
 A Claude Code plugin with the same `SKILL.md` files is a third route, but it reaches only Claude Code, and the
 team also uses Claude Desktop, Visual Studio and Visual Studio Code.
 
+## Checks of the skill delivery
+
+On 2026-09-25, headless Claude Code 2.1.282 sessions started outside this repository, so no repository rule loaded:
+
+- A snippet task (list the text and boolean parameters of a part), with only the list of skills in the
+	instructions: no skill was read, and it took 3 snippets, the first with the trap that `interop` describes.
+- The same task after the instructions said to read `interop` before the first snippet, and the tool description
+	said so too: it read `interop`, then needed 2 snippets, because a returned `List` came back as its type name.
+	After the description said to return a string: `interop`, then 1 snippet, with the correct answer (11).
+- A task to plan a rule edit, with no change allowed: it planned from the tool descriptions and read no skill.
+- A task to do the rule edit on a test copy, after the description of `inventor_ilogic_rule_set` named its skill:
+	it read `ilogic-rule-edit` first, then followed its steps (session, read, anchored change with backup and diff,
+	read back).
+
+The same day, by the user, with the same task on a master part (read only, rules off):
+
+- Claude Desktop, Opus 5.5: "The tool description says to read the interop skill first, so I'll load it." Then
+	one snippet with `GetTypeFromString(p.get_Units())`, and the correct 11 parameters.
+- Visual Studio, Copilot with Claude Sonnet 5: the correct 11 parameters, but no `inventor_skill` call was visible,
+	and it compared the unit text to "Boolean" and "Text". After a restart of the server connection, Visual Studio
+	asked to trust the server again and listed the added tools as the change.
+
 ## Where the results go
 
 This document stays in `Docs/Research/` as the evidence for the plan. It is not deleted with the plan.
 When the plan is done:
 
 - Move the decisions about tools, instructions and skills to `Docs/Architecture.md`.
-- Move the facts that an agent on this repository needs to `.agents/rules/inventor-interop.md` or
-	`verification-status.md`.
+- Move the facts that an agent on this repository needs to `.agents/rules/inventor-interop.md`.
 - The guide content in section 3 then lives in the skill files themselves.
