@@ -13,8 +13,6 @@ run finds in `Docs/Architecture.md`. Delete this document when every item is don
 - [ ] `inventor_start`: close Claude Code while Inventor runs, and check that Inventor keeps running.
 - [ ] `inventor_start` results: `inventor-starting-or-no-bridge`, `addin-not-deployed`, `inventor-exited` and
 	`start-failed`.
-- [ ] `inventor_session` with `waitSeconds`: call it, then start Inventor by hand, and check that the call returns the
-	session when the add-in loads.
 - [ ] `inventor_session` with `waitSeconds`: the early end when the pipe belongs to a different release, or to a
 	process that is not this user's Inventor.
 
