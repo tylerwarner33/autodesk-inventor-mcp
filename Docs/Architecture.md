@@ -6,16 +6,20 @@ For installing and using it, see `Setup-and-Usage-Guide.md`.
 ## Shape
 
 ```mermaid
-flowchart TD
-    client["<b>MCP client</b><br/>Claude Code, Claude Desktop,<br/>Visual Studio, Visual Studio Code"]
-    server["<b>InventorMcp.Server</b><br/>net10.0<br/>every MCP tool"]
-    addin["<b>InventorMcp.AddIn</b><br/>net8.0-windows (2025, 2026) or net10.0-windows (2027)<br/>thin bridge: pipe listener, dispatch, main thread marshaling"]
-    inventor["<b>Inventor.exe</b><br/>2025, 2026 or 2027"]
+flowchart LR
+    client["<b>MCP client</b><br/>Claude Code, Claude Desktop,<br/>Visual Studio, VS Code"]
+    server["<b>InventorMcp.Server</b><br/>every MCP tool"]
+    addin["<b>InventorMcp.AddIn</b><br/>thin bridge"]
+    inventor["<b>Inventor.exe</b><br/>2025, 2026, 2027"]
 
-    client -- "stdio, through dotnet tool exec from a local feed" --> server
-    server -- "named pipe InventorMcp.Bridge.#lt;year#gt;<br/>one for each release, current Windows user only" --> addin
-    addin -- "in-process COM on Inventor's main thread" --> inventor
+    client -- stdio --> server
+    server -- "named pipe<br/>InventorMcp.Bridge.#lt;year#gt;" --> addin
+    addin -- "COM, main thread" --> inventor
 ```
+
+The client starts the server (`net10.0`) through `dotnet tool exec` from a local feed. Each Inventor release has its
+own pipe, open only to the current Windows user. The add-in targets `net8.0-windows` on 2025 and 2026, and
+`net10.0-windows` on 2027. It holds only the pipe listener, the dispatch, and the marshaling to Inventor's main thread.
 
 | Project | Purpose |
 | --- | --- |
