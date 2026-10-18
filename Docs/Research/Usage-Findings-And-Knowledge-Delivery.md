@@ -253,7 +253,8 @@ Proposed lines:
 	release that reads it.
 - Never answer a question dialog on the user's behalf, ex. an iLogic Security Alert. The server closes an
 	information dialog that has only `OK`, and gives its text in the result. Changed on 2026-09-25, see
-	`Docs/Research/Blocking-Dialog-Detection.md`, "Decision: close information dialogs, default on".
+	`Docs/Research/Blocking-Dialog-Detection.md`, "Decision: close information dialogs, default on". Since
+	2026-10-05 `DialogSettings.json` sets the answer to each dialog type (`README.md`, "Dialog settings").
 - Calls run one at a time on Inventor's main thread. A slow call can be another client's work.
 - `Parameter.Value` and some definition members (ex. `RectangularPatternFeatureDefinition.XCount`) are typed as
 	`object`. Cast them (ex. `((Parameter)d.XCount).Expression`).

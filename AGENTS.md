@@ -27,6 +27,24 @@ which runs inside `Inventor.exe` and calls the COM API on Inventor's main thread
 	Dates, measurements and what was tried go in `Docs/` or `.agents/rules/`, never in `Docs/Tasks/`, which is deleted.
 	Evidence that a task comes from goes in `Docs/Research/`, and the task points to it.
 
+## No Private Data in the Repository
+
+This rule applies to every person and every AI agent, and to every file, code comment, test, commit message,
+branch name and pull request. Git history keeps a value after the file changes, and a push publishes it.
+
+Do not write:
+
+- Secrets: API keys, tokens, passwords, connection strings, certificates or license keys.
+- Client data: the name of a client or a client project, and the names of its files, folders, rules, parameters,
+	products or jobs. Write a neutral name (ex. `Test Drawing.idw`, `Drawing_Test`, "a client project").
+- Machine and user data: machine names, user names, email addresses (other than the commit author), and absolute
+	user paths. Write a variable (ex. `%LOCALAPPDATA%\InventorMcp`, `%USERPROFILE%`).
+- Text copied from a log, a transcript or a dialog without a check for the data above. Logs on this machine hold
+	real file paths and client names.
+
+Before each commit, read the diff for this data. If you find it in a commit that is not pushed, change that commit.
+If it is pushed, tell the owner of the repository. Do not try to remove it from the remote history yourself.
+
 ## On-Demand Rules
 
 The rules are not loaded automatically. Before acting on a task, scan this list and open any rule whose trigger fits

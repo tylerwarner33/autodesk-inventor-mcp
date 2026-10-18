@@ -2,14 +2,14 @@
 
 Created: 2026-10-05
 
-Status: **open.** The skills are written and served through `inventor_skill`. Two items are left from
-`Usage-Findings-Implementation-Plan.md`, which was deleted on 2026-10-05: record the delivery decisions in
-`Docs/Architecture.md`, and serve the skills through the Skills over MCP extension when the C# SDK releases it.
+Status: **open, waiting for the C# SDK.** The skills are written and served through `inventor_skill`, and the
+delivery decisions are in `Docs/Architecture.md`, "Longer knowledge travels as skills, and a tool description names its
+skill". One item is left: serve the skills through the Skills over MCP extension when the C# SDK releases it.
 The evidence is in `Docs/Research/Usage-Findings-And-Knowledge-Delivery.md`, sections R2 to R4.
 
 ## Decisions
 
-These come from the deleted plan. Phase 1 records them in `Docs/Architecture.md`.
+These come from the deleted plan. Phase 1 recorded them in `Docs/Architecture.md`.
 
 1. **Put a trap for one tool in the description of that tool.** Claude Code loads an MCP tool schema only when the
 	tool is needed, so a tool description uses context only when the tool is used. `ServerInstructions.md` uses context
@@ -31,11 +31,11 @@ These come from the deleted plan. Phase 1 records them in `Docs/Architecture.md`
 
 ### Phase 1 - Record the decisions
 
-- [ ] Add a section to `Docs/Architecture.md` for decision 1: tool descriptions against server instructions, and the
+- [x] Add a section to `Docs/Architecture.md` for decision 1: tool descriptions against server instructions, and the
 	context cost of each.
-- [ ] Add a section to `Docs/Architecture.md` for decisions 2 to 4: how the skills are delivered, and why the
+- [x] Add a section to `Docs/Architecture.md` for decisions 2 to 4: how the skills are delivered, and why the
 	`interop` skill is named in the instructions.
-- [ ] Point `Source/InventorMcp.Server/McpTools/InventorTool.Skills.cs` at the new section, not at this document.
+- [x] Point `Source/InventorMcp.Server/McpTools/InventorTool.Skills.cs` at the new section, not at this document.
 
 ### Phase 2 - Skills over MCP
 

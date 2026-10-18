@@ -2,32 +2,47 @@
 
 Created: 2026-09-24
 
-Status: **research.** A modal dialog in Inventor blocked the server during real use. A test from a separate
+Status: **built.** A modal dialog in Inventor blocked the server during real use. A test from a separate
 process found the dialog, read all of its text, and found its buttons. This document records the test, the
-method, and a proposal to put the method into the server. The tests are in `Tests/InventorMcp.Server.Tests`, and
+method, and the proposal that the server then got. It stays as the evidence for the dialog code. The design is in
+`Docs/Architecture.md` (see "Where the results go"). The tests are in `Tests/InventorMcp.Server.Tests`, and
 `.agents/rules/build.md`, "Tests", says how to run them.
 
 Related documents:
 
-- `Docs/Architecture.md`, "The server watches for dialogs from outside Inventor", and the dialog check in
-	`inventor_session`. This document gives the tested method for them.
+- `Docs/Architecture.md`, "The server watches for dialogs from outside Inventor". It has the design that came from
+	this document.
+- `README.md`, "Writes and dialogs" and "Dialog settings", for the user.
 - `Docs/Research/Usage-Findings-And-Knowledge-Delivery.md` found one earlier block: an iLogic Security Alert after
-	a rule edit through the API. Its rule "Never answer a dialog on the user's behalf" conflicts with the automatic
-	close in this proposal. See "Decision needed" below.
+	a rule edit through the API.
 - `Docs/Architecture.md`, "Writes suppress Inventor's dialogs". This block happened under `SilentOperation`.
 	See "Prevention" below.
 
+## Where the results go
+
+| Content | Moved to |
+| --- | --- |
+| The watchdog, the check before a send, `blocked-by-dialog`, `inventor_dialogs` and `inventor_dialog_click`, `DialogSettings.json`, password fields | `Docs/Architecture.md`, "The server watches for dialogs from outside Inventor", and `README.md`, "Writes and dialogs" |
+| "Why the method works", the findings of "Live test results", the Win32 read and the `WM_COMMAND` click of "The migration dialog", the process ID from the pipe, the request ID, the mutex, the 2 s read limit, "Risks and limits" | `Docs/Architecture.md`, "How the server finds, reads and clicks a dialog" |
+| The match rules of each dialog type | `README.md`, "Dialog settings" |
+| iLogic does not show the same error again for 120 minutes. Read `ExternalRuleDirectories` before a rule runs on a copy. | The `ilogic` skill, "Running a rule" |
+| The open checks | `Docs/Tasks/Live-Verification.md`, "Dialogs" |
+
+Sections that are history, not the current design: "Proposal for the server" (the server has two tools and a
+settings file, not one tool with three actions and one environment variable), "Decision: close information
+dialogs, default on" (replaced by `DialogSettings.json`), and the appendix script.
+
 ## The problem
 
-On 2026-09-24, one Claude Code session ran the iLogic rule `Drawing_Main` in `Frame Shop Drawing.idw`.
-Line 16 of the rule calls `RunExternalRuleWithArguments("Drawing_External", ...)`. iLogic did not find
+On 2026-09-24, one Claude Code session ran the iLogic rule `Drawing_Test` in `Test Drawing.idw`.
+Line 16 of the rule calls `RunExternalRuleWithArguments("External_Test", ...)`. iLogic did not find
 the external rule file, and it showed its modal error dialog:
 
 ```
-Error on line 16 in rule: Drawing_Main, in document: Frame Shop Drawing.idw
+Error on line 16 in rule: Drawing_Test, in document: Test Drawing.idw
 
-RunExternalRule: Cannot find an external rule file named: "Drawing_External"
-(referenced in the document Frame Shop Drawing.idw).
+RunExternalRule: Cannot find an external rule file named: "External_Test"
+(referenced in the document Test Drawing.idw).
 ```
 
 The dialog runs a modal message loop on Inventor's main thread. The add-in marshals every operation to that thread,
@@ -39,8 +54,8 @@ Evidence in `%LOCALAPPDATA%\InventorMcp\executed-code.log`:
 
 | Time (UTC) | Entry |
 | --- | --- |
-| 2026-09-24 20:56:29 | `inventor_eval_csharp` opens a test copy of `Frame Shop Drawing.idw` in a Claude Code scratchpad folder. |
-| 2026-09-24 20:56:33 | `inventor_eval_csharp` gets the iLogic add-in's `Automation` object and calls `auto.RunRule(doc, "Drawing_Main")`. The dialog opens during this call. |
+| 2026-09-24 20:56:29 | `inventor_eval_csharp` opens a test copy of `Test Drawing.idw` in a Claude Code scratchpad folder. |
+| 2026-09-24 20:56:33 | `inventor_eval_csharp` gets the iLogic add-in's `Automation` object and calls `auto.RunRule(doc, "Drawing_Test")`. The dialog opens during this call. |
 | 2026-09-24 21:07:53 | The next call from that session. It reads `auto.FileOptions.ExternalRuleDirectories` and the active project. |
 
 So the session was blocked for approximately 11 minutes, until the user closed the dialog by hand.
@@ -78,7 +93,7 @@ at iLogic.ExternalRuleNotFoundHandler.HandleRuleNotFound(String ruleName, Docume
 at Autodesk.iLogic.Core.RuleProcessing.RuleRunManager.RunExternalRule(String ruleName, NameValueMap ruleArguments)
 ...
 at Autodesk.iLogic.Automation.iLogicAutomationNonCOM.RunExternalRuleWithArguments(Document doc, String ruleName, NameValueMap ruleArguments)
-at ThisRule.Main() in rule: Drawing_Main, in document Frame Shop Drawing.idw:line 16
+at ThisRule.Main() in rule: Drawing_Test, in document Test Drawing.idw:line 16
 ```
 
 ## Why the method works
@@ -131,6 +146,9 @@ was added later, after a real example was read, with a setting for its answer. S
 
 #### Decision: close information dialogs, default on
 
+Replaced on 2026-10-05: `DialogSettings.json` now sets the answer to each dialog type, and the environment
+variables apply over it. See `README.md`, "Dialog settings".
+
 Decided on 2026-09-25: the automatic close is on by default, and `INVENTORMCP_AUTOCLOSE_DIALOGS=false` turns it off.
 
 The usage research and its knowledge text say: "Never answer a dialog on the user's behalf, ex. an iLogic Security
@@ -147,8 +165,8 @@ The error for a dialog that the server does not close:
 
 ```
 Inventor is blocked by a modal dialog. The call cannot run until the dialog is closed.
-Dialog: 'Error on line 16 in rule: Drawing_Main, in document: Frame Shop Drawing.idw' (WinForms, iLogic error)
-Text: RunExternalRule: Cannot find an external rule file named: "Drawing_External" ...
+Dialog: 'Error on line 16 in rule: Drawing_Test, in document: Test Drawing.idw' (WinForms, iLogic error)
+Text: RunExternalRule: Cannot find an external rule file named: "External_Test" ...
 Visible buttons: OK
 Use inventor_dialogs to close it, or ask the user.
 ```
@@ -505,7 +523,7 @@ differ, and then it stays open until a real example is read.
 
 ## Prevention
 
-- **Fix the rule.** `Drawing_Main` line 16 needs `Drawing_External` in an iLogic external rule
+- **Fix the rule.** `Drawing_Test` line 16 needs `External_Test` in an iLogic external rule
 	folder. Examine the external rule folders in the iLogic configuration, and the active project, because a
 	project change can change a relative path.
 - **Silent operation does not prevent it.** The add-in runs each C# snippet inside `SilentOperationScope`
@@ -517,23 +535,12 @@ differ, and then it stays open until a real example is read.
 	relative external rule folder does not resolve from there. Tell the model to examine
 	`auto.FileOptions.ExternalRuleDirectories` before it runs a rule on a copy.
 
-## Interim workaround: the watcher
-
-Until the server has the watchdog, the user can run the appendix script in its own PowerShell window:
-
-```
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File Inventor-Dialog.ps1 -Action Watch -AutoClose
-```
-
-Every 2 s it examines each Inventor process. For each new dialog that blocks Inventor, it writes the text to
-`%LOCALAPPDATA%\InventorMcp\blocking-dialogs.log`. With `-AutoClose`, it clicks `OK` on information dialogs only,
-with the same policy as the table above. It leaves all other dialogs open. The stuck call then returns, but the
-model does not get the dialog text. The model must read the log.
-
 ## Appendix: test script
 
 `Inventor-Dialog.ps1` is the script from the test. It has the actions `List`, `Read`, `Click` and `Watch`.
 `List`, `Read` and `Watch` without `-AutoClose` were tested on the dialog above. `Click` and `-AutoClose` were not run.
+The server's watchdog replaced the `Watch` action, which was a workaround until the server had it. Nothing reads
+its `blocking-dialogs.log`.
 
 ```powershell
 <#

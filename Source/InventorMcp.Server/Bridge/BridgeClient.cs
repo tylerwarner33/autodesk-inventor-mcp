@@ -290,7 +290,7 @@ internal sealed class BridgeClient(
 	/// <remarks>
 	/// 	A modal dialog holds the main thread, so the call that opened it is also the call that waits on it.
 	/// 	So the check runs on a timer here, not after the call returns.
-	/// 	See <c>Docs/Research/Blocking-Dialog-Detection.md</c>, "Proposal for the server".
+	/// 	See <c>Docs/Architecture.md</c>, "The server watches for dialogs from outside Inventor".
 	/// </remarks>
 	private async Task<BridgeResponse> ReadResponseAsync(string requestId, DialogWatch watch, CancellationToken cancellationToken)
 	{

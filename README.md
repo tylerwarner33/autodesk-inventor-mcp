@@ -606,8 +606,23 @@ Two environment variables on the server still work, and apply after both files:
 `INVENTORMCP_AUTOCLOSE_DIALOGS=false` makes every dialog `"Ask"`, and `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true` makes
 `migration` `"OK"`.
 
+**How a dialog matches an entry.** A dialog gets the button of an entry only when all of these match the example that
+was read. Otherwise it stays open, whatever the settings say:
+
+- The title (ex. `Security Alert`, or the pattern `Error on line N in rule: ...`), and the window class: `#32770` for a
+	Win32 dialog, or a class that starts with `WindowsForms10.` for a WinForms dialog.
+- The text, for a type whose title is not unique: "iLogic has disabled a potentially harmful rule." for the Security
+	Alert, and "Cannot access a disposed object." for the .NET error.
+- The buttons. The iLogic error, the compile error and the message box have only `OK`. For the other types, each
+	required button is present, and every other visible button is on the allowed list (ex. `Help` on
+	the migration dialog, `Details` on the .NET error, `Show details` on the Security Alert). A dialog with a button
+	that a later release adds (ex. `Quit`) stays open.
+- For the Security Advisor, the selected option is "Assume that this external rule is safe". A dialog with no option
+	read stays open.
+
 To add a dialog type, read a real example first, then add it to `Services/DialogPolicy.cs` and to the settings file.
-See `Docs/Research/Blocking-Dialog-Detection.md`.
+`Docs/Architecture.md`, "How the server finds, reads and clicks a dialog", has the method, and
+`Docs/Research/Blocking-Dialog-Detection.md` has the examples that were read.
 
 ## Logs
 
