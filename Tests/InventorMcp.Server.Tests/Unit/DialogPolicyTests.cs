@@ -9,7 +9,7 @@ namespace InventorMcp.Server.Tests.Unit;
 [Trait("Level", "Unit")]
 public sealed class DialogPolicyTests
 {
-	private const string _iLogicTitle = "Error on line 16 in rule: Drawing_Main, in document: Frame Shop Drawing.idw";
+	private const string _iLogicTitle = "Error on line 16 in rule: Drawing_Test, in document: Test Drawing.idw";
 	private const string _winFormsClass = "WindowsForms10.Window.8.app.0.22c9f37_r3_ad1";
 	private const string _compileErrorTitle = "Rule Compile Errors in McpSecurityTest, in Part1";
 	private const string _trustThisRule = "Assume that this external rule is safe";

@@ -6,9 +6,8 @@ The evidence behind `inventor_auto_balloon` (`Source/InventorMcp.Server/McpTools
 
 The rules come from two production implementations:
 
-- `Drawing_GenerateShopDrawing.vb` (`AddPartBalloons`, `PlanBalloon`, `SpreadBalloonPlacements`), an iLogic rule in
-  the Automation Library. It gave the side selection from the part's outline, the attach point nearest that side,
-  the walk of the occurrences, and the removal of a repeated item number.
+- An iLogic rule that makes shop drawings, in a production rule library. It gave the side selection from the part's
+  outline, the attach point nearest that side, the walk of the occurrences, and the removal of a repeated item number.
 - The drawing engine of a separate project, in its own repository.
   It gave the attach point chain on null, the median start of a packed group, the swap of neighbours whose leaders
   cross, and the per-occurrence curve query.
@@ -32,7 +31,7 @@ The rules come from two production implementations:
   0.1 in (the layout check's clearance) from the curves of the other parts it scanned. When no point is clear, it keeps
   the best one and names the part in `unclearArrowheads`.
 - **Time limit.** The scan stops after 6 s and aborts the transaction with no change, because a snippet runs on
-  Inventor's main thread. The shop rule measured about 5 s for the curve scan of a full elevator cab.
+  Inventor's main thread. The shop rule measured about 5 s for the curve scan of a large production assembly.
 
 ## Live checks, 2026-09-26, Inventor 2025.4
 
