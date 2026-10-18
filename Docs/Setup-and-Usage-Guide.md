@@ -159,19 +159,22 @@ Claude can change your model. Two things bound that:
 Writes also suppress Inventor's dialogs for their duration, so a prompt cannot silently stall the session.
 Inventor answers a suppressed dialog with its default, which is a real behaviour change rather than a cosmetic one.
 
-Some dialogs still open (ex. the iLogic error dialog). The server finds them while a call waits:
+Some dialogs still open (ex. the iLogic error dialog). The server finds them while a call waits, and answers each
+one as its dialog settings say:
 
-- It closes an information dialog that has only `OK` (an iLogic error or a message box), and gives Claude its text.
-- It leaves every other dialog open, ex. "Save changes?". Claude then tells you what the dialog says, and clicks a
-	button only after you chose it.
+- By default it closes an information dialog that has only `OK` (an iLogic error, a rule compile error or a message
+	box), and gives Claude its text.
+- By default it leaves every other dialog open, ex. "Save changes?", the iLogic **Security Alert**, and **Data Format
+	Has Changed** (`OK` there saves the files in a format that earlier releases cannot open). Claude then tells you
+	what the dialog says, and clicks a button only after you chose it.
 
-To close no dialog automatically, add `INVENTORMCP_AUTOCLOSE_DIALOGS` with the value `false` to the `env` of the
-server entry in your client configuration.
+To change an answer, put a `DialogSettings.json` in `%LOCALAPPDATA%\InventorMcp\`, ex.
+`{ "iLogicSecurityAlert": "Run the rule", "iLogicSecurityAdvisor": "OK" }`, then restart the server in your client.
+`README.md`, "Dialog settings", lists each entry, its values, and what each click does. Leave `migration` at `"Ask"`
+when your files go to an older Inventor, ex. a Design Automation engine.
 
-A save of a file from an earlier release shows **Data Format Has Changed**. It stays open by default, because `OK`
-saves the files in a format that earlier releases cannot open. To let the server click `OK`, add
-`INVENTORMCP_ACCEPT_MIGRATION_DIALOG` with the value `true` to the same `env`. Leave it off when your files go to an
-older Inventor, ex. a Design Automation engine.
+Two variables in the `env` of the server entry also work: `INVENTORMCP_AUTOCLOSE_DIALOGS=false` closes no dialog
+automatically, and `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true` clicks `OK` on Data Format Has Changed.
 
 ## Troubleshooting
 

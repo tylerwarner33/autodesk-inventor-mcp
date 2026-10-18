@@ -8,7 +8,8 @@ run finds in `Docs/Architecture.md`. Delete this document when every item is don
 
 ## Starting Inventor
 
-- [ ] `inventor_start`: the release form inside Claude Code itself.
+- [ ] `inventor_start`: the release form inside Claude Code itself. A first try got no answer from the client. Find
+	why first, see `Docs/Architecture.md`, "The server waits for Inventor, not the model".
 - [ ] `inventor_start`: a native 2026-07-28 MRTR client.
 - [ ] `inventor_start`: close Claude Code while Inventor runs, and check that Inventor keeps running.
 - [ ] `inventor_start` results: `inventor-starting-or-no-bridge`, `addin-not-deployed`, `inventor-exited` and
@@ -21,7 +22,12 @@ run finds in `Docs/Architecture.md`. Delete this document when every item is don
 - [ ] With no `DialogSettings.json`, an iLogic Security Alert stops the call with `blocked-by-dialog`.
 - [ ] With the user file set to answer them, the watchdog answers the Security Alert and the Security Advisor by
 	itself in a live call.
-- [ ] A Security Alert for a rule inside a document.
+- [ ] A Security Alert for a rule inside a document, and the text of its Security Advisor, which can differ from the
+	Advisor of an external rule.
+- [ ] Whether an edit that adds new system code (ex. a new `Imports` or a registry call) keeps the trust of a rule.
+	An edit that adds only a comment keeps it.
+- [ ] The "Microsoft .NET" error ("Cannot access a disposed object") after an iLogic error: the server clicks
+	`Continue`. The desktop fixture cannot show this dialog.
 - [ ] A dialog of a different process (ex. Vault).
 - [ ] Inventor running as administrator.
 
@@ -34,7 +40,7 @@ run finds in `Docs/Architecture.md`. Delete this document when every item is don
 - [ ] The server's throttle of `All pipe instances are busy`.
 - [ ] The `droppedEntries` counter of the activity feed, which needs more than 2000 buffered events.
 - [ ] A non-empty `errors` list from `inventor_health`.
-- [ ] The server's warning on an execution result over 20 s.
+- [x] The server's warning on an execution result over 10 s.
 
 ## Clients and tools
 

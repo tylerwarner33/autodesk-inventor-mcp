@@ -5,15 +5,16 @@ For installing and using it, see `Setup-and-Usage-Guide.md`.
 
 ## Shape
 
-```
-MCP client (Claude Code, Claude Desktop, Visual Studio, Visual Studio Code)
-    | stdio, through dotnet tool exec from a local feed
-InventorMcp.Server            net10.0    every MCP tool lives here
-    | named pipe  InventorMcp.Bridge.<year>  one for each release, restricted to the current Windows user
-InventorMcp.AddIn             net8.0-windows (2025, 2026) or net10.0-windows (2027)
-    |                                    thin bridge: pipe listener, dispatch, main thread marshaling
-    | in-process COM on Inventor's main thread
-Inventor.exe 2025, 2026 or 2027
+```mermaid
+flowchart TD
+    client["<b>MCP client</b><br/>Claude Code, Claude Desktop,<br/>Visual Studio, Visual Studio Code"]
+    server["<b>InventorMcp.Server</b><br/>net10.0<br/>every MCP tool"]
+    addin["<b>InventorMcp.AddIn</b><br/>net8.0-windows (2025, 2026) or net10.0-windows (2027)<br/>thin bridge: pipe listener, dispatch, main thread marshaling"]
+    inventor["<b>Inventor.exe</b><br/>2025, 2026 or 2027"]
+
+    client -- "stdio, through dotnet tool exec from a local feed" --> server
+    server -- "named pipe InventorMcp.Bridge.#lt;year#gt;<br/>one for each release, current Windows user only" --> addin
+    addin -- "in-process COM on Inventor's main thread" --> inventor
 ```
 
 | Project | Purpose |
@@ -216,6 +217,38 @@ relative to the workspace. From the user file it never fired, with `${workspaceF
 documentation does not say either way. Machine wide entries therefore have no `dev`, and Visual Studio Code is
 restarted by hand like the other clients.
 
+### Longer knowledge travels as skills, and a tool description names its skill
+
+Text that a model needs only for some tasks (API traps, iLogic, drawings, projects and files, and workflows such as a
+safe template edit) is in `Source/InventorMcp.Server/Skills/<name>/SKILL.md`, in the Agent Skills format. Each place
+that holds knowledge has a different context cost:
+
+| Place | Loaded | Holds |
+| --- | --- | --- |
+| `ServerInstructions.md` | In every session, by every client | Only rules whose violation gives a wrong model or a lost session, and one line that names the skills |
+| A tool description | Claude Code loads a tool schema only when the tool is needed | A trap of that one tool, and the name of its skill |
+| A skill | Only when the model reads it | Everything else |
+
+So the `Parameter.Value` cast and "calls run one at a time" are in tool descriptions or the `interop` skill, not in
+the instructions. The descriptions of `inventor_eval_csharp`, `inventor_ilogic_rule_set`, `inventor_test_copy`,
+`inventor_run_plugin` and `inventor_drawing_layout` name their skill.
+
+The skills are embedded resources with a `LogicalName` that keeps the path, so they travel in the tool package with no
+step to install for each client. `inventor_skill` serves them, because every client supports tools. The Skills over
+MCP extension (`io.modelcontextprotocol/skills`) is the standard route, but no client of this server supports it yet,
+and the C# SDK has no release with it. `McpServerSkill.Create` computes its manifest from bytes, so the same embedded
+files can serve the extension later. `Docs/Tasks/Skills-Over-Mcp-Plan.md` holds that step.
+
+The skills own the Inventor API facts. `.agents/rules/inventor-interop.md` and `inventor-modeling.md` keep only the
+facts about this repository and point to the skills, so no two copies drift apart.
+
+The instructions tell a model to read `interop` before its first snippet, because a list of the skills alone did not
+make a client read one. Measured on 2026-09-25 in Claude Code sessions outside this repository: with only the list, a
+snippet task read no skill and took 3 snippets. With the instruction and a tool description that named the skill, it
+read `interop` and took 1 snippet. Claude Desktop (Opus 5.5) also read `interop` from the tool description. Visual
+Studio (Copilot, Sonnet 5) gave the correct answer with no visible skill read. See
+`Research/Usage-Findings-And-Knowledge-Delivery.md`, "Checks of the skill delivery".
+
 ### The add-in stays thin
 
 The add-in holds the pipe listener, main thread marshaling, an event recorder, and a table of primitive handlers.
@@ -246,6 +279,27 @@ is. The snippet's leading `using` directives go first, and `#line` keeps its lin
 Measured on 2026-09-25 on Inventor 2026: `return 1;` took 43 to 49 ms to compile and run, and `return ToInches(2.54);`
 with the prelude took 70 to 135 ms. The median snippet call in the usage research is 0.29 s, so the prelude stays
 in the server. Move a helper to the globals only if a later measurement shows a cost that matters.
+
+### Auto balloon is a composed snippet with its own placement rules
+
+The Inventor API has no auto-balloon member, and Inventor's own Auto Balloon command needs the user to select the
+view. So `inventor_auto_balloon` adds each balloon with `Sheet.Balloons.Add`, in one transaction (one Undo step).
+
+- **It replaces every balloon of the view**, also one added by hand. The user asked for this. Balloons of other views
+	stay.
+- **It selects the side of each part by default**, from the part's outline. `sides` limits the sides. A side is used
+	only when the space to the sheet border, or to the next view, is at least the offset plus the balloon radius,
+	because the first live run put balloons outside the sheet.
+- **It walks every sub-assembly, then removes repeats.** Inventor gives the item number only after `Balloons.Add`,
+	so the tool adds the balloon, reads `ItemNumber`, deletes a repeat, and packs the other balloons again.
+- **It keeps arrowheads clear of other parts.** On a straight curve it tries 0.5, 0.3, 0.7, 0.15 and 0.85 of the
+	length, and takes the best point at least 0.1 in (the clearance of `inventor_drawing_layout`) from the other parts.
+	When no point is clear, it names the part in `unclearArrowheads`.
+- **It stops after 6 s and aborts the transaction**, because a snippet runs on Inventor's main thread. The view then
+	has no change, and the result is `too-slow`.
+
+The rules come from two production implementations and from live runs on Inventor 2025.4. See
+`Research/Auto-Balloon.md`.
 
 ### Plugins under development load from a copy
 
@@ -302,6 +356,11 @@ because Inventor without the add-in never opens the pipe. When several qualify i
 answer, and the retry repeats every check. The client's capabilities must be read from the request's server, because
 2026-07-28 declares them per request. A client without elicitation gets `version-required` and the model asks instead.
 
+Not yet seen to work in a client. On 2026-10-05, `inventor_start` with no version in Claude Code 2.1.289 returned the
+input request in 32 ms (server log, "selection automatic"). The client showed no form and sent no retry, and the call
+stayed open in the client for 1 hour. The next call, with the version given, started Inventor. So find whether the
+client declared elicitation for that request before the check in `Docs/Tasks/Live-Verification.md` runs again.
+
 After the start the tool only connects to the pipe and sends no request, because a request can block on a sign-in or
 recovery dialog, and a cancelled read would leave the stream out of step.
 
@@ -334,9 +393,8 @@ One bundle holds every release. Each manifest carries `SupportedSoftwareVersionE
 reads all three and loads only its own. `PackageContents.xml` is not needed: Inventor discovers `.addin` manifests
 under `ApplicationPlugins` directly, as Autodesk's own Vault bundles do.
 
-The server does not search for a session. The first Inventor to start owns the fixed pipe name, and the handshake
-reports its release year. Running two releases side by side would need a versioned pipe alias; build that only when
-a real need appears.
+The server does not search for a session. Each release has its own pipe name, and the server connects to the pipe of
+the selected release (see "A named pipe rather than a local HTTP port"). The handshake reports the release year.
 
 **Inventor 2023 and 2024 are out of scope.** They run on .NET Framework 4.8, which has no `AssemblyLoadContext`.
 One `AppDomain` binds one version of each assembly name, so iLogic's Roslyn and the execution tools' Roslyn cannot
@@ -399,6 +457,55 @@ new call would run nested inside the call that opened it.
 `inventor_dialogs` and `inventor_dialog_click` use the same service with no bridge call.
 The UI Automation COM interop (`Interop.UIAutomationClient`) is used in place of `System.Windows.Automation`, so the
 server needs no .NET Desktop Runtime. See `Research/Blocking-Dialog-Detection.md`.
+
+#### How the server finds, reads and clicks a dialog
+
+Live tests on Inventor 2025, 2026 and 2027 found each rule below. The measurements are in
+`Research/Blocking-Dialog-Detection.md`.
+
+- **Find windows with Win32, and read them with UI Automation.** `EnumWindows` finds each visible top-level window
+	of the Inventor process. A UI Automation search from the desktop root does not find the dialog, because UI
+	Automation puts an owned window below the main frame. A disabled main frame (`IsWindowEnabled`) is the block
+	signal, because a modal dialog disables its owner.
+- **Walk the tree by hand.** The UI Automation tree of a window also holds the windows that it owns. The walk stops
+	at each element of a different top-level window, so the read of one dialog does not mix in the text and buttons
+	of another.
+- **Read each Win32 child window from its own handle too.** UI Automation sometimes does not return the DevExpress
+	buttons of the iLogic error dialog, and it returns no button of the migration dialog. When UI Automation finds no
+	button in a `#32770` dialog, each `Button` child window is a button with its control id, and each visible `Static`
+	adds its text.
+- **Read text from the patterns.** An edit or rich text control keeps its text in `ValuePattern` or `TextPattern`,
+	not in `Name`.
+- **Test visibility with Win32.** UI Automation `IsOffscreen` is wrong for WinForms controls: the hidden template
+	buttons of the iLogic error dialog (`Apply`, `Extra`, `Second`, `Cancel`) show as on screen. The server uses
+	`IsWindowVisible` for a control with a handle, and `IsOffscreen` only for a control with no handle (WPF).
+- **Skip the buttons of title bars and scroll bars.** UI Automation reports `Close` and the scroll arrows as visible
+	buttons. Without this skip, the buttons of a dialog never match its catalog entry.
+- **Click a Win32 button with `WM_COMMAND`.** `BM_CLICK` from a different process did not close the migration
+	dialog. `WM_COMMAND` with the button's control id, sent to the dialog through `SendMessageTimeout`, did. A UI
+	Automation button gets `InvokePattern.Invoke`.
+- **Limit each read and click to 2 s.** A dialog that does not answer must not stop the watchdog.
+
+Before a click, the server reads the dialog again. It clicks only when the dialog is still open, has the same title,
+and has exactly one visible, enabled button of that name.
+
+The server gets the Inventor process ID from the pipe (`GetNamedPipeServerProcessId`), not from a bridge call,
+because a bridge call also waits on the dialog. Each response carries its request ID, so the server discards a late
+response to a stopped call, and that response never becomes the answer to the next call.
+
+Up to 16 servers can wait on one Inventor, and each sees the same dialog. Only the server that holds the named mutex
+`Local\InventorMcp.Dialogs.<processId>` clicks. The others report that the dialog was closed by a different server or
+the user.
+
+Limits:
+
+- If Inventor runs as administrator and the server does not, Windows UIPI can stop the click while the read works.
+- A dialog of a different process (ex. Vault or a licensing service) is not in the Inventor process. The main frame
+	is disabled, but the dialog list is empty.
+- Some third-party grids and virtualized lists give little data to UI Automation.
+- `Interop.UIAutomationClient` has had no release since 2020. It holds only COM interface declarations, so it has no
+	code to fix. If it leaves nuget.org, generate the same assembly from `UIAutomationCore.dll` with `tlbimp`, or use the
+	WPF framework reference, which needs the .NET Desktop Runtime.
 
 ### The add-in runs in its own assembly load context
 

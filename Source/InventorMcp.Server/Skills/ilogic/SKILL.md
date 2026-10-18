@@ -44,6 +44,12 @@ changed. Check `inventor_documents` before a retry. The read tools of this serve
   says which line of which rule failed. A "Rule Compile Errors" dialog is closed the same way, and its text gives
   the line and the compiler error. A "Microsoft .NET" error ("Cannot access a disposed object") can come after
   an iLogic error. The server clicks its `Continue`. It is a fault in the error window, not in the model.
+- iLogic shows the same error for the same rule only one time in 120 minutes, or until Inventor restarts. It writes
+  each repeat to the iLogic Log window only. So when you run a failed rule again, no dialog and no
+  `blockingDialogs` entry does not mean that the rule ran. Read the model state after the run.
+- A copy of a model outside the project workspace still runs its rules, but a relative external rule folder does not
+  resolve from there. Before you run a rule on a copy, read `auto.FileOptions.ExternalRuleDirectories` and the active
+  project, and check that the external rules that it calls are in one of those folders.
 - A rule that uses `Microsoft.Win32.Registry` needs `AddReference "Microsoft.Win32.Registry"` at its top on .NET 8
   and later, or it does not compile.
 - A rule can open a question dialog, ex. in a partial test setup. That blocks every call: see below.
