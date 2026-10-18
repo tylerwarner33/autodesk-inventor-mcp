@@ -39,7 +39,7 @@ report it. `references/rules.md` gives the reason and an example for each rule.
 
 ```
 # R1 Private data. The commit author and noreply@ addresses are allowed.
-rg -n -i "[a-z]:[\\/]+users[\\/]+[a-z0-9]|/c/users/[a-z0-9]|/home/[a-z0-9]" <files>
+rg -n -i "[a-z]:[\x5c/]+users[\x5c/]+[a-z0-9]|/c/users/[a-z0-9]|/home/[a-z0-9]" <files>
 rg -n "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" <files>
 rg -n -i "(api[_-]?key|token|password|secret|connectionstring)\s*[:=]\s*\S" <files>
 
