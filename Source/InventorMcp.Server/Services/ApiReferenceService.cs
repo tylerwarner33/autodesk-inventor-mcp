@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -187,7 +188,7 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 
 		int[] available = Directory.Exists(directory)
 			? [.. Directory.EnumerateFiles(directory, "*.xml")
-				.Select(static file => int.TryParse(Path.GetFileNameWithoutExtension(file), out int year) ? year : 0)
+				.Select(static file => int.TryParse(Path.GetFileNameWithoutExtension(file), NumberStyles.None, CultureInfo.InvariantCulture, out int year) ? year : 0)
 				.Where(static year => year > 0)
 				.OrderDescending()]
 			: [];
@@ -330,7 +331,7 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 
 	private static string CollapseWhitespace(string value) => WhitespaceRegex().Replace(value, " ");
 
-	[GeneratedRegex(@"\s+")]
+	[GeneratedRegex(@"\s+", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
 	private static partial Regex WhitespaceRegex();
 }
 

@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using System.Security.Principal;
-using System.Text;
 
 using InventorMcp.Server.Services;
 
@@ -84,10 +83,10 @@ internal static class PipeHost
 
 	private static string? ReadImagePath(SafeProcessHandle process)
 	{
-		StringBuilder path = new(1024);
-		int length = path.Capacity;
+		char[] path = new char[1024];
+		int length = path.Length;
 
-		return QueryFullProcessImageName(process, 0, path, ref length) ? Path.GetFullPath(path.ToString(0, length)) : null;
+		return QueryFullProcessImageName(process, 0, path, ref length) ? Path.GetFullPath(new string(path, 0, length)) : null;
 	}
 
 	/// <summary>
@@ -113,7 +112,7 @@ internal static class PipeHost
 	private static extern SafeProcessHandle OpenProcess(uint desiredAccess, bool inheritHandle, uint processId);
 
 	[DllImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW", CharSet = CharSet.Unicode, SetLastError = true)]
-	private static extern bool QueryFullProcessImageName(SafeProcessHandle process, uint flags, StringBuilder path, ref int size);
+	private static extern bool QueryFullProcessImageName(SafeProcessHandle process, uint flags, [Out] char[] path, ref int size);
 
 	[DllImport("advapi32.dll", SetLastError = true)]
 	private static extern bool OpenProcessToken(SafeProcessHandle process, uint desiredAccess, out SafeAccessTokenHandle token);

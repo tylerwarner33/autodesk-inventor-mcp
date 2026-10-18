@@ -17,7 +17,7 @@ namespace InventorMcp.AddIn.Bridge;
 internal sealed class LogThrottle(TimeProvider timeProvider, TimeSpan window)
 {
 	private readonly Dictionary<string, (DateTimeOffset Written, int Suppressed)> _keys = new(StringComparer.Ordinal);
-	private readonly object _gate = new();
+	private readonly Lock _gate = new();
 
 	/// <summary>
 	/// 	Decides whether a line is written.

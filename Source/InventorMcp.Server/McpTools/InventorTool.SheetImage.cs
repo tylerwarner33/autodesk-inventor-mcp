@@ -107,7 +107,7 @@ internal static partial class InventorTool
 				// The file is deleted below, so its path stays out of the result: a model read it as a file left on disk.
 				Dictionary<string, JsonElement> facts = json.EnumerateObject()
 					.Where(static property => property.Name != "file")
-					.ToDictionary(static property => property.Name, static property => property.Value);
+					.ToDictionary(static property => property.Name, static property => property.Value, StringComparer.Ordinal);
 
 				return
 				[

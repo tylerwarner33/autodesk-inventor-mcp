@@ -12,6 +12,14 @@
 		<PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
 	</ItemGroup>
 
+	<!--
+		Analyzers for every project. A GlobalPackageReference is build time only, so nothing reaches an output folder,
+		which matters for the add-in loader. xunit.v3 brings xunit.analyzers itself.
+	-->
+	<ItemGroup>
+		<GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.307" />
+	</ItemGroup>
+
 	<!-- Tests only. -->
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.10.0" />

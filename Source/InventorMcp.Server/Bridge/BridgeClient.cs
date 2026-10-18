@@ -57,7 +57,7 @@ internal sealed class BridgeClient(
 	/// </summary>
 	public static readonly TimeSpan DialogCheckInterval = TimeSpan.FromSeconds(2);
 
-	private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(3);
+	private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(3);
 
 	/// <summary>
 	/// 	The number of checks in a row that must see a block with no dialog of Inventor before the call stops.
@@ -244,7 +244,9 @@ internal sealed class BridgeClient(
 	{
 		if ((InventorProcessId is null || _connectedGeneration != _selection.Generation)
 			&& await TryConnectAsync(cancellationToken).ConfigureAwait(false) is false)
+		{
 			return null;
+		}
 
 		return InventorProcessId is int processId
 			? await Task.Run(() => _dialogs.Detect(processId), cancellationToken).ConfigureAwait(false)
@@ -298,7 +300,8 @@ internal sealed class BridgeClient(
 
 		while (true)
 		{
-			_pendingLine ??= _reader!.ReadLineAsync();
+			// No token: the read outlives this call, and a later call takes it over.
+			_pendingLine ??= _reader!.ReadLineAsync(CancellationToken.None).AsTask();
 
 			using CancellationTokenSource delayCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 			Task delay = Task.Delay(wait, _timeProvider, delayCancellation.Token);
@@ -511,7 +514,7 @@ internal sealed class BridgeClient(
 
 		try
 		{
-			await pipe.ConnectAsync((int)ConnectTimeout.TotalMilliseconds, cancellationToken).ConfigureAwait(false);
+			await pipe.ConnectAsync((int)_connectTimeout.TotalMilliseconds, cancellationToken).ConfigureAwait(false);
 		}
 		catch (TimeoutException)
 		{
@@ -570,7 +573,7 @@ internal sealed class BridgeClient(
 
 		return InventorInstallations.FindRunning(releaseYear).Count > 0
 			? $"{subject} is running, but its MCP bridge accepted no connection within " +
-				$"{ConnectTimeout.TotalSeconds:0} s. The add-in may still be loading or may not be loaded, or every bridge " +
+				$"{_connectTimeout.TotalSeconds:0} s. The add-in may still be loading or may not be loaded, or every bridge " +
 				"connection may be in use by other MCP clients. Do not call inventor_start. Wait with inventor_session and " +
 				"waitSeconds, and if it " +
 				"persists, ask the user to check Tools > Add-Ins in Inventor or to close another MCP client."

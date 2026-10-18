@@ -73,14 +73,14 @@ internal sealed class ReleaseSelection
 	/// <summary>
 	/// 	The release from a tool, or from the environment. Null when the selection is automatic.
 	/// </summary>
-	public int? Chosen => _chosen ?? EnvironmentRelease;
+	public int? Chosen => _chosen ?? _environmentRelease;
 
 	/// <summary>
 	/// 	Where <see cref="Chosen"/> comes from: <c>chosen</c>, <c>environment</c> or <c>automatic</c>.
 	/// </summary>
-	public string Source => _chosen is not null ? "chosen" : EnvironmentRelease is not null ? "environment" : "automatic";
+	public string Source => _chosen is not null ? "chosen" : _environmentRelease is not null ? "environment" : "automatic";
 
-	private int? EnvironmentRelease =>
+	private int? _environmentRelease =>
 		int.TryParse(_environmentValue, NumberStyles.None, CultureInfo.InvariantCulture, out int year)
 			&& InventorReleases.TryGetSoftwareVersion(year, out _)
 			? year
@@ -123,7 +123,7 @@ internal sealed class ReleaseSelection
 	/// </returns>
 	public PipeResolution Resolve()
 	{
-		if (_chosen is null && string.IsNullOrWhiteSpace(_environmentValue) is false && EnvironmentRelease is null)
+		if (_chosen is null && string.IsNullOrWhiteSpace(_environmentValue) is false && _environmentRelease is null)
 		{
 			return new PipeResolution(
 				null,

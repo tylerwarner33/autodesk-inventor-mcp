@@ -112,6 +112,6 @@ internal static partial class DiagnosticHints
 	/// 	CS1061 (instance member) and CS0117 (static member or enum value), ex.
 	/// 	<c>error CS1061: 'Balloon' does not contain a definition for 'RangeBox'</c>.
 	/// </summary>
-	[GeneratedRegex(@"error CS(?:1061|0117): '(?<type>[\w.]+)' does not contain a definition for '(?<member>\w+)'", RegexOptions.CultureInvariant)]
+	[GeneratedRegex(@"error CS(?:1061|0117): '(?<type>[\w.]+)' does not contain a definition for '(?<member>\w+)'", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
 	private static partial Regex MissingMember();
 }

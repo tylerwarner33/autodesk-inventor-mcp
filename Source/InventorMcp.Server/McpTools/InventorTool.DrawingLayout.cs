@@ -456,6 +456,6 @@ internal static partial class InventorTool
 			cancellationToken));
 	}
 
-	[GeneratedRegex("__[A-Z_]+__", RegexOptions.CultureInvariant)]
+	[GeneratedRegex("__[A-Z_]+__", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
 	private static partial Regex DrawingLayoutPlaceholder();
 }

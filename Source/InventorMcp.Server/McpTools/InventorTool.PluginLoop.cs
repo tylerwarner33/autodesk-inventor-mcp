@@ -474,7 +474,7 @@ internal static partial class InventorTool
 		foreach ((string name, string value) in new[] { ("buildOutputDirectory", buildOutputDirectory), ("assemblyFileName", assemblyFileName), ("typeName", typeName), ("methodName", methodName) })
 		{
 			if (string.IsNullOrWhiteSpace(value))
-				throw new ArgumentException($"'{name}' is required.");
+				throw new ArgumentException($"'{name}' is required.", name);
 		}
 
 		// Expanded here, so a call can name a per user folder portably, ex. '%LOCALAPPDATA%\...\Logs\log-.txt'.
@@ -483,23 +483,28 @@ internal static partial class InventorTool
 			logFilePath = System.Environment.ExpandEnvironmentVariables(logFilePath);
 
 		if (logFilePath is not null && System.IO.Path.IsPathFullyQualified(logFilePath) is false)
-			throw new ArgumentException($"'logFilePath' must be a full path, not '{logFilePath}'.");
+			throw new ArgumentException($"'logFilePath' must be a full path, not '{logFilePath}'.", nameof(logFilePath));
 
 		// Both spellings by default: plain loggers write WARN and ERROR, Serilog's default template writes [WRN] and [ERR].
 		warningMarkers ??= ["WARN", "[WRN]"];
 		errorMarkers ??= ["ERROR", "FATAL", "[ERR]", "[FTL]"];
 		if (warningMarkers.Concat(errorMarkers).Any(string.IsNullOrEmpty))
-			throw new ArgumentException("A warning or error marker cannot be empty, because it would match every line.");
+		{
+			throw new ArgumentException(
+				"A warning or error marker cannot be empty, because it would match every line.",
+				warningMarkers.Any(string.IsNullOrEmpty) ? nameof(warningMarkers) : nameof(errorMarkers));
+		}
 
 		if (string.IsNullOrEmpty(logPattern) is false)
 		{
 			try
 			{
-				_ = new System.Text.RegularExpressions.Regex(logPattern);
+				// The same options and timeout as the snippet that runs the pattern.
+				_ = new System.Text.RegularExpressions.Regex(logPattern, System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
 			}
 			catch (ArgumentException exception)
 			{
-				throw new ArgumentException($"'logPattern' is not a valid regular expression: {exception.Message}");
+				throw new ArgumentException($"'logPattern' is not a valid regular expression: {exception.Message}", nameof(logPattern), exception);
 			}
 		}
 

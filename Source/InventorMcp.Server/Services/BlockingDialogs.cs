@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Text;
 
 using Interop.UIAutomationClient;
 
@@ -330,7 +329,7 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 		return content;
 	}
 
-	private void Walk(IUIAutomationTreeWalker walker, IUIAutomationElement parent, IntPtr dialog, int parentType, DialogContent content, HashSet<IntPtr> seenHandles, int depth)
+	private static void Walk(IUIAutomationTreeWalker walker, IUIAutomationElement parent, IntPtr dialog, int parentType, DialogContent content, HashSet<IntPtr> seenHandles, int depth)
 	{
 		const int maxDepth = 40;
 
@@ -516,18 +515,18 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	/// </remarks>
 	private static string GetTitle(IntPtr handle)
 	{
-		StringBuilder title = new(1024);
-		_ = GetWindowText(handle, title, title.Capacity);
+		char[] title = new char[1024];
+		int length = GetWindowText(handle, title, title.Length);
 
-		return title.ToString();
+		return new string(title, 0, Math.Max(length, 0));
 	}
 
 	private static string GetClassName(IntPtr handle)
 	{
-		StringBuilder className = new(256);
-		_ = GetClassName(handle, className, className.Capacity);
+		char[] className = new char[256];
+		int length = GetClassName(handle, className, className.Length);
 
-		return className.ToString();
+		return new string(className, 0, Math.Max(length, 0));
 	}
 
 	private sealed record WindowInfo(IntPtr Handle, string ClassName, string Title, bool Enabled);
@@ -594,8 +593,8 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	private static extern bool IsWindowEnabled(IntPtr window);
 
 	[DllImport("user32.dll", EntryPoint = "GetWindowTextW", CharSet = CharSet.Unicode)]
-	private static extern int GetWindowText(IntPtr window, StringBuilder text, int maxCount);
+	private static extern int GetWindowText(IntPtr window, [Out] char[] text, int maxCount);
 
 	[DllImport("user32.dll", EntryPoint = "GetClassNameW", CharSet = CharSet.Unicode)]
-	private static extern int GetClassName(IntPtr window, StringBuilder className, int maxCount);
+	private static extern int GetClassName(IntPtr window, [Out] char[] className, int maxCount);
 }

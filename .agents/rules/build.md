@@ -4,6 +4,7 @@ description: Build commands per Inventor release, log locations, and how to driv
 triggers:
   - Running dotnet build, deploying the add-in, or building the bundle
   - Verifying a change compiles or marking a coding task complete
+  - An analyzer or style error in the build (ex. CA1305, MA0009, IDE1006)
   - A file lock during a build
   - Reading logs or driving InventorMcp.Server with a test client
 ---
@@ -21,6 +22,21 @@ The add-in builds to `bin\<configuration>\<version>`, so the three releases neve
 Run the bundle command once per release: each adds its own manifest and `Contents` subfolder to one
 version independent bundle, and Inventor loads only the manifest matching its own version.
 See `Docs/Architecture.md`.
+
+## Analyzer and style errors
+
+The build runs the .NET analyzers (`AnalysisMode` `Recommended`), `Meziantou.Analyzer`, and the style rules that
+`.editorconfig` gives the severity `warning`. `TreatWarningsAsErrors` makes each one an error.
+
+- Fix the code. The error message has a link to the rule.
+- Suppress a rule only when it is wrong for this code. Put the reason on the line above. Put a suppression for one
+	file in a section for that file in `.editorconfig`, not in `[*.cs]`.
+- Give a new style rule the severity `warning` only when the code obeys it. Build first with
+	`-p:TreatWarningsAsErrors=false` to count the findings.
+- Build the add-in for 2025 too after a change to the add-in. It targets .NET 8, so a .NET 9 or later API breaks only
+	that build (ex. `System.Threading.Lock`, which `GlobalUsings.cs` maps to `object` there).
+
+The decisions and the measurements are in `Docs/Architecture.md`, "The build enforces the code rules".
 
 ## Tests
 

@@ -174,7 +174,7 @@ internal static partial class InventorTool
 		else if (CanAskUser(context.Server))
 		{
 			throw new InputRequiredException(
-				new Dictionary<string, InputRequest> { [_releaseField] = InputRequest.ForElicitation(ChooseReleaseForm(deployed)) },
+				new Dictionary<string, InputRequest>(StringComparer.Ordinal) { [_releaseField] = InputRequest.ForElicitation(ChooseReleaseForm(deployed)) },
 				_chooseReleaseState);
 		}
 		else
@@ -326,7 +326,7 @@ internal static partial class InventorTool
 		Message = "More than one Inventor release can host the MCP bridge. Which release should start?",
 		RequestedSchema = new ElicitRequestParams.RequestSchema
 		{
-			Properties = new Dictionary<string, ElicitRequestParams.PrimitiveSchemaDefinition>
+			Properties = new Dictionary<string, ElicitRequestParams.PrimitiveSchemaDefinition>(StringComparer.Ordinal)
 			{
 				[_releaseField] = new ElicitRequestParams.TitledSingleSelectEnumSchema
 				{

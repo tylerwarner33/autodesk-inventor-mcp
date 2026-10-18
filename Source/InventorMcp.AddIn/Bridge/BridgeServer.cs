@@ -26,7 +26,7 @@ internal sealed class BridgeServer : IDisposable
 	/// 	The pipe ACL admits only the current user, so the limit guards resources, not access.
 	/// 	See <c>Docs/Architecture.md</c>, "A named pipe rather than a local HTTP port".
 	/// </remarks>
-	private const int MaxPipeInstances = 16;
+	private const int _maxPipeInstances = 16;
 
 	/// <summary>
 	/// 	Pause after a failed accept, so a failure that repeats cannot spin the loop and flood the log.
@@ -77,7 +77,7 @@ internal sealed class BridgeServer : IDisposable
 				_ = connections.RemoveAll(static connection => connection.IsCompleted);
 
 				// With every instance serving a client, creating another fails at once. Wait for a slot instead.
-				if (connections.Count >= MaxPipeInstances)
+				if (connections.Count >= _maxPipeInstances)
 				{
 					_ = await Task.WhenAny(connections).WaitAsync(cancellationToken).ConfigureAwait(false);
 					continue;
@@ -129,7 +129,7 @@ internal sealed class BridgeServer : IDisposable
 		return NamedPipeServerStreamAcl.Create(
 			_pipeName,
 			PipeDirection.InOut,
-			MaxPipeInstances,
+			_maxPipeInstances,
 			PipeTransmissionMode.Byte,
 			PipeOptions.Asynchronous,
 			inBufferSize: 0,

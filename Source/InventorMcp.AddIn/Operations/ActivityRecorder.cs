@@ -16,11 +16,11 @@ namespace InventorMcp.AddIn.Operations;
 /// </remarks>
 internal sealed class ActivityRecorder : IDisposable
 {
-	private const int Capacity = 2000;
+	private const int _capacity = 2000;
 
 	private readonly Application _inventor;
 	private readonly Lock _gate = new();
-	private readonly ActivityEntry?[] _buffer = new ActivityEntry?[Capacity];
+	private readonly ActivityEntry?[] _buffer = new ActivityEntry?[_capacity];
 
 	// These hold the connection points open. A local would be collected and the sinks would silently disconnect.
 	private ApplicationEvents? _applicationEvents;
@@ -68,7 +68,7 @@ internal sealed class ActivityRecorder : IDisposable
 	{
 		lock (_gate)
 		{
-			long oldestAvailable = Math.Max(1, _nextSequence - Capacity);
+			long oldestAvailable = Math.Max(1, _nextSequence - _capacity);
 			long requestedFrom = sinceSequence + 1;
 			long dropped = Math.Max(0, oldestAvailable - requestedFrom);
 			long start = Math.Max(requestedFrom, oldestAvailable);
@@ -77,7 +77,7 @@ internal sealed class ActivityRecorder : IDisposable
 
 			for (long sequence = start; sequence < _nextSequence && entries.Count < maxEntries; sequence++)
 			{
-				ActivityEntry? entry = _buffer[(sequence - 1) % Capacity];
+				ActivityEntry? entry = _buffer[(sequence - 1) % _capacity];
 
 				if (entry is not null)
 					entries.Add(entry);
@@ -97,7 +97,7 @@ internal sealed class ActivityRecorder : IDisposable
 		{
 			long sequence = _nextSequence++;
 
-			_buffer[(sequence - 1) % Capacity] = new ActivityEntry(
+			_buffer[(sequence - 1) % _capacity] = new ActivityEntry(
 				sequence,
 				DateTimeOffset.UtcNow,
 				category,

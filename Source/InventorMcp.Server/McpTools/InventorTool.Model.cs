@@ -39,7 +39,7 @@ internal static partial class InventorTool
 			// The same snippet as inventor_set_parameters, because the add-in operation cannot turn the rules off.
 			? SafeAsync(async () => await RunJsonSnippetAsync(
 				bridge,
-				ComposeSetParametersSnippet(new Dictionary<string, string> { [name] = expression }, documentName, suppressRules: true, runRuleAfter: null, createIfMissing: false, allowUnsavedChanges: true),
+				ComposeSetParametersSnippet(new Dictionary<string, string>(StringComparer.Ordinal) { [name] = expression }, documentName, suppressRules: true, runRuleAfter: null, createIfMissing: false, allowUnsavedChanges: true),
 				cancellationToken).ConfigureAwait(false))
 			: SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ParameterInfo>(
 				BridgeOperations.SetParameter,

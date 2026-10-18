@@ -421,6 +421,59 @@ Then:
 Keep the vendored interop per release and keep the loader.
 `UseInventorAssemblyContext` is an Inventor 2027 feature, not a runtime feature, so 2025 and 2026 still ignore it.
 
+### The build enforces the code rules
+
+A coding agent reads the output of `dotnet build`, not the rule files. A rule that the build enforces is obeyed
+every time, because the agent sees the error and fixes it before a person reads the diff. A rule that is only in a
+document is skipped when the agent's context is full. So each rule that a tool can check is a build error:
+
+- `Directory.Build.props` sets `AnalysisLevel` to `latest`, `AnalysisMode` to `Recommended`, and
+	`EnforceCodeStyleInBuild`. `TreatWarningsAsErrors` makes each warning an error.
+- `.editorconfig` sets the severity of each rule. It gives a style rule the severity `warning` only when the code
+	already obeys it, so the build stays clean and the rule stops new drift.
+- `Directory.Packages.props` adds `Meziantou.Analyzer` to every project as a `GlobalPackageReference`. That is
+	build time only, so no analyzer assembly reaches an output folder, which matters for the add-in loader.
+- The rules that need judgement (private data, a thin add-in, evidence in comments) are in the `repo-review` skill in
+	`.claude/skills/`. Run it in a new session, because the session that wrote the code defends it.
+
+Measured on 2026-10-18 with the code as it was then, as unique findings:
+
+| Setting | Findings | Decision |
+| --- | --- | --- |
+| `AnalysisMode` `Recommended` | 40 | Used. All fixed or set per file with a reason. |
+| `AnalysisMode` `All` | about 270 | Not used. Most are CA2007 (`ConfigureAwait`), CA1307, CA5392 and CA1031. |
+| Every style rule at `warning` | 2,184 | Only the rules with 0 findings, after the fixes below. |
+| `Meziantou.Analyzer` | 162 | Used, with 4 rules off or lowered. 42 findings fixed. |
+| `SonarAnalyzer.CSharp` | 141 | Not used. 105 are S1125, which reports `x is false`, the form this code prefers. |
+| `Roslynator.Analyzers` | 1 | Not used. Its rules are off until enabled one at a time, and many repeat the IDE rules. |
+
+Rules that are wrong for this code, and why:
+
+- CA2007 and MA0004 (`ConfigureAwait(false)`): the server has no `SynchronizationContext`, so the call does
+	nothing there. In the add-in, the context can be Inventor's main thread, where the COM calls must run.
+- CA1031 (a catch of `Exception`): every bridge handler and COM boundary must catch all, or one failure ends
+	Inventor. It is only in `All`.
+- IDE0100 and S1125: both report `x is false` as redundant.
+- MA0048 (one type for each file): `InventorTool` is one `partial` class over files named `InventorTool.<Part>.cs`.
+- CA1725 and CA1001 in `StandardAddInServer` and `IsolatedAddInServerProxy`: the interop names the parameters of
+	`ApplicationAddInServer`, and Inventor ends the lifetime with `Deactivate`, not `Dispose`.
+
+The analyzers found real defects: a cancellation registration that `MainThreadDispatcher.InvokeAsync` disposed as
+it returned, before the work ran (MA0100), regular expressions with no match timeout (MA0009), parsing that used
+the culture of the machine (CA1305, MA0011), and `StringBuilder` buffers in P/Invoke signatures (CA1838).
+
+Two `.editorconfig` options did not match the code, and now follow it. The code uses braces only for a statement on
+more than one line (250 findings with `true`, 1 with `when_multiline`). It uses an expression body for a method on
+one line (177 findings with `false`, 6 with `when_on_single_line`). IDE0022 stays a suggestion, so both bodies are
+allowed. The rule for private names did not change: a field or a property that is not public starts with `_`. The
+code had 11 names that did not obey it, and they were renamed.
+
+Not used: NuGet lock files (`RestorePackagesWithLockFile`). The add-in's target framework changes with
+`AutodeskVersion`, so one lock file cannot serve every release. Central package management already keeps each
+version in one file. `xunit.analyzers` is not added, because `xunit.v3` brings it.
+
+The open items are in `Docs/Tasks/Code-Analysis-Follow-Up.md`.
+
 ## Behaviours worth knowing
 
 ### The activity feed is a pull, not a push
