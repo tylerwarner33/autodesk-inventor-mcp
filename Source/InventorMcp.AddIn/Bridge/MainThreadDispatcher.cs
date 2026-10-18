@@ -13,8 +13,8 @@ namespace InventorMcp.AddIn.Bridge;
 /// </remarks>
 internal sealed class MainThreadDispatcher : IDisposable
 {
-	private const int WM_APP_WORK = 0x8000 + 1;
-	private static readonly IntPtr HWND_MESSAGE = new(-3);
+	private const int _workMessage = 0x8000 + 1;
+	private static readonly IntPtr _messageOnlyParent = new(-3);
 
 	private readonly ConcurrentQueue<Action> _work = new();
 	private readonly string _windowClassName = "InventorMcpDispatcher_" + Guid.NewGuid().ToString("N");
@@ -54,7 +54,7 @@ internal sealed class MainThreadDispatcher : IDisposable
 			_windowClassName,
 			string.Empty,
 			0, 0, 0, 0, 0,
-			HWND_MESSAGE,
+			_messageOnlyParent,
 			IntPtr.Zero,
 			GetModuleHandle(null),
 			IntPtr.Zero);
@@ -82,24 +82,16 @@ internal sealed class MainThreadDispatcher : IDisposable
 	/// <returns>
 	/// 	The value the work produced.
 	/// </returns>
-	public Task<TResult> InvokeAsync<TResult>(Func<TResult> work, CancellationToken cancellationToken = default)
+	public async Task<TResult> InvokeAsync<TResult>(Func<TResult> work, CancellationToken cancellationToken = default)
 	{
 		ObjectDisposedException.ThrowIf(_disposed, this);
 
 		if (Environment.CurrentManagedThreadId == _mainThreadId)
-		{
-			try
-			{
-				return Task.FromResult(work());
-			}
-			catch (Exception exception)
-			{
-				return Task.FromException<TResult>(exception);
-			}
-		}
+			return work();
 
 		TaskCompletionSource<TResult> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+		// Kept until the work completes, so a cancel still reaches work that waits on a busy main thread.
 		using CancellationTokenRegistration registration = cancellationToken.Register(
 			static state => ((TaskCompletionSource<TResult>)state!).TrySetCanceled(),
 			completion);
@@ -119,15 +111,15 @@ internal sealed class MainThreadDispatcher : IDisposable
 			}
 		});
 
-		if (PostMessage(_windowHandle, WM_APP_WORK, IntPtr.Zero, IntPtr.Zero) is false)
+		if (PostMessage(_windowHandle, _workMessage, IntPtr.Zero, IntPtr.Zero) is false)
 			completion.TrySetException(new InvalidOperationException($"Could not post to the dispatcher window. Win32 error {Marshal.GetLastWin32Error()}."));
 
-		return completion.Task;
+		return await completion.Task.ConfigureAwait(false);
 	}
 
 	private IntPtr WindowProcedure(IntPtr windowHandle, uint message, IntPtr wParam, IntPtr lParam)
 	{
-		if (message is WM_APP_WORK)
+		if (message is _workMessage)
 		{
 			// Drain fully: several posts can coalesce into fewer messages under load.
 			while (_work.TryDequeue(out Action? item))
