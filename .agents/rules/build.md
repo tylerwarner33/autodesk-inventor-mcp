@@ -38,6 +38,12 @@ The build runs the .NET analyzers (`AnalysisMode` `Recommended`), `Meziantou.Ana
 
 The decisions and the measurements are in `Docs/Architecture.md`, "The build enforces the code rules".
 
+## Continuous integration
+
+`.github/workflows/build.yml` runs on each push to `master` and each pull request, on a hosted Windows runner with no
+Inventor. It builds the solution in Release, runs the `Unit` tests, and builds the add-in for each supported release.
+The runner has no interactive desktop, so the `Desktop` tests run only on a developer machine.
+
 ## Tests
 
 ```
