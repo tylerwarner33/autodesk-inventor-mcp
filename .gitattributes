@@ -1,3 +1,7 @@
+# LF in the repository and in every checkout, whatever core.autocrlf is on the machine.
+# .editorconfig asks for LF too, so the build's formatting check gives the same result everywhere.
+* text=auto eol=lf
+
 *.msi   binary -delta
 *.zip   binary -delta
 *.7z    binary -delta

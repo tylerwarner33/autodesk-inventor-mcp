@@ -38,6 +38,9 @@ The build runs the .NET analyzers (`AnalysisMode` `Recommended`), `Meziantou.Ana
 	the like (CA1848).
 - A method that returns a task ends in `Async` (MA0137). A tool's name comes from `Name` on `[McpServerTool]`, so the
 	method name can change freely.
+- Every text file uses LF. `.gitattributes` sets it for each checkout, and IDE0055 fails a `.cs` file with CRLF.
+	Do not convert a file by hand. Stage it (`git add`), delete it, and run `git checkout -- <file>`: git writes it
+	from the index with LF, and the staged changes stay.
 - Give a new style rule the severity `warning` only when the code obeys it. Build first with
 	`-p:TreatWarningsAsErrors=false` to count the findings.
 - Build the add-in for 2025 too after a change to the add-in. It targets .NET 8, so a .NET 9 or later API breaks only

@@ -12,7 +12,7 @@ indent_style = tab
 tab_width = 3
 
 # New line preferences
-end_of_line = crlf
+end_of_line = lf
 insert_final_newline = false
 
 #### .NET Code Actions ####
@@ -287,14 +287,14 @@ dotnet_diagnostic.IDE1006.severity = warning
 dotnet_diagnostic.IDE0058.severity = warning
 dotnet_diagnostic.IDE0290.severity = warning
 
+# Formatting, also the line endings that .gitattributes keeps LF on every machine. A doc comment can have a tab after '///'.
+dotnet_diagnostic.IDE0055.severity = warning
+
 # Rules that are off or info by default, and that the code meets
 dotnet_diagnostic.CA1848.severity = warning
 dotnet_diagnostic.CA1859.severity = warning
 dotnet_diagnostic.CA1873.severity = warning
 dotnet_diagnostic.MA0137.severity = warning
-
-# Formatting: it reports the tab after '///' that the doc comments use, and a line ending that depends on the checkout
-dotnet_diagnostic.IDE0055.severity = none
 
 # Roslynator's rules are off or info until set. These lines make each one a warning, so a new rule is enforced too.
 roslynator_analyzers.enabled_by_default = true

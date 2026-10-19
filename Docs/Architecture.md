@@ -496,7 +496,7 @@ Measured on 2026-10-19, and done in the same change:
 | IDE0290 (primary constructor) | 4 | Fixed. |
 | IDE0058 (an unused value) | 10 | Fixed with `_ =`, as the code does elsewhere. |
 | CA1859 (a concrete return type) | 2 | Fixed. The two operation methods return `List<T>`. |
-| IDE0055 (formatting) | 2,352 | Off. 1,863 are the tab after `///` that the doc comments use. The others are line endings: `.editorconfig` asks for `crlf`, and a checkout can have `lf`, so the result would depend on the machine. |
+| IDE0055 (formatting) | 2,358 | Used. Every finding was a line ending: `.editorconfig` asked for `crlf`, and a file that a tool wrote after the checkout kept `lf`, so the result depended on the machine. `.gitattributes` now sets `eol=lf` for every checkout and `.editorconfig` asks for `lf`, which left 0 findings. The rule does not check the space or the tab after `///`. |
 | MA0051 (method over 60 lines) | 17 | A suggestion. Most of the long methods are tools that only a live Inventor session can test, so a split is done when a change to that method is tested anyway. |
 
 Not used: NuGet lock files (`RestorePackagesWithLockFile`). The add-in's target framework changes with
