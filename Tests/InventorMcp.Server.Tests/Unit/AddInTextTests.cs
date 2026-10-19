@@ -51,7 +51,7 @@ public sealed class AddInTextTests
 	{
 		Assert.Null(ReturnValueText.Format(null));
 		Assert.Equal("text", ReturnValueText.Format("text"));
-		Assert.Equal(5.ToString(), ReturnValueText.Format(5));
+		Assert.Equal("5", ReturnValueText.Format(5));
 		Assert.Equal("True", ReturnValueText.Format(true));
 		Assert.Equal("abc", ReturnValueText.Format(new StringBuilder("abc")));
 	}

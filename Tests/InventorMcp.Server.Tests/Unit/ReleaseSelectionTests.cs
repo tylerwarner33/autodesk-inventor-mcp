@@ -33,7 +33,7 @@ public sealed class ReleaseSelectionTests
 	[Fact]
 	public void NoChoiceAndTwoPipesRequiresAChoice()
 	{
-		PipeResolution resolution = Selection(pipes: [$"{_prefix}.2025", $"{_prefix}.2027"]).Resolve();
+		PipeResolution resolution = Selection(string.Empty, $"{_prefix}.2025", $"{_prefix}.2027").Resolve();
 
 		Assert.Equal(BridgeErrorCodes.ReleaseRequired, resolution.ErrorCode);
 		Assert.Contains("2025", resolution.Message);

@@ -58,7 +58,7 @@ internal sealed record RunningInventor(int ProcessId, string? ExecutablePath, Da
 /// <summary>
 /// 	Finds the Inventor releases installed on this machine, and the Inventor processes running now.
 /// </summary>
-internal sealed class InventorInstallations(ILogger<InventorInstallations> logger)
+internal sealed partial class InventorInstallations(ILogger<InventorInstallations> logger)
 {
 	/// <summary>
 	/// 	Limits the releases reported, ex. "2025" or "2025,2027".
@@ -91,7 +91,7 @@ internal sealed class InventorInstallations(ILogger<InventorInstallations> logge
 		{
 			_ = InventorReleases.TryGetSoftwareVersion(year, out int softwareVersion);
 
-			if (filter is not null && filter.Contains(year) is false)
+			if (filter?.Contains(year) is false)
 				continue;
 
 			using RegistryKey? key = localMachine.OpenSubKey($@"SOFTWARE\Autodesk\Inventor\RegistryVersion{softwareVersion}.0");
@@ -102,7 +102,7 @@ internal sealed class InventorInstallations(ILogger<InventorInstallations> logge
 			// Inventor LT does not load add-ins, so it can never host the bridge.
 			if (key.GetValue("ProductName") is string productName && productName.Contains(" LT ", StringComparison.Ordinal))
 			{
-				_logger.LogInformation("Ignoring {ProductName}, which does not load add-ins.", productName);
+				LogLiteReleaseIgnored(productName);
 				continue;
 			}
 
@@ -110,7 +110,7 @@ internal sealed class InventorInstallations(ILogger<InventorInstallations> logge
 
 			if (File.Exists(executablePath) is false)
 			{
-				_logger.LogWarning("Inventor {Year} is registered at {InstallLocation}, but {ExecutablePath} does not exist.", year, installLocation, executablePath);
+				LogExecutableMissing(year, installLocation, executablePath);
 				continue;
 			}
 

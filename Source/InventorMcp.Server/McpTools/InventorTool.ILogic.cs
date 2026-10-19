@@ -62,7 +62,7 @@ internal static partial class InventorTool
 
 	[McpServerTool(Name = "inventor_ilogic_rules", ReadOnly = true)]
 	[Description("Lists the iLogic rules of a document: the name, the active flag and the length of each rule. The document can be open, or a file path, which is opened invisibly and closed again.")]
-	public static Task<object> ILogicRules(
+	public static Task<object> ILogicRulesAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
 		CancellationToken cancellationToken = default) =>
@@ -80,7 +80,7 @@ internal static partial class InventorTool
 	// Not ReadOnly: with outputFolder it writes files, and a client can run a read-only tool with no approval.
 	[McpServerTool(Name = "inventor_ilogic_rule_get", Destructive = false)]
 	[Description("Reads the text of one iLogic rule, or writes every rule of a document to files in a folder (one '<rule>.iLogicVb' file each). The document can be open, or a file path. An existing file is never overwritten: nothing is written if one of the files exists.")]
-	public static Task<object> ILogicRuleGet(
+	public static Task<object> ILogicRuleGetAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
 		[Description("The rule to read. Omit it and give outputFolder to write every rule to files.")] string? ruleName = null,
@@ -160,7 +160,7 @@ internal static partial class InventorTool
 
 		Read the 'ilogic-rule-edit' skill (inventor_skill) before the first change: it has the steps before and after.
 		""")]
-	public static Task<object> ILogicRuleSet(
+	public static Task<object> ILogicRuleSetAsync(
 		BridgeClient bridge,
 		[Description("The rule to change.")] string ruleName,
 		[Description("The new text: it replaces the anchor, or goes before or after it.")] string text,
@@ -264,7 +264,7 @@ internal static partial class InventorTool
 		back on in a finally block, even when a write fails. runRuleAfter then runs one rule once. RulesEnabled is a
 		setting of the whole Inventor session, not of one document.
 		""")]
-	public static Task<object> SetParameters(
+	public static Task<object> SetParametersAsync(
 		BridgeClient bridge,
 		[Description("Parameter names and their new values, ex. {\"Width\": \"50 mm\", \"Finish\": \"Painted\"}.")] Dictionary<string, string> parameters,
 		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,

@@ -22,7 +22,7 @@ internal static partial class InventorTool
 		A version of 0, or no version, clears the choice. The session then follows INVENTORMCP_RELEASE when it is set,
 		and else the one release that runs.
 		""")]
-	public static async Task<object> UseRelease(
+	public static async Task<object> UseReleaseAsync(
 		BridgeClient bridge,
 		ReleaseSelection selection,
 		[Description("Release year, ex. 2025. Use 0 or omit it to clear the choice.")] int? version = null,

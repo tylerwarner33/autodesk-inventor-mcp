@@ -16,7 +16,7 @@ namespace InventorMcp.AddIn.Bridge;
 /// 	This matters because the bridge can execute code inside the Inventor process,
 /// 	and a loopback socket would be reachable by every process and every logged on user.
 /// </remarks>
-internal sealed class BridgeServer : IDisposable
+internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string> log, string pipeName) : IDisposable
 {
 	/// <summary>
 	/// 	Connections served at once.
@@ -26,7 +26,7 @@ internal sealed class BridgeServer : IDisposable
 	/// 	The pipe ACL admits only the current user, so the limit guards resources, not access.
 	/// 	See <c>Docs/Architecture.md</c>, "A named pipe rather than a local HTTP port".
 	/// </remarks>
-	private const int MaxPipeInstances = 16;
+	private const int _maxPipeInstances = 16;
 
 	/// <summary>
 	/// 	Pause after a failed accept, so a failure that repeats cannot spin the loop and flood the log.
@@ -38,9 +38,8 @@ internal sealed class BridgeServer : IDisposable
 	/// </summary>
 	private readonly LogThrottle _acceptFailureLog = new(TimeProvider.System, TimeSpan.FromMinutes(1));
 
-	private readonly OperationDispatcher _dispatcher;
-	private readonly Action<string> _log;
-	private readonly string _pipeName;
+	private readonly OperationDispatcher _dispatcher = dispatcher;
+	private readonly Action<string> _log = log;
 	private readonly CancellationTokenSource _shutdown = new();
 
 	private Task? _acceptLoop;
@@ -49,21 +48,14 @@ internal sealed class BridgeServer : IDisposable
 	/// <summary>
 	/// 	The name of the pipe this server listens on.
 	/// </summary>
-	public string PipeName => _pipeName;
-
-	public BridgeServer(OperationDispatcher dispatcher, Action<string> log, string pipeName)
-	{
-		_dispatcher = dispatcher;
-		_log = log;
-		_pipeName = pipeName;
-	}
+	public string PipeName { get; } = pipeName;
 
 	/// <summary>
 	/// 	Starts accepting connections in the background.
 	/// </summary>
 	public void Start()
 	{
-		_acceptLoop = Task.Run(() => AcceptLoopAsync(_shutdown.Token));
+		_acceptLoop = Task.Run(() => AcceptLoopAsync(_shutdown.Token), _shutdown.Token);
 	}
 
 	private async Task AcceptLoopAsync(CancellationToken cancellationToken)
@@ -77,7 +69,7 @@ internal sealed class BridgeServer : IDisposable
 				_ = connections.RemoveAll(static connection => connection.IsCompleted);
 
 				// With every instance serving a client, creating another fails at once. Wait for a slot instead.
-				if (connections.Count >= MaxPipeInstances)
+				if (connections.Count >= _maxPipeInstances)
 				{
 					_ = await Task.WhenAny(connections).WaitAsync(cancellationToken).ConfigureAwait(false);
 					continue;
@@ -111,7 +103,7 @@ internal sealed class BridgeServer : IDisposable
 			catch (UnauthorizedAccessException exception)
 			{
 				// Another Inventor of this release already owns the pipe name. Stop rather than spin.
-				_log($"Could not claim the pipe '{_pipeName}'. Another Inventor of the same release is probably hosting the bridge. {exception.Message}");
+				_log($"Could not claim the pipe '{PipeName}'. Another Inventor of the same release is probably hosting the bridge. {exception.Message}");
 				return;
 			}
 		}
@@ -127,9 +119,9 @@ internal sealed class BridgeServer : IDisposable
 		security.AddAccessRule(new PipeAccessRule(currentUser, PipeAccessRights.FullControl, AccessControlType.Allow));
 
 		return NamedPipeServerStreamAcl.Create(
-			_pipeName,
+			PipeName,
 			PipeDirection.InOut,
-			MaxPipeInstances,
+			_maxPipeInstances,
 			PipeTransmissionMode.Byte,
 			PipeOptions.Asynchronous,
 			inBufferSize: 0,
@@ -207,7 +199,8 @@ internal sealed class BridgeServer : IDisposable
 
 		try
 		{
-			_ = _acceptLoop?.Wait(TimeSpan.FromSeconds(2));
+			// Not _shutdown.Token: it is already cancelled, and the loop still gets its time to end.
+			_ = _acceptLoop?.Wait(TimeSpan.FromSeconds(2), CancellationToken.None);
 		}
 		catch (AggregateException)
 		{

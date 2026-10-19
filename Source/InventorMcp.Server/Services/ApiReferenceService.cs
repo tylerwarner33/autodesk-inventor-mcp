@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -187,7 +188,7 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 
 		int[] available = Directory.Exists(directory)
 			? [.. Directory.EnumerateFiles(directory, "*.xml")
-				.Select(static file => int.TryParse(Path.GetFileNameWithoutExtension(file), out int year) ? year : 0)
+				.Select(static file => int.TryParse(Path.GetFileNameWithoutExtension(file), NumberStyles.None, CultureInfo.InvariantCulture, out int year) ? year : 0)
 				.Where(static year => year > 0)
 				.OrderDescending()]
 			: [];
@@ -197,10 +198,7 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 
 		if (releaseYear is int missing)
 		{
-			_logger.LogWarning(
-				"No API reference shipped for Inventor {Requested}. Answering from {Fallback} instead.",
-				missing,
-				available[0]);
+			LogReferenceFallback(missing, available[0]);
 		}
 
 		return available[0];
@@ -217,7 +215,7 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 
 		if (File.Exists(path) is false)
 		{
-			_logger.LogWarning("The Inventor API reference was not found at {Path}. Lookups will return nothing.", path);
+			LogReferenceMissing(path);
 			return [];
 		}
 
@@ -268,11 +266,11 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 				}
 			}
 
-			_logger.LogInformation("Indexed {Count} Inventor API members from {Path}.", members.Count, path);
+			LogReferenceIndexed(members.Count, path);
 		}
 		catch (Exception exception)
 		{
-			_logger.LogError(exception, "Could not index the Inventor API reference at {Path}.", path);
+			LogReferenceIndexFailed(exception, path);
 		}
 
 		return members;
@@ -330,7 +328,7 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 
 	private static string CollapseWhitespace(string value) => WhitespaceRegex().Replace(value, " ");
 
-	[GeneratedRegex(@"\s+")]
+	[GeneratedRegex(@"\s+", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
 	private static partial Regex WhitespaceRegex();
 }
 

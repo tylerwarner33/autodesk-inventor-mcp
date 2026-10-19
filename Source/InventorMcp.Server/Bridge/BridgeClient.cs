@@ -39,7 +39,7 @@ namespace InventorMcp.Server.Bridge;
 /// 	Gives why the process that hosts the pipe is not this user's Inventor, or null when it is.
 /// 	Null for <see cref="PipeHost.Check(int)"/>.
 /// </param>
-internal sealed class BridgeClient(
+internal sealed partial class BridgeClient(
 	ILogger<BridgeClient> logger,
 	IBlockingDialogs dialogs,
 	TimeProvider timeProvider,
@@ -57,7 +57,7 @@ internal sealed class BridgeClient(
 	/// </summary>
 	public static readonly TimeSpan DialogCheckInterval = TimeSpan.FromSeconds(2);
 
-	private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(3);
+	private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(3);
 
 	/// <summary>
 	/// 	The number of checks in a row that must see a block with no dialog of Inventor before the call stops.
@@ -177,7 +177,7 @@ internal sealed class BridgeClient(
 			}
 			catch (IOException exception)
 			{
-				_logger.LogWarning(exception, "The bridge connection dropped. Reconnecting once.");
+				LogConnectionDropped(exception);
 
 				await CloseAsync().ConfigureAwait(false);
 
@@ -244,7 +244,9 @@ internal sealed class BridgeClient(
 	{
 		if ((InventorProcessId is null || _connectedGeneration != _selection.Generation)
 			&& await TryConnectAsync(cancellationToken).ConfigureAwait(false) is false)
+		{
 			return null;
+		}
 
 		return InventorProcessId is int processId
 			? await Task.Run(() => _dialogs.Detect(processId), cancellationToken).ConfigureAwait(false)
@@ -281,7 +283,7 @@ internal sealed class BridgeClient(
 		if (response.Result is not JsonElement result || result.ValueKind is JsonValueKind.Null)
 			return default!;
 
-		return JsonSerializer.Deserialize<TResult>(result, BridgeProtocol.SerializerOptions)!;
+		return result.Deserialize<TResult>(BridgeProtocol.SerializerOptions)!;
 	}
 
 	/// <summary>
@@ -298,7 +300,8 @@ internal sealed class BridgeClient(
 
 		while (true)
 		{
-			_pendingLine ??= _reader!.ReadLineAsync();
+			// No token: the read outlives this call, and a later call takes it over.
+			_pendingLine ??= _reader!.ReadLineAsync(CancellationToken.None).AsTask();
 
 			using CancellationTokenSource delayCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 			Task delay = Task.Delay(wait, _timeProvider, delayCancellation.Token);
@@ -312,10 +315,7 @@ internal sealed class BridgeClient(
 				if (response.Id == requestId)
 					return response;
 
-				_logger.LogWarning(
-					"Discarded the late response {ResponseId} from a call that stopped waiting. Waiting for {RequestId}.",
-					response.Id,
-					requestId);
+				LogLateResponseDiscarded(response.Id, requestId);
 
 				continue;
 			}
@@ -361,7 +361,7 @@ internal sealed class BridgeClient(
 			if (++watch.ChecksWithoutDialog < _checksBeforeBlockWithoutDialog)
 				return;
 
-			_logger.LogWarning("Inventor {ProcessId} is blocked, but no dialog of its process was found.", processId);
+			LogBlockedWithoutDialog(processId);
 
 			throw new InventorBridgeException(
 				BridgeErrorCodes.BlockedByDialog,
@@ -372,7 +372,7 @@ internal sealed class BridgeClient(
 		DialogSettings settings = _dialogSettings();
 
 		foreach (string problem in settings.Problems)
-			_logger.LogWarning("Dialog settings: {Problem}", problem);
+			LogDialogSettingsProblem(problem);
 
 		List<DialogSnapshot> needPerson = [];
 
@@ -423,9 +423,7 @@ internal sealed class BridgeClient(
 		string? type = DialogPolicy.Classify(dialog);
 
 		// The text is gone when the dialog closes, and iLogic does not show the same error again for 120 minutes.
-		_logger.LogWarning(
-			"A dialog blocks Inventor {ProcessId}: '{Title}' ({Framework}, {Type}, class {ClassName}). Buttons: {Buttons}. " +
-			"Action: {Action}. {ReadError}Text: {Text}",
+		LogBlockingDialog(
 			processId,
 			dialog.Title,
 			dialog.Framework ?? "not read",
@@ -447,7 +445,7 @@ internal sealed class BridgeClient(
 		string message =
 			"Inventor is blocked by a modal dialog. The call cannot run until the dialog is closed." + Environment.NewLine +
 			$"Dialog: '{dialog.Title}' ({dialog.Framework ?? "not read"}, {type ?? "not in the catalog"})" + Environment.NewLine +
-			(dialog.ReadError is null ? $"Text: {text}" : dialog.ReadError) + Environment.NewLine +
+			(dialog.ReadError ?? $"Text: {text}") + Environment.NewLine +
 			$"Visible buttons: {string.Join(", ", dialog.ClickableButtons)}" + Environment.NewLine +
 			(dialog.Options.Count == 0 ? string.Empty : $"Options: {DescribeOptions(dialog.Options)}" + Environment.NewLine) +
 			"Do not close a dialog that asks a question without asking the user. Read it with inventor_dialogs, and close it " +
@@ -470,7 +468,7 @@ internal sealed class BridgeClient(
 		}
 		catch (IOException exception)
 		{
-			_logger.LogWarning(exception, "Could not write the dialog click to the audit log.");
+			LogAuditWriteFailed(exception);
 		}
 	}
 
@@ -511,7 +509,7 @@ internal sealed class BridgeClient(
 
 		try
 		{
-			await pipe.ConnectAsync((int)ConnectTimeout.TotalMilliseconds, cancellationToken).ConfigureAwait(false);
+			await pipe.ConnectAsync((int)_connectTimeout.TotalMilliseconds, cancellationToken).ConfigureAwait(false);
 		}
 		catch (TimeoutException)
 		{
@@ -538,7 +536,7 @@ internal sealed class BridgeClient(
 		if (refusal is not null)
 		{
 			await pipe.DisposeAsync().ConfigureAwait(false);
-			_logger.LogWarning("Refused the bridge pipe {PipeName}: {Refusal}", pipeName, refusal);
+			LogPipeRefused(pipeName, refusal);
 
 			throw new InventorBridgeException(
 				BridgeErrorCodes.UntrustedHost,
@@ -555,10 +553,7 @@ internal sealed class BridgeClient(
 		_writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
 		InventorProcessId = (int)processId;
 
-		_logger.LogInformation(
-			"Connected to the Inventor bridge on pipe {PipeName}, hosted by process {ProcessId}.",
-			pipeName,
-			InventorProcessId);
+		LogConnected(pipeName, InventorProcessId);
 	}
 
 	/// <summary>
@@ -570,7 +565,7 @@ internal sealed class BridgeClient(
 
 		return InventorInstallations.FindRunning(releaseYear).Count > 0
 			? $"{subject} is running, but its MCP bridge accepted no connection within " +
-				$"{ConnectTimeout.TotalSeconds:0} s. The add-in may still be loading or may not be loaded, or every bridge " +
+				$"{_connectTimeout.TotalSeconds:0} s. The add-in may still be loading or may not be loaded, or every bridge " +
 				"connection may be in use by other MCP clients. Do not call inventor_start. Wait with inventor_session and " +
 				"waitSeconds, and if it " +
 				"persists, ask the user to check Tools > Add-Ins in Inventor or to close another MCP client."
@@ -593,6 +588,7 @@ internal sealed class BridgeClient(
 		}
 		catch (IOException)
 		{
+			// The pipe is already broken, so the unflushed data has nowhere to go.
 		}
 
 		_reader?.Dispose();
@@ -604,6 +600,7 @@ internal sealed class BridgeClient(
 		}
 		catch (IOException)
 		{
+			// The pipe is already broken, and the reconnect opens a new one.
 		}
 
 		_writer = null;

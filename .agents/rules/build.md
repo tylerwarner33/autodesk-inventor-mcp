@@ -4,6 +4,7 @@ description: Build commands per Inventor release, log locations, and how to driv
 triggers:
   - Running dotnet build, deploying the add-in, or building the bundle
   - Verifying a change compiles or marking a coding task complete
+  - An analyzer or style error in the build (ex. CA1305, MA0009, IDE1006)
   - A file lock during a build
   - Reading logs or driving InventorMcp.Server with a test client
 ---
@@ -21,6 +22,37 @@ The add-in builds to `bin\<configuration>\<version>`, so the three releases neve
 Run the bundle command once per release: each adds its own manifest and `Contents` subfolder to one
 version independent bundle, and Inventor loads only the manifest matching its own version.
 See `Docs/Architecture.md`.
+
+## Analyzer and style errors
+
+The build runs the .NET analyzers (`AnalysisMode` `Recommended`), `Meziantou.Analyzer`, `Roslynator.Analyzers`,
+`SonarAnalyzer.CSharp`, and the style rules that `.editorconfig` gives the severity `warning`.
+`TreatWarningsAsErrors` makes each one an error.
+
+- Fix the code. The error message has a link to the rule.
+- Suppress a rule only when it is wrong for this code. Put the reason on the line above. Put a suppression for one
+	file in a section for that file in `.editorconfig`, not in `[*.cs]`. Put a suppression for one statement in a
+	`#pragma warning disable` and `restore` pair around that statement only.
+- An empty `catch` block needs a comment in it that says why the failure is safe to ignore (S108).
+- Log through a `[LoggerMessage]` method in the class's `<Type>.Log.cs` file, not through `ILogger.LogWarning` and
+	the like (CA1848).
+- A method that returns a task ends in `Async` (MA0137). A tool's name comes from `Name` on `[McpServerTool]`, so the
+	method name can change freely.
+- Every text file uses LF. `.gitattributes` sets it for each checkout, and IDE0055 fails a `.cs` file with CRLF.
+	Do not convert a file by hand. Stage it (`git add`), delete it, and run `git checkout -- <file>`: git writes it
+	from the index with LF, and the staged changes stay.
+- Give a new style rule the severity `warning` only when the code obeys it. Build first with
+	`-p:TreatWarningsAsErrors=false` to count the findings.
+- Build the add-in for 2025 too after a change to the add-in. It targets .NET 8, so a .NET 9 or later API breaks only
+	that build (ex. `System.Threading.Lock`, which `GlobalUsings.cs` maps to `object` there).
+
+The decisions and the measurements are in `Docs/Architecture.md`, "The build enforces the code rules".
+
+## Continuous integration
+
+`.github/workflows/build.yml` runs on each push to `master` and each pull request, on a hosted Windows runner with no
+Inventor. It builds the solution in Release, runs the `Unit` tests, and builds the add-in for each supported release.
+The runner has no interactive desktop, so the `Desktop` tests run only on a developer machine.
 
 ## Tests
 

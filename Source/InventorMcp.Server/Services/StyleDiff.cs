@@ -49,7 +49,7 @@ internal static class StyleDiff
 			Dictionary<string, string> leftDetails = Details(left);
 			Dictionary<string, string> rightDetails = Details(right);
 
-			foreach (string field in leftDetails.Keys.Union(rightDetails.Keys).Order(StringComparer.Ordinal))
+			foreach (string field in leftDetails.Keys.Union(rightDetails.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal))
 			{
 				string? leftValue = leftDetails.GetValueOrDefault(field);
 				string? rightValue = rightDetails.GetValueOrDefault(field);
@@ -69,10 +69,10 @@ internal static class StyleDiff
 			standard = Text(first, "standard") == Text(second, "standard")
 				? (object)Text(first, "standard")
 				: new { first = Text(first, "standard"), second = Text(second, "standard") },
-			onlyInFirst = a.Keys.Except(b.Keys).Select(key => Label(a[key])).Order(StringComparer.Ordinal).ToList(),
-			onlyInSecond = b.Keys.Except(a.Keys).Select(key => Label(b[key])).Order(StringComparer.Ordinal).ToList(),
+			onlyInFirst = a.Keys.Except(b.Keys, StringComparer.Ordinal).Select(key => Label(a[key])).Order(StringComparer.Ordinal).ToList(),
+			onlyInSecond = b.Keys.Except(a.Keys, StringComparer.Ordinal).Select(key => Label(b[key])).Order(StringComparer.Ordinal).ToList(),
 			changed,
-			same = a.Keys.Intersect(b.Keys).Count() - changed.Count
+			same = a.Keys.Intersect(b.Keys, StringComparer.Ordinal).Count() - changed.Count
 		};
 	}
 
@@ -81,7 +81,7 @@ internal static class StyleDiff
 		Dictionary<string, JsonElement> styles = new(StringComparer.Ordinal);
 
 		foreach (JsonElement style in document.GetProperty("styles").EnumerateArray())
-			styles.TryAdd(Label(style), style);
+			_ = styles.TryAdd(Label(style), style);
 
 		return styles;
 	}

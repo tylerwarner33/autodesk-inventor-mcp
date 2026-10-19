@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Text;
 
 using Interop.UIAutomationClient;
 
@@ -330,7 +329,7 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 		return content;
 	}
 
-	private void Walk(IUIAutomationTreeWalker walker, IUIAutomationElement parent, IntPtr dialog, int parentType, DialogContent content, HashSet<IntPtr> seenHandles, int depth)
+	private static void Walk(IUIAutomationTreeWalker walker, IUIAutomationElement parent, IntPtr dialog, int parentType, DialogContent content, HashSet<IntPtr> seenHandles, int depth)
 	{
 		const int maxDepth = 40;
 
@@ -420,7 +419,7 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	{
 		List<IntPtr> children = [];
 
-		_ = EnumChildWindows(parent, (child, parameter) =>
+		_ = EnumChildWindows(parent, (child, _) =>
 		{
 			children.Add(child);
 			return true;
@@ -497,11 +496,10 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	{
 		List<WindowInfo> windows = [];
 
-		_ = EnumWindows((handle, parameter) =>
+		_ = EnumWindows((handle, _) =>
 		{
-			_ = GetWindowThreadProcessId(handle, out uint owner);
-
-			if (owner == processId && IsWindowVisible(handle))
+			// The call returns 0 when it fails, and then owner is not read.
+			if (GetWindowThreadProcessId(handle, out uint owner) != 0 && owner == processId && IsWindowVisible(handle))
 				windows.Add(new WindowInfo(handle, GetClassName(handle), GetTitle(handle), IsWindowEnabled(handle)));
 
 			return true;
@@ -516,18 +514,18 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	/// </remarks>
 	private static string GetTitle(IntPtr handle)
 	{
-		StringBuilder title = new(1024);
-		_ = GetWindowText(handle, title, title.Capacity);
+		char[] title = new char[1024];
+		int length = GetWindowText(handle, title, title.Length);
 
-		return title.ToString();
+		return new string(title, 0, Math.Max(length, 0));
 	}
 
 	private static string GetClassName(IntPtr handle)
 	{
-		StringBuilder className = new(256);
-		_ = GetClassName(handle, className, className.Capacity);
+		char[] className = new char[256];
+		int length = GetClassNameW(handle, className, className.Length);
 
-		return className.ToString();
+		return new string(className, 0, Math.Max(length, 0));
 	}
 
 	private sealed record WindowInfo(IntPtr Handle, string ClassName, string Title, bool Enabled);
@@ -594,8 +592,8 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	private static extern bool IsWindowEnabled(IntPtr window);
 
 	[DllImport("user32.dll", EntryPoint = "GetWindowTextW", CharSet = CharSet.Unicode)]
-	private static extern int GetWindowText(IntPtr window, StringBuilder text, int maxCount);
+	private static extern int GetWindowText(IntPtr window, [Out] char[] text, int maxCount);
 
-	[DllImport("user32.dll", EntryPoint = "GetClassNameW", CharSet = CharSet.Unicode)]
-	private static extern int GetClassName(IntPtr window, StringBuilder className, int maxCount);
+	[DllImport("user32.dll", CharSet = CharSet.Unicode)]
+	private static extern int GetClassNameW(IntPtr window, [Out] char[] className, int maxCount);
 }

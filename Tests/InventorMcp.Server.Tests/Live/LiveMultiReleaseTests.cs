@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using InventorMcp.Contracts;
 using InventorMcp.Contracts.Models;
 using InventorMcp.Server.Bridge;
@@ -14,7 +16,7 @@ namespace InventorMcp.Server.Tests.Live;
 [Trait("Level", "Live")]
 public sealed class LiveMultiReleaseTests
 {
-	private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+	private static CancellationToken _cancellation => TestContext.Current.CancellationToken;
 
 	[Fact]
 	public async Task EachReleaseAnswersWithItsOwnYearAndProcess()
@@ -31,12 +33,12 @@ public sealed class LiveMultiReleaseTests
 		{
 			await using BridgeClient client = LiveInventor.CreateClient(year);
 
-			SessionInfo session = await client.InvokeAsync<SessionInfo>(BridgeOperations.Session, null, Cancellation);
+			SessionInfo session = await client.InvokeAsync<SessionInfo>(BridgeOperations.Session, null, _cancellation);
 
 			Assert.Equal(year, session.ReleaseYear);
 			Assert.Equal(year, client.ReleaseYear);
-			Assert.NotNull(client.InventorProcessId);
-			Assert.True(processIds.Add(client.InventorProcessId!.Value), "Two releases answered from one process.");
+			int processId = Assert.NotNull(client.InventorProcessId);
+			Assert.True(processIds.Add(processId), "Two releases answered from one process.");
 		}
 	}
 
@@ -53,9 +55,9 @@ public sealed class LiveMultiReleaseTests
 		await using BridgeClient client = LiveInventor.CreateClient(missing);
 
 		InventorBridgeException exception = await Assert.ThrowsAsync<InventorBridgeException>(
-			() => client.InvokeAsync<SessionInfo>(BridgeOperations.Session, null, Cancellation));
+			() => client.InvokeAsync<SessionInfo>(BridgeOperations.Session, null, _cancellation));
 
 		Assert.Equal(BridgeErrorCodes.NotRunning, exception.Code);
-		Assert.Contains(missing.ToString()!, exception.Message);
+		Assert.Contains(missing.Value.ToString(CultureInfo.InvariantCulture), exception.Message);
 	}
 }

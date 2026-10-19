@@ -13,7 +13,7 @@ public sealed class BlockingDialogsTests
 {
 	private static readonly TimeSpan _exitTimeout = TimeSpan.FromSeconds(5);
 
-	private readonly BlockingDialogs _detector = new(DialogFixture.IsMainWindow);
+	private readonly BlockingDialogs _detector = new((_, title) => DialogFixture.IsMainWindow(title));
 
 	[Fact]
 	public async Task NoDialogIsNotBlocked()
@@ -231,7 +231,7 @@ public sealed class BlockingDialogsTests
 	{
 		using DialogFixture fixture = await DialogFixture.StartAsync("ok");
 		DialogSnapshot dialog = Assert.Single(_detector.Detect(fixture.ProcessId).Dialogs);
-		BlockingDialogs second = new(DialogFixture.IsMainWindow);
+		BlockingDialogs second = new((_, title) => DialogFixture.IsMainWindow(title));
 
 		ClickOutcome[] outcomes = await Task.WhenAll(
 			Task.Run(() => _detector.TryClick(fixture.ProcessId, dialog, "OK"), TestContext.Current.CancellationToken),

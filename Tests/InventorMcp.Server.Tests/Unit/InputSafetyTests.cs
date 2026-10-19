@@ -17,11 +17,11 @@ public sealed class InputSafetyTests
 	public async Task TestCopyRefusesAPrefixWithPathCharacters(string prefix)
 	{
 		string source = Path.Combine(Path.GetTempPath(), $"InventorMcp.Tests.{Guid.NewGuid():N}.ipt");
-		File.WriteAllText(source, string.Empty);
+		await File.WriteAllTextAsync(source, string.Empty, TestContext.Current.CancellationToken);
 
 		try
 		{
-			object result = await InventorTool.TestCopy([source], Path.Combine(Path.GetTempPath(), "InventorMcp.Tests.Target"), prefix: prefix, cancellationToken: TestContext.Current.CancellationToken);
+			object result = await InventorTool.TestCopyAsync([source], Path.Combine(Path.GetTempPath(), "InventorMcp.Tests.Target"), prefix: prefix, cancellationToken: TestContext.Current.CancellationToken);
 			JsonElement json = JsonSerializer.SerializeToElement(result);
 
 			Assert.Equal("invalid-arguments", json.GetProperty("error").GetString());
@@ -37,11 +37,11 @@ public sealed class InputSafetyTests
 	public async Task TestCopyRefusesARelativeSourceFolder()
 	{
 		string source = Path.Combine(Path.GetTempPath(), $"InventorMcp.Tests.{Guid.NewGuid():N}.ipt");
-		File.WriteAllText(source, string.Empty);
+		await File.WriteAllTextAsync(source, string.Empty, TestContext.Current.CancellationToken);
 
 		try
 		{
-			object result = await InventorTool.TestCopy([source], Path.Combine(Path.GetTempPath(), "InventorMcp.Tests.Target"), sourceFolder: "Designs", cancellationToken: TestContext.Current.CancellationToken);
+			object result = await InventorTool.TestCopyAsync([source], Path.Combine(Path.GetTempPath(), "InventorMcp.Tests.Target"), sourceFolder: "Designs", cancellationToken: TestContext.Current.CancellationToken);
 
 			Assert.Equal("invalid-arguments", JsonSerializer.SerializeToElement(result).GetProperty("error").GetString());
 		}
@@ -58,7 +58,7 @@ public sealed class InputSafetyTests
 	public async Task AutoBalloonRefusesAnUnknownSide(string sides)
 	{
 		string[] sideList = sides.Split(',', StringSplitOptions.RemoveEmptyEntries);
-		object result = await InventorTool.AutoBalloon(null!, "VIEW1", sides: sideList, cancellationToken: TestContext.Current.CancellationToken);
+		object result = await InventorTool.AutoBalloonAsync(null!, "VIEW1", sides: sideList, cancellationToken: TestContext.Current.CancellationToken);
 		JsonElement json = JsonSerializer.SerializeToElement(result);
 
 		Assert.Equal("invalid-arguments", json.GetProperty("error").GetString());
@@ -72,7 +72,7 @@ public sealed class InputSafetyTests
 	[InlineData("VIEW1", null, null, -0.5)]
 	public async Task AutoBalloonRefusesInvalidArguments(string viewName, string? drawingPath, double? spacingInches, double? offsetInches)
 	{
-		object result = await InventorTool.AutoBalloon(null!, viewName, drawingPath, spacingInches: spacingInches, offsetInches: offsetInches, cancellationToken: TestContext.Current.CancellationToken);
+		object result = await InventorTool.AutoBalloonAsync(null!, viewName, drawingPath, spacingInches: spacingInches, offsetInches: offsetInches, cancellationToken: TestContext.Current.CancellationToken);
 
 		Assert.Equal("invalid-arguments", JsonSerializer.SerializeToElement(result).GetProperty("error").GetString());
 	}

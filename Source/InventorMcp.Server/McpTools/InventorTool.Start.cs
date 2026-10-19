@@ -57,7 +57,7 @@ internal static partial class InventorTool
 		On success, call inventor_session to confirm the session. Inventor can still be at a sign-in or recovery dialog.
 		On still-starting or inventor-starting-or-no-bridge, wait with inventor_session and waitSeconds.
 		""")]
-	public static async Task<object> Start(
+	public static async Task<object> StartAsync(
 		BridgeClient bridge,
 		ReleaseSelection selection,
 		InventorInstallations installations,
@@ -83,6 +83,7 @@ internal static partial class InventorTool
 				}
 				catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
 				{
+					// The release stopped since the pipe check, so it is started below.
 				}
 				catch (InventorBridgeException exception)
 				{
@@ -98,6 +99,7 @@ internal static partial class InventorTool
 			}
 			catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
 			{
+				// No session runs, so one is started below.
 			}
 			catch (InventorBridgeException exception)
 			{
@@ -174,7 +176,7 @@ internal static partial class InventorTool
 		else if (CanAskUser(context.Server))
 		{
 			throw new InputRequiredException(
-				new Dictionary<string, InputRequest> { [_releaseField] = InputRequest.ForElicitation(ChooseReleaseForm(deployed)) },
+				new Dictionary<string, InputRequest>(StringComparer.Ordinal) { [_releaseField] = InputRequest.ForElicitation(ChooseReleaseForm(deployed)) },
 				_chooseReleaseState);
 		}
 		else
@@ -326,7 +328,7 @@ internal static partial class InventorTool
 		Message = "More than one Inventor release can host the MCP bridge. Which release should start?",
 		RequestedSchema = new ElicitRequestParams.RequestSchema
 		{
-			Properties = new Dictionary<string, ElicitRequestParams.PrimitiveSchemaDefinition>
+			Properties = new Dictionary<string, ElicitRequestParams.PrimitiveSchemaDefinition>(StringComparer.Ordinal)
 			{
 				[_releaseField] = new ElicitRequestParams.TitledSingleSelectEnumSchema
 				{

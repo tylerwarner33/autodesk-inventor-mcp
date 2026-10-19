@@ -8,7 +8,7 @@ namespace InventorMcp.AddIn.Operations;
 
 internal sealed partial class InventorOperations
 {
-	private IReadOnlyList<DocumentProperty> GetProperties(PropertiesRequest request)
+	private List<DocumentProperty> GetProperties(PropertiesRequest request)
 	{
 		Document document = ResolveDocument(request.DocumentName);
 		PropertySets sets = document.PropertySets;

@@ -17,7 +17,7 @@ namespace InventorMcp.AddIn.Loader;
 [ComVisible(true)]
 public sealed class IsolatedAddInServerProxy : ApplicationAddInServer
 {
-	private const string AddInServerTypeFullName = "InventorMcp.AddIn.StandardAddInServer";
+	private const string _addInServerTypeFullName = "InventorMcp.AddIn.StandardAddInServer";
 
 	private ApplicationAddInServer? _isolatedServer;
 
@@ -39,7 +39,7 @@ public sealed class IsolatedAddInServerProxy : ApplicationAddInServer
 	{
 		try
 		{
-			_isolatedServer = (ApplicationAddInServer)AddInLoadContext.CreateIsolatedInstance(AddInServerTypeFullName);
+			_isolatedServer = (ApplicationAddInServer)AddInLoadContext.CreateIsolatedInstance(_addInServerTypeFullName);
 		}
 		catch (Exception exception)
 		{

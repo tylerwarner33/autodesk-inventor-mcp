@@ -16,7 +16,7 @@ internal static partial class InventorTool
 {
 	[McpServerTool(Name = "inventor_parameters")]
 	[Description("Reads the parameters of an open part or assembly. Each parameter reports its kind, expression, display value, and internal value. Inventor stores lengths in centimetres and angles in radians, so always read internalValue with its units in mind. A text or boolean parameter has no internal value.")]
-	public static Task<object> Parameters(
+	public static Task<object> ParametersAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
 		[Description("Return only parameters whose name contains this text. Omit for all.")] string? nameFilter = null,
@@ -28,7 +28,7 @@ internal static partial class InventorTool
 
 	[McpServerTool(Name = "inventor_set_parameter")]
 	[Description("Sets one parameter and rebuilds the document. This changes the user's model. The accessor used depends on the parameter's kind: a numeric parameter takes an expression such as '50 mm', a text parameter takes plain text, and a boolean parameter takes 'true' or 'false'. Check the kind with inventor_parameters first, and check a numeric expression with inventor_evaluate_expression.")]
-	public static Task<object> SetParameter(
+	public static Task<object> SetParameterAsync(
 		BridgeClient bridge,
 		[Description("Parameter name.")] string name,
 		[Description("New value. For a numeric parameter this is an expression, ex. '50 mm' or 'Width / 2'.")] string expression,
@@ -39,7 +39,7 @@ internal static partial class InventorTool
 			// The same snippet as inventor_set_parameters, because the add-in operation cannot turn the rules off.
 			? SafeAsync(async () => await RunJsonSnippetAsync(
 				bridge,
-				ComposeSetParametersSnippet(new Dictionary<string, string> { [name] = expression }, documentName, suppressRules: true, runRuleAfter: null, createIfMissing: false, allowUnsavedChanges: true),
+				ComposeSetParametersSnippet(new Dictionary<string, string>(StringComparer.Ordinal) { [name] = expression }, documentName, suppressRules: true, runRuleAfter: null, createIfMissing: false, allowUnsavedChanges: true),
 				cancellationToken).ConfigureAwait(false))
 			: SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ParameterInfo>(
 				BridgeOperations.SetParameter,
@@ -48,7 +48,7 @@ internal static partial class InventorTool
 
 	[McpServerTool(Name = "inventor_evaluate_expression")]
 	[Description("Asks Inventor what an expression evaluates to, without writing it anywhere. Reports validity, the internal value, the display value, and which parameters the expression reads. Use this to check an expression before calling inventor_set_parameter.")]
-	public static Task<object> EvaluateExpression(
+	public static Task<object> EvaluateExpressionAsync(
 		BridgeClient bridge,
 		[Description("Expression to evaluate, ex. 'Width / 2 + 10 mm'.")] string expression,
 		[Description("Units to parse the expression in, ex. 'mm'. Omit to use the document's default length units.")] string? units = null,
@@ -61,7 +61,7 @@ internal static partial class InventorTool
 
 	[McpServerTool(Name = "inventor_properties")]
 	[Description("Reads the iProperties of an open document, optionally limited to one property set such as 'Design Tracking Properties'.")]
-	public static Task<object> Properties(
+	public static Task<object> PropertiesAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
 		[Description("Limit the result to one property set. Omit for all sets.")] string? setName = null,
@@ -73,7 +73,7 @@ internal static partial class InventorTool
 
 	[McpServerTool(Name = "inventor_set_property")]
 	[Description("Sets one iProperty value. This changes the user's document.")]
-	public static Task<object> SetProperty(
+	public static Task<object> SetPropertyAsync(
 		BridgeClient bridge,
 		[Description("Property set holding the property, ex. 'Design Tracking Properties'.")] string setName,
 		[Description("Property display name, ex. 'Part Number'.")] string name,
@@ -87,7 +87,7 @@ internal static partial class InventorTool
 
 	[McpServerTool(Name = "inventor_health")]
 	[Description("Reports whether a document needs a rebuild, which features are sick and why, and what the Inventor error manager is holding. Use this to debug automation that is producing bad geometry. If a modal dialog blocks Inventor, it returns blocked-by-dialog at once, with the dialog.")]
-	public static Task<object> Health(
+	public static Task<object> HealthAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
 		[Description("Also list sick features that are suppressed. Default false, because a suppressed feature is usually suppressed on purpose.")] bool includeSuppressed = false,
@@ -156,7 +156,7 @@ internal static partial class InventorTool
 
 	[McpServerTool(Name = "inventor_update")]
 	[Description("Rebuilds a document. This changes the user's model and can take a long time on a large assembly.")]
-	public static Task<object> Update(
+	public static Task<object> UpdateAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
 		[Description("True performs a full rebuild that continues past failing features. Default false.")] bool full = false,

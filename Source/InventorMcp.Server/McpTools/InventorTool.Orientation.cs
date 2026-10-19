@@ -78,7 +78,7 @@ internal static partial class InventorTool
 
 		The user's view is changed briefly and then restored. The model itself is not modified.
 		""")]
-	public static Task<object> Orientation(
+	public static Task<object> OrientationAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
 		CancellationToken cancellationToken = default) =>

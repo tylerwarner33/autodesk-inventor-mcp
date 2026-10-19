@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
 
@@ -34,7 +35,7 @@ internal static class Program
 		}
 
 		string mode = args[0];
-		int? closeAfter = args.Length >= 3 && args[1] == "--close-after" ? int.Parse(args[2]) : null;
+		int? closeAfter = args.Length >= 3 && args[1] == "--close-after" ? int.Parse(args[2], CultureInfo.InvariantCulture) : null;
 
 		WinForms.Application.EnableVisualStyles();
 

@@ -57,7 +57,7 @@ internal static partial class InventorTool
 		- TryGetUserParameter(document, name, out UserParameter parameter).
 		- StartDeadline(seconds = 8) returns a guard for a loop: if (deadline.Passed) break;
 		""")]
-	public static Task<object> EvaluateCSharp(
+	public static Task<object> EvaluateCSharpAsync(
 		BridgeClient bridge,
 		ApiReferenceService apiReference,
 		[Description("The C# snippet to run.")] string code,
@@ -117,7 +117,7 @@ internal static partial class InventorTool
 		{
 			target = $"'{document.GetProperty("name").GetString()}' isModifiable={document.GetProperty("isModifiable").GetBoolean()}, " +
 				$"readOnlyFile={document.GetProperty("readOnlyFile").GetBoolean()}, " +
-				$"library={(document.GetProperty("library").GetString() ?? "none")}";
+				$"library={document.GetProperty("library").GetString() ?? "none"}";
 		}
 
 		string context = $"CONTEXT: this COM error gives no cause. The target document: {target}. " +
@@ -198,7 +198,7 @@ internal static partial class InventorTool
 		Give ruleName instead of code to run a rule that the document already has. Nothing can stop a rule that runs
 		on the main thread, so a long rule can only be reported after it returns.
 		""")]
-	public static Task<object> RunILogic(
+	public static Task<object> RunILogicAsync(
 		BridgeClient bridge,
 		[Description("The iLogic rule body, in VB.NET. Omit when ruleName is given.")] string? code = null,
 		[Description("Display name or full path of an open document. Omit to use the active document.")] string? documentName = null,

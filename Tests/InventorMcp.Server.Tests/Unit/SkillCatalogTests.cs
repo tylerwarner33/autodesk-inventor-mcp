@@ -92,12 +92,12 @@ public sealed partial class SkillCatalogTests
 	public void ASkillFolderWithNoSkillFileIsRefused() =>
 		Assert.Throws<InvalidOperationException>(() => new SkillCatalog(new Dictionary<string, string> { ["sample/notes.md"] = "Notes" }));
 
-	[GeneratedRegex(@"\binventor_[a-z_]+[a-z]\b", RegexOptions.CultureInvariant)]
+	[GeneratedRegex(@"\binventor_[a-z_]+[a-z]\b", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
 	private static partial Regex ToolName();
 
 	/// <summary>
 	/// 	The way a skill names another, ex. "the `ilogic` skill".
 	/// </summary>
-	[GeneratedRegex(@"the `(?<name>[a-z0-9-]+)` skill", RegexOptions.CultureInvariant)]
+	[GeneratedRegex(@"the `(?<name>[a-z0-9-]+)` skill", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
 	private static partial Regex SkillReference();
 }

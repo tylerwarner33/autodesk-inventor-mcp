@@ -35,7 +35,7 @@ internal sealed class DialogFixture : IDisposable
 	/// <summary>
 	/// 	Tests the fixture main window, for <see cref="Services.BlockingDialogs"/>.
 	/// </summary>
-	public static bool IsMainWindow(string className, string title) => title == MainWindowTitle;
+	public static bool IsMainWindow(string title) => title == MainWindowTitle;
 
 	/// <summary>
 	/// 	Starts the fixture and waits until its dialog is visible.

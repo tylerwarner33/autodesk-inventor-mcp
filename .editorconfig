@@ -12,7 +12,7 @@ indent_style = tab
 tab_width = 3
 
 # New line preferences
-end_of_line = crlf
+end_of_line = lf
 insert_final_newline = false
 
 #### .NET Code Actions ####
@@ -64,7 +64,7 @@ dotnet_style_prefer_auto_properties = true
 dotnet_style_prefer_collection_expression = when_types_loosely_match
 dotnet_style_prefer_compound_assignment = true
 dotnet_style_prefer_conditional_expression_over_assignment = true
-dotnet_style_prefer_conditional_expression_over_return = true
+dotnet_style_prefer_conditional_expression_over_return = false
 dotnet_style_prefer_foreach_explicit_cast_in_source = when_strongly_typed
 dotnet_style_prefer_inferred_anonymous_type_member_names = true
 dotnet_style_prefer_inferred_tuple_names = true
@@ -99,7 +99,7 @@ csharp_style_expression_bodied_constructors = false
 csharp_style_expression_bodied_indexers = true
 csharp_style_expression_bodied_lambdas = true
 csharp_style_expression_bodied_local_functions = false
-csharp_style_expression_bodied_methods = false
+csharp_style_expression_bodied_methods = when_on_single_line
 csharp_style_expression_bodied_operators = false
 csharp_style_expression_bodied_properties = true
 
@@ -122,7 +122,7 @@ csharp_style_prefer_readonly_struct = true
 csharp_style_prefer_readonly_struct_member = true
 
 # Code-block preferences
-csharp_prefer_braces = true
+csharp_prefer_braces = when_multiline
 csharp_prefer_simple_using_statement = true
 csharp_prefer_system_threading_lock = true
 csharp_style_namespace_declarations = file_scoped
@@ -209,23 +209,23 @@ csharp_preserve_single_line_statements = true
 
 # Naming rules
 
-dotnet_naming_rule.interface_should_be_begins_with_i.severity = suggestion
+dotnet_naming_rule.interface_should_be_begins_with_i.severity = warning
 dotnet_naming_rule.interface_should_be_begins_with_i.symbols = interface
 dotnet_naming_rule.interface_should_be_begins_with_i.style = begins_with_i
 
-dotnet_naming_rule.private_or_internal_property_should_be_begins_with__.severity = suggestion
+dotnet_naming_rule.private_or_internal_property_should_be_begins_with__.severity = warning
 dotnet_naming_rule.private_or_internal_property_should_be_begins_with__.symbols = private_or_internal_property
 dotnet_naming_rule.private_or_internal_property_should_be_begins_with__.style = begins_with__
 
-dotnet_naming_rule.private_or_internal_field_should_be_begins_with__.severity = suggestion
+dotnet_naming_rule.private_or_internal_field_should_be_begins_with__.severity = warning
 dotnet_naming_rule.private_or_internal_field_should_be_begins_with__.symbols = private_or_internal_field
 dotnet_naming_rule.private_or_internal_field_should_be_begins_with__.style = begins_with__
 
-dotnet_naming_rule.types_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.types_should_be_pascal_case.severity = warning
 dotnet_naming_rule.types_should_be_pascal_case.symbols = types
 dotnet_naming_rule.types_should_be_pascal_case.style = pascal_case
 
-dotnet_naming_rule.non_field_members_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.non_field_members_should_be_pascal_case.severity = warning
 dotnet_naming_rule.non_field_members_should_be_pascal_case.symbols = non_field_members
 dotnet_naming_rule.non_field_members_should_be_pascal_case.style = pascal_case
 
@@ -267,3 +267,88 @@ dotnet_naming_style.begins_with__.required_prefix = _
 dotnet_naming_style.begins_with__.required_suffix = 
 dotnet_naming_style.begins_with__.word_separator = 
 dotnet_naming_style.begins_with__.capitalization = camel_case
+
+#### Build enforcement ####
+
+# EnforceCodeStyleInBuild runs these rules in dotnet build, and TreatWarningsAsErrors makes each warning an error.
+# Add a style rule here only when the code already meets it. See Docs/Architecture.md, "The build enforces the code rules".
+
+# Style rules the code meets
+dotnet_diagnostic.IDE0008.severity = warning
+dotnet_diagnostic.IDE0011.severity = warning
+dotnet_diagnostic.IDE0036.severity = warning
+dotnet_diagnostic.IDE0040.severity = warning
+dotnet_diagnostic.IDE0041.severity = warning
+dotnet_diagnostic.IDE0044.severity = warning
+dotnet_diagnostic.IDE0065.severity = warning
+dotnet_diagnostic.IDE0083.severity = warning
+dotnet_diagnostic.IDE0161.severity = warning
+dotnet_diagnostic.IDE1006.severity = warning
+dotnet_diagnostic.IDE0058.severity = warning
+dotnet_diagnostic.IDE0290.severity = warning
+
+# Formatting, also the line endings that .gitattributes keeps LF on every machine. A doc comment can have a tab after '///'.
+dotnet_diagnostic.IDE0055.severity = warning
+
+# Rules that are off or info by default, and that the code meets
+dotnet_diagnostic.CA1848.severity = warning
+dotnet_diagnostic.CA1859.severity = warning
+dotnet_diagnostic.CA1873.severity = warning
+dotnet_diagnostic.MA0137.severity = warning
+
+# Roslynator's rules are off or info until set. These lines make each one a warning, so a new rule is enforced too.
+roslynator_analyzers.enabled_by_default = true
+dotnet_analyzer_diagnostic.category-roslynator.severity = warning
+
+# These report 'x is false' as redundant, and 'x is false' is the preferred form here
+dotnet_diagnostic.IDE0100.severity = none
+dotnet_diagnostic.RCS1049.severity = none
+dotnet_diagnostic.S1125.severity = none
+
+# A chain of ?: that reads as a list of cases is a form this code uses
+dotnet_diagnostic.RCS1238.severity = none
+dotnet_diagnostic.S3358.severity = none
+
+# An interpolated string is the form this code uses for text, also for a part with no value in it
+dotnet_diagnostic.RCS1217.severity = none
+
+# A // comment on a private member says why, which is not documentation for a caller
+dotnet_diagnostic.RCS1181.severity = none
+
+# No enum is stored or sent as a number, so its values carry no meaning
+dotnet_diagnostic.RCS1161.severity = none
+
+# A foreach with an early return is a form this code uses, and the reflection loops read alike
+dotnet_diagnostic.S3267.severity = none
+
+# Each exception is internal, and is thrown and caught in its own assembly with one constructor
+dotnet_diagnostic.RCS1194.severity = none
+dotnet_diagnostic.S3871.severity = none
+
+# ConfigureAwait: the server has no SynchronizationContext, and in the add-in the context can be Inventor's main thread
+dotnet_diagnostic.MA0004.severity = none
+
+# The == operator on strings is already ordinal
+dotnet_diagnostic.MA0006.severity = none
+
+# A partial class is split over files named Type.Part.cs
+dotnet_diagnostic.MA0048.severity = none
+
+# Method length is for review, not for the build: split a long method when a change to it needs a live Inventor test anyway
+dotnet_diagnostic.MA0051.severity = suggestion
+
+# Inventor's add-in contract: the interop names the parameters, and Deactivate, not Dispose, ends the lifetime
+[{Source/InventorMcp.AddIn/StandardAddInServer.cs,Source/InventorMcp.AddIn.Loader/IsolatedAddInServerProxy.cs}]
+dotnet_diagnostic.CA1001.severity = none
+dotnet_diagnostic.CA1725.severity = none
+dotnet_diagnostic.RCS1168.severity = none
+dotnet_diagnostic.S927.severity = none
+
+[Tests/**/*.cs]
+
+# xUnit names a collection definition '...Collection', and finds it by its class, which must not be static
+dotnet_diagnostic.CA1711.severity = none
+dotnet_diagnostic.S1118.severity = none
+
+# A comparer on an assertion or a test dictionary adds noise and no safety
+dotnet_diagnostic.MA0002.severity = none

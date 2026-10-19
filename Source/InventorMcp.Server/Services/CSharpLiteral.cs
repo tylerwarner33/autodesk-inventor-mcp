@@ -77,6 +77,6 @@ internal static class CSharpLiteral
 			JsonValueKind.Null or JsonValueKind.Undefined => "null",
 			JsonValueKind.Number when value.TryGetInt64(out long integer) => $"{integer.ToString(CultureInfo.InvariantCulture)}L",
 			JsonValueKind.Number => $"{value.GetDouble().ToString("R", CultureInfo.InvariantCulture)}d",
-			_ => throw new ArgumentException($"Only strings, numbers, booleans and null can be passed, not a JSON {value.ValueKind}."),
+			_ => throw new ArgumentException($"Only strings, numbers, booleans and null can be passed, not a JSON {value.ValueKind}.", nameof(value)),
 		};
 }

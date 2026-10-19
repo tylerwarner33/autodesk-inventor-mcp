@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using InventorMcp.Server.Bridge;
 using InventorMcp.Server.McpTools;
 using InventorMcp.Server.Services;
@@ -24,6 +26,7 @@ Log.Logger = new LoggerConfiguration()
 	// the files of the same day.
 	.WriteTo.File(
 		Path.Combine(logDirectory, "server-.log"),
+		formatProvider: CultureInfo.InvariantCulture,
 		rollingInterval: RollingInterval.Day,
 		retainedFileCountLimit: null,
 		retainedFileTimeLimit: TimeSpan.FromDays(14))

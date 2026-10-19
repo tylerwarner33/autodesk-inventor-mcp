@@ -421,6 +421,88 @@ Then:
 Keep the vendored interop per release and keep the loader.
 `UseInventorAssemblyContext` is an Inventor 2027 feature, not a runtime feature, so 2025 and 2026 still ignore it.
 
+### The build enforces the code rules
+
+A coding agent reads the output of `dotnet build`, not the rule files. A rule that the build enforces is obeyed
+every time, because the agent sees the error and fixes it before a person reads the diff. A rule that is only in a
+document is skipped when the agent's context is full. So each rule that a tool can check is a build error:
+
+- `Directory.Build.props` sets `AnalysisLevel` to `latest`, `AnalysisMode` to `Recommended`, and
+	`EnforceCodeStyleInBuild`. `TreatWarningsAsErrors` makes each warning an error.
+- `.editorconfig` sets the severity of each rule. It gives a style rule the severity `warning` only when the code
+	already obeys it, so the build stays clean and the rule stops new drift.
+- `Directory.Packages.props` adds `Meziantou.Analyzer`, `Roslynator.Analyzers` and `SonarAnalyzer.CSharp` to every
+	project as a `GlobalPackageReference`. That is build time only, so no analyzer assembly reaches an output folder,
+	which matters for the add-in loader. `.editorconfig` makes every Roslynator rule a warning, because its rules are
+	off or `info` until set, and a rule that a new version adds is then enforced too.
+
+Measured on 2026-10-18 with the code as it was then, as unique findings:
+
+| Setting | Findings | Decision |
+| --- | --- | --- |
+| `AnalysisMode` `Recommended` | 40 | Used. All fixed or set per file with a reason. |
+| `AnalysisMode` `All` | about 270 | Not used. Most are CA2007 (`ConfigureAwait`), CA1307, CA5392 and CA1031. |
+| Every style rule at `warning` | 2,184 | Only the rules with 0 findings, after the fixes below. |
+| `Meziantou.Analyzer` | 162 | Used, with 4 rules off or lowered. 42 findings fixed. |
+| `SonarAnalyzer.CSharp` | 141 | Used, with 6 rules off. 105 are S1125. 18 findings fixed, 4 suppressed on the line. |
+
+Measured on 2026-10-19, with every Roslynator rule a warning:
+
+| Setting | Findings | Decision |
+| --- | --- | --- |
+| `Roslynator.Analyzers` | 139 | Used, with 7 rules off. 105 are RCS1049. 11 findings fixed. |
+
+Rules that are wrong for this code, and why:
+
+- CA2007 and MA0004 (`ConfigureAwait(false)`): the server has no `SynchronizationContext`, so the call does
+	nothing there. In the add-in, the context can be Inventor's main thread, where the COM calls must run.
+- CA1031 (a catch of `Exception`): every bridge handler and COM boundary must catch all, or one failure ends
+	Inventor. It is only in `All`.
+- IDE0100, RCS1049 and S1125: all report `x is false` as redundant.
+- RCS1238 and S3358 (nested `?:`), RCS1217 (an interpolated string with no value in it), S3267 (a loop that LINQ
+	could replace): each reports a form that this code uses.
+- RCS1181: it makes a `//` comment on a private member into a doc comment. That comment says why, for a maintainer.
+- RCS1161 (explicit enum values): no enum is stored or sent as a number.
+- RCS1194 and S3871 (exception constructors, a public exception): each exception is internal, and is thrown and
+	caught in its own assembly.
+- MA0048 (one type for each file): `InventorTool` is one `partial` class over files named `InventorTool.<Part>.cs`.
+- CA1725, RCS1168, S927 and CA1001 in `StandardAddInServer` and `IsolatedAddInServerProxy`: the interop names the
+	parameters of `ApplicationAddInServer`, and Inventor ends the lifetime with `Deactivate`, not `Dispose`.
+- S1118 in the tests: xUnit finds a collection definition by its class, which must not be static.
+
+Each suppression on one statement has its reason on the line above: `GC.Collect` when the add-in unloads (S1215),
+`DangerousGetHandle` for a Win32 call (S3869), and a log of a bridge error with no stack trace (S6667).
+
+The analyzers found real defects: a cancellation registration that `MainThreadDispatcher.InvokeAsync` disposed as
+it returned, before the work ran (MA0100), regular expressions with no match timeout (MA0009), parsing that used
+the culture of the machine (CA1305, MA0011), and `StringBuilder` buffers in P/Invoke signatures (CA1838).
+Sonar and Roslynator found smaller ones: a window owner read after a failed `GetWindowThreadProcessId` call, a
+cancelled task that did not record its token (S8949), a registration disposed without a wait for its callback
+(RCS1261), and an `InventorOperations` field that no code read (S1144).
+
+Three `.editorconfig` options did not match the code, and now follow it. The code uses braces only for a statement on
+more than one line (250 findings with `true`, 1 with `when_multiline`). It uses an expression body for a method on
+one line (177 findings with `false`, 6 with `when_on_single_line`). IDE0022 stays a suggestion, so both bodies are
+allowed. It keeps an `if` with an early return, and does not make it a `?:` (21 findings for IDE0046 with
+`dotnet_style_prefer_conditional_expression_over_return = true`). The rule for private names did not change: a field
+or a property that is not public starts with `_`. The code had 11 names that did not obey it, and they were renamed.
+
+Measured on 2026-10-19, and done in the same change:
+
+| Rule | Findings | Decision |
+| --- | --- | --- |
+| CA1848, CA1873 (`[LoggerMessage]`) | 21 | Fixed. Each class logs through generated methods in its `<Type>.Log.cs` file. |
+| MA0137 (`Async` suffix) | 34 | Fixed. Every tool sets `Name` on `[McpServerTool]`, so no tool name changed. |
+| IDE0290 (primary constructor) | 4 | Fixed. |
+| IDE0058 (an unused value) | 10 | Fixed with `_ =`, as the code does elsewhere. |
+| CA1859 (a concrete return type) | 2 | Fixed. The two operation methods return `List<T>`. |
+| IDE0055 (formatting) | 2,358 | Used. Every finding was a line ending: `.editorconfig` asked for `crlf`, and a file that a tool wrote after the checkout kept `lf`, so the result depended on the machine. `.gitattributes` now sets `eol=lf` for every checkout and `.editorconfig` asks for `lf`, which left 0 findings. The rule does not check the space or the tab after `///`. |
+| MA0051 (method over 60 lines) | 17 | A suggestion. Most of the long methods are tools that only a live Inventor session can test, so a split is done when a change to that method is tested anyway. |
+
+Not used: NuGet lock files (`RestorePackagesWithLockFile`). The add-in's target framework changes with
+`AutodeskVersion`, so one lock file cannot serve every release. Central package management already keeps each
+version in one file. `xunit.analyzers` is not added, because `xunit.v3` brings it.
+
 ## Behaviours worth knowing
 
 ### The activity feed is a pull, not a push

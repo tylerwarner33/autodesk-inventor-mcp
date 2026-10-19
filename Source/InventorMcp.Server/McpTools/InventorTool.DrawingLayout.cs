@@ -424,7 +424,7 @@ internal static partial class InventorTool
 		drawings rather than judging a PDF by eye. Use inventor_export_sheet_image to look at a region it flags. The
 		'drawings' skill (inventor_skill) has the facts about sheets, views, balloons and styles.
 		""")]
-	public static Task<object> DrawingLayout(
+	public static Task<object> DrawingLayoutAsync(
 		BridgeClient bridge,
 		[Description("Full path of the .idw. Omit to measure the active document, which must be a drawing.")] string? drawingPath = null,
 		[Description("Balloon diameter in inches, when the style scales to its text and the estimate is not good enough.")] double? balloonDiameterInches = null,
@@ -456,6 +456,6 @@ internal static partial class InventorTool
 			cancellationToken));
 	}
 
-	[GeneratedRegex("__[A-Z_]+__", RegexOptions.CultureInvariant)]
+	[GeneratedRegex("__[A-Z_]+__", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
 	private static partial Regex DrawingLayoutPlaceholder();
 }

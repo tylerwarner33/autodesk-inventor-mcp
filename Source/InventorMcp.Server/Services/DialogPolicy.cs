@@ -225,11 +225,11 @@ internal static partial class DialogPolicy
 	/// 	With no option read, the scope is not known, so the dialog stays open.
 	/// </remarks>
 	private static bool TrustsOnlyThisRule(IReadOnlyList<DialogOption> options) =>
-		options.Where(option => option.IsSelected).Select(option => option.Name).SequenceEqual([_trustThisRuleOption]);
+		options.Where(option => option.IsSelected).Select(option => option.Name).SequenceEqual([_trustThisRuleOption], StringComparer.Ordinal);
 
-	[GeneratedRegex(@"^Error on line \d+ in rule: ", RegexOptions.CultureInvariant)]
+	[GeneratedRegex(@"^Error on line \d+ in rule: ", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
 	private static partial Regex ILogicErrorTitle();
 
-	[GeneratedRegex(@"^Rule Compile Errors in .+, in ", RegexOptions.CultureInvariant)]
+	[GeneratedRegex(@"^Rule Compile Errors in .+, in ", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
 	private static partial Regex ILogicCompileErrorTitle();
 }

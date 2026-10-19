@@ -41,7 +41,8 @@ internal static partial class ScriptPrelude
 
 	private static readonly Regex _usesHelper = new(
 		$@"\b(?:{string.Join("|", HelperNames)})\s*\(",
-		RegexOptions.CultureInvariant | RegexOptions.Compiled);
+		RegexOptions.CultureInvariant | RegexOptions.Compiled,
+		TimeSpan.FromSeconds(1));
 
 	/// <summary>
 	/// 	True when the snippet calls a helper.
@@ -115,6 +116,6 @@ internal static partial class ScriptPrelude
 	/// 	A using directive, ex. <c>using System.IO;</c>, <c>using static System.Math;</c> or <c>using IO = System.IO;</c>.
 	/// 	Not a using statement or declaration (ex. <c>using var x = ...;</c> or <c>using (...)</c>).
 	/// </summary>
-	[GeneratedRegex(@"^using\s+(?:static\s+)?(?:\w+\s*=\s*)?[A-Za-z_][\w.]*(?:<[\w.,\s<>]+>)?\s*;$", RegexOptions.CultureInvariant)]
+	[GeneratedRegex(@"^using\s+(?:static\s+)?(?:\w+\s*=\s*)?[A-Za-z_][\w.]*(?:<[\w.,\s<>]+>)?\s*;$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
 	private static partial Regex UsingDirective();
 }
