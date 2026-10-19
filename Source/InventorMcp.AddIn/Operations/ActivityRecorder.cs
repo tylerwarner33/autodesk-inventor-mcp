@@ -14,11 +14,11 @@ namespace InventorMcp.AddIn.Operations;
 /// 	Pushing notifications would flood the model during a tight automation loop, which is the moment the feed must keep working.
 /// 	The buffer is plain managed memory, so a drain never has to wait for Inventor's main thread.
 /// </remarks>
-internal sealed class ActivityRecorder : IDisposable
+internal sealed class ActivityRecorder(Application inventor) : IDisposable
 {
 	private const int _capacity = 2000;
 
-	private readonly Application _inventor;
+	private readonly Application _inventor = inventor;
 	private readonly Lock _gate = new();
 	private readonly ActivityEntry?[] _buffer = new ActivityEntry?[_capacity];
 
@@ -28,11 +28,6 @@ internal sealed class ActivityRecorder : IDisposable
 
 	private long _nextSequence = 1;
 	private bool _disposed;
-
-	public ActivityRecorder(Application inventor)
-	{
-		_inventor = inventor;
-	}
 
 	/// <summary>
 	/// 	Subscribes to the Inventor event sets. Must be called from Inventor's main thread.

@@ -26,7 +26,7 @@ public sealed class DiagnosticHintsTests
 	{
 		ExecutionResult result = Result(false, "(1,7): warning CS8632: The annotation for nullable reference types ...");
 
-		Assert.Single(DiagnosticHints.Improve(result, _apiReference, 2026).Diagnostics);
+		_ = Assert.Single(DiagnosticHints.Improve(result, _apiReference, 2026).Diagnostics);
 	}
 
 	[Fact]
@@ -67,7 +67,7 @@ public sealed class DiagnosticHintsTests
 	{
 		ExecutionResult result = Result(false, "(1,1): error CS1061: 'MyHelper' does not contain a definition for 'Zqxwv'");
 
-		Assert.Single(DiagnosticHints.Improve(result, _apiReference, 2026).Diagnostics);
+		_ = Assert.Single(DiagnosticHints.Improve(result, _apiReference, 2026).Diagnostics);
 	}
 
 	[Theory]

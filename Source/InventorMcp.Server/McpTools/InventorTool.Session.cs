@@ -108,7 +108,7 @@ internal static partial class InventorTool
 		starts Inventor. Do not write your own wait loop in a shell (ex. a loop that lists named pipes or Inventor
 		processes). Git Bash cannot list named pipes, and a pipe name alone does not prove that Inventor is ready.
 		""")]
-	public static async Task<object> Session(
+	public static async Task<object> SessionAsync(
 		BridgeClient bridge,
 		ReleaseSelection selection,
 		IProgress<ProgressNotificationValue> progress,
@@ -185,12 +185,12 @@ internal static partial class InventorTool
 
 	[McpServerTool(Name = "inventor_documents")]
 	[Description("Lists every document open in the Inventor session, with its full path, type, unsaved state, and whether it needs a rebuild.")]
-	public static Task<object> Documents(BridgeClient bridge, CancellationToken cancellationToken) =>
+	public static Task<object> DocumentsAsync(BridgeClient bridge, CancellationToken cancellationToken) =>
 		SafeAsync(() => bridge.InvokeAsync<IReadOnlyList<Contracts.Models.DocumentInfo>>(BridgeOperations.Documents, null, cancellationToken));
 
 	[McpServerTool(Name = "inventor_assembly_tree")]
 	[Description("Walks the occurrence tree of an open assembly, reporting suppression, visibility, grounding, and the file each occurrence references. Large assemblies are truncated rather than refused. Use summary for a large assembly: it gives the count at each depth and the unique documents. A tree over the output limit is returned as the summary, with a message.")]
-	public static Task<object> AssemblyTree(
+	public static Task<object> AssemblyTreeAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of the assembly. Omit to use the active document.")] string? documentName = null,
 		[Description("Deepest level to walk. Default 4.")] int maxDepth = 4,
@@ -270,7 +270,7 @@ internal static partial class InventorTool
 
 	[McpServerTool(Name = "inventor_activity")]
 	[Description("Reads the feed of Inventor events recorded since a cursor: documents opened or saved, and every committed transaction with the command name behind it. Use this to see what an automation loop actually did, in order. Pass the nextSequence from the previous call. Reading removes nothing, so other clients see the same events.")]
-	public static Task<object> Activity(
+	public static Task<object> ActivityAsync(
 		BridgeClient bridge,
 		[Description("Return events after this sequence number. Pass 0 for everything still buffered.")] long sinceSequence = 0,
 		[Description("Maximum events to return. Default 200.")] int maxEntries = 200,

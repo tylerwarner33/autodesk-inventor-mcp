@@ -480,17 +480,28 @@ Sonar and Roslynator found smaller ones: a window owner read after a failed `Get
 cancelled task that did not record its token (S8949), a registration disposed without a wait for its callback
 (RCS1261), and an `InventorOperations` field that no code read (S1144).
 
-Two `.editorconfig` options did not match the code, and now follow it. The code uses braces only for a statement on
+Three `.editorconfig` options did not match the code, and now follow it. The code uses braces only for a statement on
 more than one line (250 findings with `true`, 1 with `when_multiline`). It uses an expression body for a method on
 one line (177 findings with `false`, 6 with `when_on_single_line`). IDE0022 stays a suggestion, so both bodies are
-allowed. The rule for private names did not change: a field or a property that is not public starts with `_`. The
-code had 11 names that did not obey it, and they were renamed.
+allowed. It keeps an `if` with an early return, and does not make it a `?:` (21 findings for IDE0046 with
+`dotnet_style_prefer_conditional_expression_over_return = true`). The rule for private names did not change: a field
+or a property that is not public starts with `_`. The code had 11 names that did not obey it, and they were renamed.
+
+Measured on 2026-10-19, and done in the same change:
+
+| Rule | Findings | Decision |
+| --- | --- | --- |
+| CA1848, CA1873 (`[LoggerMessage]`) | 21 | Fixed. Each class logs through generated methods in its `<Type>.Log.cs` file. |
+| MA0137 (`Async` suffix) | 34 | Fixed. Every tool sets `Name` on `[McpServerTool]`, so no tool name changed. |
+| IDE0290 (primary constructor) | 4 | Fixed. |
+| IDE0058 (an unused value) | 10 | Fixed with `_ =`, as the code does elsewhere. |
+| CA1859 (a concrete return type) | 2 | Fixed. The two operation methods return `List<T>`. |
+| IDE0055 (formatting) | 2,352 | Off. 1,863 are the tab after `///` that the doc comments use. The others are line endings: `.editorconfig` asks for `crlf`, and a checkout can have `lf`, so the result would depend on the machine. |
+| MA0051 (method over 60 lines) | 17 | A suggestion. Most of the long methods are tools that only a live Inventor session can test, so a split is done when a change to that method is tested anyway. |
 
 Not used: NuGet lock files (`RestorePackagesWithLockFile`). The add-in's target framework changes with
 `AutodeskVersion`, so one lock file cannot serve every release. Central package management already keeps each
 version in one file. `xunit.analyzers` is not added, because `xunit.v3` brings it.
-
-The open items are in `Docs/Tasks/Code-Analysis-Follow-Up.md`.
 
 ## Behaviours worth knowing
 

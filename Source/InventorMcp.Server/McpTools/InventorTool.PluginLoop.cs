@@ -407,7 +407,7 @@ internal static partial class InventorTool
 		keepDocumentsOpen is set. Use shadowFiles to replace a file in the copy, ex. an appsettings.json with trial
 		values, without a build. Read the 'plugin-loop-cycle' skill (inventor_skill) before a first run.
 		""")]
-	public static Task<object> RunPlugin(
+	public static Task<object> RunPluginAsync(
 		BridgeClient bridge,
 		[Description("Folder holding the build output, ex. the project's bin\\Debug. It is copied, never loaded in place.")] string buildOutputDirectory,
 		[Description("File name of the assembly to load from that folder, ex. 'MyPlugin.dll'.")] string assemblyFileName,

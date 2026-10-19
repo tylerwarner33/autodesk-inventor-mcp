@@ -81,7 +81,7 @@ internal static class StyleDiff
 		Dictionary<string, JsonElement> styles = new(StringComparer.Ordinal);
 
 		foreach (JsonElement style in document.GetProperty("styles").EnumerateArray())
-			styles.TryAdd(Label(style), style);
+			_ = styles.TryAdd(Label(style), style);
 
 		return styles;
 	}

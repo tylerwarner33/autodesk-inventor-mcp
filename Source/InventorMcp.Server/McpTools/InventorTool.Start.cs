@@ -57,7 +57,7 @@ internal static partial class InventorTool
 		On success, call inventor_session to confirm the session. Inventor can still be at a sign-in or recovery dialog.
 		On still-starting or inventor-starting-or-no-bridge, wait with inventor_session and waitSeconds.
 		""")]
-	public static async Task<object> Start(
+	public static async Task<object> StartAsync(
 		BridgeClient bridge,
 		ReleaseSelection selection,
 		InventorInstallations installations,

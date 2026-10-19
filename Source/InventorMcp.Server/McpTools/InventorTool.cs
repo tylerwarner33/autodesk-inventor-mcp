@@ -83,8 +83,8 @@ internal static partial class InventorTool
 
 			if (result is Contracts.Models.ExecutionResult { Succeeded: false } failed)
 			{
-				ResultLogger.LogInformation(
-					"Tool {Tool} result: the code failed with {ErrorType} after {WallClockMilliseconds} ms.",
+				LogCodeFailed(
+					ResultLogger,
 					tool,
 					failed.ExceptionType ?? (failed.Diagnostics.Count > 0 ? "compile errors" : "no exception type"),
 					stopwatch.ElapsedMilliseconds);
@@ -95,13 +95,7 @@ internal static partial class InventorTool
 		catch (InventorBridgeException exception)
 		{
 			// A bridge error is a tool result, so the log records its code and not a stack trace.
-#pragma warning disable S6667
-			ResultLogger.LogInformation(
-				"Tool {Tool} result: error {ErrorCode} after {WallClockMilliseconds} ms.",
-				tool,
-				exception.Code,
-				stopwatch.ElapsedMilliseconds);
-#pragma warning restore S6667
+			LogBridgeError(ResultLogger, tool, exception.Code, stopwatch.ElapsedMilliseconds);
 
 			return dialogs.Count == 0
 				? new

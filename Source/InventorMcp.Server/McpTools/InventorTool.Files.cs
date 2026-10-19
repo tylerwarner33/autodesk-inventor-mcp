@@ -27,7 +27,7 @@ internal static partial class InventorTool
 		set. Those changes are then lost. A hidden document that an open document outside the folder references stays
 		open, and the result names it.
 		""")]
-	public static Task<object> CloseDocuments(
+	public static Task<object> CloseDocumentsAsync(
 		BridgeClient bridge,
 		[Description("The full path of a folder. Every open document in it, or in a folder below it, is closed.")] string under,
 		[Description("Set true to close documents with unsaved changes. The changes are lost.")] bool allowUnsavedChanges = false,
@@ -105,7 +105,7 @@ internal static partial class InventorTool
 
 		Pages over the paths: a call stops before about 8 s, and nextOffset says where the next call starts.
 		""")]
-	public static Task<object> FileInfo(
+	public static Task<object> FileInfoAsync(
 		BridgeClient bridge,
 		[Description("Full paths of the files, or display names of open documents.")] string[] paths,
 		[Description("The first path to read, from 0. Pass nextOffset from the previous call.")] int offset = 0,
@@ -249,7 +249,7 @@ internal static partial class InventorTool
 		Do not check the copy into Vault. Delete it when the test is done. For a template change, follow the
 		'safe-template-edit' skill (inventor_skill).
 		""")]
-	public static Task<object> TestCopy(
+	public static Task<object> TestCopyAsync(
 		[Description("Full paths of the top files, ex. the top assembly and its drawing.")] string[] sources,
 		[Description("The full path of the target folder.")] string target,
 		[Description("The folder to copy from. Default: the folder of the first source.")] string? sourceFolder = null,

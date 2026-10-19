@@ -32,7 +32,7 @@ internal static partial class InventorTool
 		the direction or axis entity, the parent features and the element count. Use it to read a model before a change,
 		and after a change to check which feature is sick.
 		""")]
-	public static Task<object> Features(
+	public static Task<object> FeaturesAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
 		[Description("Include each feature's parameters. Default true.")] bool includeParameters = true,
@@ -165,7 +165,7 @@ internal static partial class InventorTool
 		transform of each element as a translation and a rotation matrix. Translations are in the document's length
 		unit. Use it to check that a pattern placed its elements where the design needs them.
 		""")]
-	public static Task<object> PatternElements(
+	public static Task<object> PatternElementsAsync(
 		BridgeClient bridge,
 		[Description("The name of the pattern or mirror feature, as inventor_features lists it.")] string featureName,
 		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
@@ -226,7 +226,7 @@ internal static partial class InventorTool
 		Use it after a cut to check that the holes exist, with the diameter and at the positions the design needs.
 		A cylindrical face that is convex (ex. a boss) is not a hole, and is counted separately.
 		""")]
-	public static Task<object> HoleCheck(
+	public static Task<object> HoleCheckAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of an open part, or the full path of a file. Omit to use the active document.")] string? documentName = null,
 		[Description("The most hole positions to list for each diameter. Default 50.")] int maxPositions = 50,
@@ -429,7 +429,7 @@ internal static partial class InventorTool
 		Give compareWith to diff against a second document: the styles in only one of them, and the styles whose
 		location, up-to-date state or details differ. Use it to find why two generated drawings look different.
 		""")]
-	public static Task<object> Styles(
+	public static Task<object> StylesAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
 		[Description("A second document to compare with, as a display name or a full path.")] string? compareWith = null,

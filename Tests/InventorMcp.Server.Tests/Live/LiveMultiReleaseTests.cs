@@ -37,8 +37,8 @@ public sealed class LiveMultiReleaseTests
 
 			Assert.Equal(year, session.ReleaseYear);
 			Assert.Equal(year, client.ReleaseYear);
-			Assert.NotNull(client.InventorProcessId);
-			Assert.True(processIds.Add(client.InventorProcessId.Value), "Two releases answered from one process.");
+			int processId = Assert.NotNull(client.InventorProcessId);
+			Assert.True(processIds.Add(processId), "Two releases answered from one process.");
 		}
 	}
 

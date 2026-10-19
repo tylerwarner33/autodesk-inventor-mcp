@@ -64,7 +64,7 @@ dotnet_style_prefer_auto_properties = true
 dotnet_style_prefer_collection_expression = when_types_loosely_match
 dotnet_style_prefer_compound_assignment = true
 dotnet_style_prefer_conditional_expression_over_assignment = true
-dotnet_style_prefer_conditional_expression_over_return = true
+dotnet_style_prefer_conditional_expression_over_return = false
 dotnet_style_prefer_foreach_explicit_cast_in_source = when_strongly_typed
 dotnet_style_prefer_inferred_anonymous_type_member_names = true
 dotnet_style_prefer_inferred_tuple_names = true
@@ -284,6 +284,17 @@ dotnet_diagnostic.IDE0065.severity = warning
 dotnet_diagnostic.IDE0083.severity = warning
 dotnet_diagnostic.IDE0161.severity = warning
 dotnet_diagnostic.IDE1006.severity = warning
+dotnet_diagnostic.IDE0058.severity = warning
+dotnet_diagnostic.IDE0290.severity = warning
+
+# Rules that are off or info by default, and that the code meets
+dotnet_diagnostic.CA1848.severity = warning
+dotnet_diagnostic.CA1859.severity = warning
+dotnet_diagnostic.CA1873.severity = warning
+dotnet_diagnostic.MA0137.severity = warning
+
+# Formatting: it reports the tab after '///' that the doc comments use, and a line ending that depends on the checkout
+dotnet_diagnostic.IDE0055.severity = none
 
 # Roslynator's rules are off or info until set. These lines make each one a warning, so a new rule is enforced too.
 roslynator_analyzers.enabled_by_default = true
@@ -314,13 +325,6 @@ dotnet_diagnostic.S3267.severity = none
 dotnet_diagnostic.RCS1194.severity = none
 dotnet_diagnostic.S3871.severity = none
 
-# Logging through LoggerMessage is not done yet, see Docs/Architecture.md, "The build enforces the code rules"
-dotnet_diagnostic.CA1848.severity = suggestion
-dotnet_diagnostic.CA1873.severity = suggestion
-
-# The private methods return IReadOnlyList on purpose
-dotnet_diagnostic.CA1859.severity = suggestion
-
 # ConfigureAwait: the server has no SynchronizationContext, and in the add-in the context can be Inventor's main thread
 dotnet_diagnostic.MA0004.severity = none
 
@@ -330,7 +334,7 @@ dotnet_diagnostic.MA0006.severity = none
 # A partial class is split over files named Type.Part.cs
 dotnet_diagnostic.MA0048.severity = none
 
-# Method length is for review, not for the build
+# Method length is for review, not for the build: split a long method when a change to it needs a live Inventor test anyway
 dotnet_diagnostic.MA0051.severity = suggestion
 
 # Inventor's add-in contract: the interop names the parameters, and Deactivate, not Dispose, ends the lifetime

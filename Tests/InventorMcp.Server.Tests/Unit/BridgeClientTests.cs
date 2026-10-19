@@ -79,7 +79,7 @@ public sealed class BridgeClientTests
 		_ = await accept;
 
 		Assert.Equal(2025, bridge.Client.ReleaseYear);
-		Assert.NotNull(bridge.Client.InventorProcessId);
+		_ = Assert.NotNull(bridge.Client.InventorProcessId);
 
 		// Release 2026 has no pipe, so the next connection fails. The old connection must not survive the change.
 		bridge.Selection.Choose(2026);

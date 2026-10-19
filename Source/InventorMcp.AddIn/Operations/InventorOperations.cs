@@ -51,69 +51,69 @@ internal sealed partial class InventorOperations(
 		dispatcher.Register(BridgeOperations.Ping, (_, _) => Task.FromResult<object?>("pong"));
 
 		dispatcher.Register(BridgeOperations.Session, (_, token) =>
-			operations.OnMainThread(operations.GetSession, token));
+			operations.OnMainThreadAsync(operations.GetSession, token));
 
 		dispatcher.Register(BridgeOperations.Documents, (_, token) =>
-			operations.OnMainThread(operations.GetDocuments, token));
+			operations.OnMainThreadAsync(operations.GetDocuments, token));
 
 		dispatcher.Register(BridgeOperations.AssemblyTree, (payload, token) =>
 		{
 			AssemblyTreeRequest request = ParseOrDefault(payload, new AssemblyTreeRequest());
-			return operations.OnMainThread(() => operations.GetAssemblyTree(request), token);
+			return operations.OnMainThreadAsync(() => operations.GetAssemblyTree(request), token);
 		});
 
 		dispatcher.Register(BridgeOperations.Parameters, (payload, token) =>
 		{
 			ParametersRequest request = ParseOrDefault(payload, new ParametersRequest());
-			return operations.OnMainThread(() => operations.GetParameters(request), token);
+			return operations.OnMainThreadAsync(() => operations.GetParameters(request), token);
 		});
 
 		dispatcher.Register(BridgeOperations.SetParameter, (payload, token) =>
 		{
 			SetParameterRequest request = ParseRequired<SetParameterRequest>(payload);
-			return operations.OnMainThread(() => operations.SetParameter(request), token);
+			return operations.OnMainThreadAsync(() => operations.SetParameter(request), token);
 		});
 
 		dispatcher.Register(BridgeOperations.EvaluateExpression, (payload, token) =>
 		{
 			EvaluateExpressionRequest request = ParseRequired<EvaluateExpressionRequest>(payload);
-			return operations.OnMainThread(() => operations.EvaluateExpression(request), token);
+			return operations.OnMainThreadAsync(() => operations.EvaluateExpression(request), token);
 		});
 
 		dispatcher.Register(BridgeOperations.Properties, (payload, token) =>
 		{
 			PropertiesRequest request = ParseOrDefault(payload, new PropertiesRequest());
-			return operations.OnMainThread(() => operations.GetProperties(request), token);
+			return operations.OnMainThreadAsync(() => operations.GetProperties(request), token);
 		});
 
 		dispatcher.Register(BridgeOperations.SetProperty, (payload, token) =>
 		{
 			SetPropertyRequest request = ParseRequired<SetPropertyRequest>(payload);
-			return operations.OnMainThread(() => operations.SetProperty(request), token);
+			return operations.OnMainThreadAsync(() => operations.SetProperty(request), token);
 		});
 
 		dispatcher.Register(BridgeOperations.Health, (payload, token) =>
 		{
 			DocumentScopedRequest request = ParseOrDefault(payload, new DocumentScopedRequest());
-			return operations.OnMainThread(() => operations.GetHealth(request), token);
+			return operations.OnMainThreadAsync(() => operations.GetHealth(request), token);
 		});
 
 		dispatcher.Register(BridgeOperations.Update, (payload, token) =>
 		{
 			UpdateRequest request = ParseOrDefault(payload, new UpdateRequest());
-			return operations.OnMainThread(() => operations.UpdateDocument(request), token);
+			return operations.OnMainThreadAsync(() => operations.UpdateDocument(request), token);
 		});
 
 		dispatcher.Register(BridgeOperations.EvalCSharp, (payload, token) =>
 		{
 			ExecuteRequest request = ParseRequired<ExecuteRequest>(payload);
-			return operations.OnMainThread(() => operations.EvaluateCSharp(request), token);
+			return operations.OnMainThreadAsync(() => operations.EvaluateCSharp(request), token);
 		});
 
 		dispatcher.Register(BridgeOperations.RunILogic, (payload, token) =>
 		{
 			ExecuteRequest request = ParseRequired<ExecuteRequest>(payload);
-			return operations.OnMainThread(() => operations.RunILogicRule(request), token);
+			return operations.OnMainThreadAsync(() => operations.RunILogicRule(request), token);
 		});
 
 		// The ring buffer is managed memory, so this stays responsive while Inventor is busy.
@@ -124,7 +124,7 @@ internal sealed partial class InventorOperations(
 		});
 	}
 
-	private async Task<object?> OnMainThread<TResult>(Func<TResult> work, CancellationToken cancellationToken) =>
+	private async Task<object?> OnMainThreadAsync<TResult>(Func<TResult> work, CancellationToken cancellationToken) =>
 		await _mainThread.InvokeAsync(work, cancellationToken).ConfigureAwait(false);
 
 	private static T ParseOrDefault<T>(JsonElement? payload, T fallback)

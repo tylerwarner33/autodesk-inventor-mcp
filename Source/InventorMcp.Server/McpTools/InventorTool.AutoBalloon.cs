@@ -546,7 +546,7 @@ internal static partial class InventorTool
 		After it, check the sheet with inventor_drawing_layout and look at it with inventor_export_sheet_image. The
 		'drawings' skill (inventor_skill) has the facts about balloons.
 		""")]
-	public static Task<object> AutoBalloon(
+	public static Task<object> AutoBalloonAsync(
 		BridgeClient bridge,
 		[Description("The view name, ex. 'VIEW1'. When two views of the sheet have the same name, use the label from inventor_drawing_layout, ex. 'VIEW1 #2'.")] string viewName,
 		[Description("Full path of the .idw. Omit to use the active document, which must be a drawing. A drawing that is not open is opened visible.")] string? drawingPath = null,

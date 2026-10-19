@@ -32,7 +32,7 @@ internal static partial class InventorTool
 		Read only. A drawing this opens is opened invisibly with iLogic rules off and closed with no save.
 		Use inventor_drawing_layout for measurements. Use the image to see what the numbers cannot show.
 		""")]
-	public static async Task<IEnumerable<ContentBlock>> ExportSheetImage(
+	public static async Task<IEnumerable<ContentBlock>> ExportSheetImageAsync(
 		BridgeClient bridge,
 		[Description("Display name or full path of an open drawing, or the full path of a file. Omit to use the active document.")] string? documentName = null,
 		[Description("The sheet name, ex. 'Sheet:1'. Omit to use the active sheet.")] string? sheetName = null,

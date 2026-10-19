@@ -34,6 +34,10 @@ The build runs the .NET analyzers (`AnalysisMode` `Recommended`), `Meziantou.Ana
 	file in a section for that file in `.editorconfig`, not in `[*.cs]`. Put a suppression for one statement in a
 	`#pragma warning disable` and `restore` pair around that statement only.
 - An empty `catch` block needs a comment in it that says why the failure is safe to ignore (S108).
+- Log through a `[LoggerMessage]` method in the class's `<Type>.Log.cs` file, not through `ILogger.LogWarning` and
+	the like (CA1848).
+- A method that returns a task ends in `Async` (MA0137). A tool's name comes from `Name` on `[McpServerTool]`, so the
+	method name can change freely.
 - Give a new style rule the severity `warning` only when the code obeys it. Build first with
 	`-p:TreatWarningsAsErrors=false` to count the findings.
 - Build the add-in for 2025 too after a change to the add-in. It targets .NET 8, so a .NET 9 or later API breaks only

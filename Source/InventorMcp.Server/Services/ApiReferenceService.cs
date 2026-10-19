@@ -198,10 +198,7 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 
 		if (releaseYear is int missing)
 		{
-			_logger.LogWarning(
-				"No API reference shipped for Inventor {Requested}. Answering from {Fallback} instead.",
-				missing,
-				available[0]);
+			LogReferenceFallback(missing, available[0]);
 		}
 
 		return available[0];
@@ -218,7 +215,7 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 
 		if (File.Exists(path) is false)
 		{
-			_logger.LogWarning("The Inventor API reference was not found at {Path}. Lookups will return nothing.", path);
+			LogReferenceMissing(path);
 			return [];
 		}
 
@@ -269,11 +266,11 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 				}
 			}
 
-			_logger.LogInformation("Indexed {Count} Inventor API members from {Path}.", members.Count, path);
+			LogReferenceIndexed(members.Count, path);
 		}
 		catch (Exception exception)
 		{
-			_logger.LogError(exception, "Could not index the Inventor API reference at {Path}.", path);
+			LogReferenceIndexFailed(exception, path);
 		}
 
 		return members;

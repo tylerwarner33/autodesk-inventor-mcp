@@ -16,7 +16,7 @@ namespace InventorMcp.AddIn.Bridge;
 /// 	This matters because the bridge can execute code inside the Inventor process,
 /// 	and a loopback socket would be reachable by every process and every logged on user.
 /// </remarks>
-internal sealed class BridgeServer : IDisposable
+internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string> log, string pipeName) : IDisposable
 {
 	/// <summary>
 	/// 	Connections served at once.
@@ -38,8 +38,8 @@ internal sealed class BridgeServer : IDisposable
 	/// </summary>
 	private readonly LogThrottle _acceptFailureLog = new(TimeProvider.System, TimeSpan.FromMinutes(1));
 
-	private readonly OperationDispatcher _dispatcher;
-	private readonly Action<string> _log;
+	private readonly OperationDispatcher _dispatcher = dispatcher;
+	private readonly Action<string> _log = log;
 	private readonly CancellationTokenSource _shutdown = new();
 
 	private Task? _acceptLoop;
@@ -48,14 +48,7 @@ internal sealed class BridgeServer : IDisposable
 	/// <summary>
 	/// 	The name of the pipe this server listens on.
 	/// </summary>
-	public string PipeName { get; }
-
-	public BridgeServer(OperationDispatcher dispatcher, Action<string> log, string pipeName)
-	{
-		_dispatcher = dispatcher;
-		_log = log;
-		PipeName = pipeName;
-	}
+	public string PipeName { get; } = pipeName;
 
 	/// <summary>
 	/// 	Starts accepting connections in the background.

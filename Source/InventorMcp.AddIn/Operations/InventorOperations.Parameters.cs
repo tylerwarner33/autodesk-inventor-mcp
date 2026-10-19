@@ -8,7 +8,7 @@ namespace InventorMcp.AddIn.Operations;
 
 internal sealed partial class InventorOperations
 {
-	private IReadOnlyList<Contracts.Models.ParameterInfo> GetParameters(ParametersRequest request)
+	private List<Contracts.Models.ParameterInfo> GetParameters(ParametersRequest request)
 	{
 		Document document = ResolveDocument(request.DocumentName);
 		Parameters parameters = GetParametersCollection(document);

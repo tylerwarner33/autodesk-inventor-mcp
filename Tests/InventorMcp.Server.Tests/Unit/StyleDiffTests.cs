@@ -54,8 +54,8 @@ public sealed class StyleDiffTests
 			Styles("A.idw", "Default", Style("Text", "Default")),
 			Styles("B.idw", "Default", Style("Dimension", "Default")));
 
-		Assert.Single(diff.GetProperty("onlyInFirst").EnumerateArray());
-		Assert.Single(diff.GetProperty("onlyInSecond").EnumerateArray());
+		_ = Assert.Single(diff.GetProperty("onlyInFirst").EnumerateArray());
+		_ = Assert.Single(diff.GetProperty("onlyInSecond").EnumerateArray());
 		Assert.Equal("Default", diff.GetProperty("standard").GetString());
 	}
 

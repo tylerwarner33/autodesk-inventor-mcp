@@ -12,18 +12,13 @@ namespace InventorMcp.AddIn.Bridge;
 /// 	Handlers are deliberately primitive.
 /// 	Shaping and composition belong in the MCP server, because changing this assembly costs an Inventor restart.
 /// </remarks>
-internal sealed class OperationDispatcher
+internal sealed class OperationDispatcher(Action<string> log)
 {
 	private const int _callRejected = unchecked((int)0x80010001);
 	private const int _serverCallRetryLater = unchecked((int)0x8001010A);
 
 	private readonly Dictionary<string, Func<JsonElement?, CancellationToken, Task<object?>>> _handlers = new(StringComparer.Ordinal);
-	private readonly Action<string> _log;
-
-	public OperationDispatcher(Action<string> log)
-	{
-		_log = log;
-	}
+	private readonly Action<string> _log = log;
 
 	/// <summary>
 	/// 	Registers the handler for one operation name.
@@ -107,21 +102,15 @@ internal sealed class OperationDispatcher
 /// <summary>
 /// 	Thrown by a handler to return a specific error code instead of a generic internal failure.
 /// </summary>
-internal sealed class BridgeFailureException : Exception
+internal sealed class BridgeFailureException(string code, string message, string? detail = null) : Exception(message)
 {
-	public BridgeFailureException(string code, string message, string? detail = null) : base(message)
-	{
-		Code = code;
-		Detail = detail;
-	}
-
 	/// <summary>
 	/// 	A value from <see cref="BridgeErrorCodes"/>.
 	/// </summary>
-	public string Code { get; }
+	public string Code { get; } = code;
 
 	/// <summary>
 	/// 	Extra context for the caller, or null.
 	/// </summary>
-	public string? Detail { get; }
+	public string? Detail { get; } = detail;
 }

@@ -103,16 +103,16 @@ internal sealed class MainThreadDispatcher : IDisposable
 
 			try
 			{
-				completion.TrySetResult(work());
+				_ = completion.TrySetResult(work());
 			}
 			catch (Exception exception)
 			{
-				completion.TrySetException(exception);
+				_ = completion.TrySetException(exception);
 			}
 		});
 
 		if (PostMessage(_windowHandle, _workMessage, IntPtr.Zero, IntPtr.Zero) is false)
-			completion.TrySetException(new InvalidOperationException($"Could not post to the dispatcher window. Win32 error {Marshal.GetLastWin32Error()}."));
+			_ = completion.TrySetException(new InvalidOperationException($"Could not post to the dispatcher window. Win32 error {Marshal.GetLastWin32Error()}."));
 
 		return await completion.Task.ConfigureAwait(false);
 	}
