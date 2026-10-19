@@ -22,8 +22,8 @@
 
 		<!-- Symbols live in the assembly, which matters for an add-in Inventor loads straight from a build folder. -->
 		<DebugType>embedded</DebugType>
-		<PathMap>$(MSBuildProjectDirectory)=.</PathMap>
-		<DeterministicSourcePaths Condition="'$(Configuration)' == 'Release'">true</DeterministicSourcePaths>
+
+		<!-- Makes a build on GitHub Actions deterministic. A local build keeps real source paths. -->
 		<ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
 
 		<!-- Keeps the output path stable, so .mcp.json does not have to name the target framework. -->
