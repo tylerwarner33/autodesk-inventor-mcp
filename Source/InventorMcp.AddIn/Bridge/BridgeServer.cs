@@ -40,7 +40,6 @@ internal sealed class BridgeServer : IDisposable
 
 	private readonly OperationDispatcher _dispatcher;
 	private readonly Action<string> _log;
-	private readonly string _pipeName;
 	private readonly CancellationTokenSource _shutdown = new();
 
 	private Task? _acceptLoop;
@@ -49,13 +48,13 @@ internal sealed class BridgeServer : IDisposable
 	/// <summary>
 	/// 	The name of the pipe this server listens on.
 	/// </summary>
-	public string PipeName => _pipeName;
+	public string PipeName { get; }
 
 	public BridgeServer(OperationDispatcher dispatcher, Action<string> log, string pipeName)
 	{
 		_dispatcher = dispatcher;
 		_log = log;
-		_pipeName = pipeName;
+		PipeName = pipeName;
 	}
 
 	/// <summary>
@@ -63,7 +62,7 @@ internal sealed class BridgeServer : IDisposable
 	/// </summary>
 	public void Start()
 	{
-		_acceptLoop = Task.Run(() => AcceptLoopAsync(_shutdown.Token));
+		_acceptLoop = Task.Run(() => AcceptLoopAsync(_shutdown.Token), _shutdown.Token);
 	}
 
 	private async Task AcceptLoopAsync(CancellationToken cancellationToken)
@@ -111,7 +110,7 @@ internal sealed class BridgeServer : IDisposable
 			catch (UnauthorizedAccessException exception)
 			{
 				// Another Inventor of this release already owns the pipe name. Stop rather than spin.
-				_log($"Could not claim the pipe '{_pipeName}'. Another Inventor of the same release is probably hosting the bridge. {exception.Message}");
+				_log($"Could not claim the pipe '{PipeName}'. Another Inventor of the same release is probably hosting the bridge. {exception.Message}");
 				return;
 			}
 		}
@@ -127,7 +126,7 @@ internal sealed class BridgeServer : IDisposable
 		security.AddAccessRule(new PipeAccessRule(currentUser, PipeAccessRights.FullControl, AccessControlType.Allow));
 
 		return NamedPipeServerStreamAcl.Create(
-			_pipeName,
+			PipeName,
 			PipeDirection.InOut,
 			_maxPipeInstances,
 			PipeTransmissionMode.Byte,
@@ -207,7 +206,8 @@ internal sealed class BridgeServer : IDisposable
 
 		try
 		{
-			_ = _acceptLoop?.Wait(TimeSpan.FromSeconds(2));
+			// Not _shutdown.Token: it is already cancelled, and the loop still gets its time to end.
+			_ = _acceptLoop?.Wait(TimeSpan.FromSeconds(2), CancellationToken.None);
 		}
 		catch (AggregateException)
 		{

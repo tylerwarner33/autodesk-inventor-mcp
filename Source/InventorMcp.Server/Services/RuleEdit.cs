@@ -195,6 +195,7 @@ internal static class RuleEdit
 			}
 			catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
 			{
+				// The file stays, and the next backup tries again.
 			}
 		}
 	}

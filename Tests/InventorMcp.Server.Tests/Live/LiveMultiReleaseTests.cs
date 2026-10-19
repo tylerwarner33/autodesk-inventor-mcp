@@ -38,7 +38,7 @@ public sealed class LiveMultiReleaseTests
 			Assert.Equal(year, session.ReleaseYear);
 			Assert.Equal(year, client.ReleaseYear);
 			Assert.NotNull(client.InventorProcessId);
-			Assert.True(processIds.Add(client.InventorProcessId!.Value), "Two releases answered from one process.");
+			Assert.True(processIds.Add(client.InventorProcessId.Value), "Two releases answered from one process.");
 		}
 	}
 
@@ -58,6 +58,6 @@ public sealed class LiveMultiReleaseTests
 			() => client.InvokeAsync<SessionInfo>(BridgeOperations.Session, null, _cancellation));
 
 		Assert.Equal(BridgeErrorCodes.NotRunning, exception.Code);
-		Assert.Contains(missing!.Value.ToString(CultureInfo.InvariantCulture), exception.Message);
+		Assert.Contains(missing.Value.ToString(CultureInfo.InvariantCulture), exception.Message);
 	}
 }

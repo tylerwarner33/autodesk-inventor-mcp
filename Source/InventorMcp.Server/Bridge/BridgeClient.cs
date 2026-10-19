@@ -283,7 +283,7 @@ internal sealed class BridgeClient(
 		if (response.Result is not JsonElement result || result.ValueKind is JsonValueKind.Null)
 			return default!;
 
-		return JsonSerializer.Deserialize<TResult>(result, BridgeProtocol.SerializerOptions)!;
+		return result.Deserialize<TResult>(BridgeProtocol.SerializerOptions)!;
 	}
 
 	/// <summary>
@@ -450,7 +450,7 @@ internal sealed class BridgeClient(
 		string message =
 			"Inventor is blocked by a modal dialog. The call cannot run until the dialog is closed." + Environment.NewLine +
 			$"Dialog: '{dialog.Title}' ({dialog.Framework ?? "not read"}, {type ?? "not in the catalog"})" + Environment.NewLine +
-			(dialog.ReadError is null ? $"Text: {text}" : dialog.ReadError) + Environment.NewLine +
+			(dialog.ReadError ?? $"Text: {text}") + Environment.NewLine +
 			$"Visible buttons: {string.Join(", ", dialog.ClickableButtons)}" + Environment.NewLine +
 			(dialog.Options.Count == 0 ? string.Empty : $"Options: {DescribeOptions(dialog.Options)}" + Environment.NewLine) +
 			"Do not close a dialog that asks a question without asking the user. Read it with inventor_dialogs, and close it " +
@@ -596,6 +596,7 @@ internal sealed class BridgeClient(
 		}
 		catch (IOException)
 		{
+			// The pipe is already broken, so the unflushed data has nowhere to go.
 		}
 
 		_reader?.Dispose();
@@ -607,6 +608,7 @@ internal sealed class BridgeClient(
 		}
 		catch (IOException)
 		{
+			// The pipe is already broken, and the reconnect opens a new one.
 		}
 
 		_writer = null;

@@ -94,11 +94,14 @@ internal static partial class InventorTool
 		}
 		catch (InventorBridgeException exception)
 		{
+			// A bridge error is a tool result, so the log records its code and not a stack trace.
+#pragma warning disable S6667
 			ResultLogger.LogInformation(
 				"Tool {Tool} result: error {ErrorCode} after {WallClockMilliseconds} ms.",
 				tool,
 				exception.Code,
 				stopwatch.ElapsedMilliseconds);
+#pragma warning restore S6667
 
 			return dialogs.Count == 0
 				? new

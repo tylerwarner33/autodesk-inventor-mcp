@@ -25,12 +25,15 @@ See `Docs/Architecture.md`.
 
 ## Analyzer and style errors
 
-The build runs the .NET analyzers (`AnalysisMode` `Recommended`), `Meziantou.Analyzer`, and the style rules that
-`.editorconfig` gives the severity `warning`. `TreatWarningsAsErrors` makes each one an error.
+The build runs the .NET analyzers (`AnalysisMode` `Recommended`), `Meziantou.Analyzer`, `Roslynator.Analyzers`,
+`SonarAnalyzer.CSharp`, and the style rules that `.editorconfig` gives the severity `warning`.
+`TreatWarningsAsErrors` makes each one an error.
 
 - Fix the code. The error message has a link to the rule.
 - Suppress a rule only when it is wrong for this code. Put the reason on the line above. Put a suppression for one
-	file in a section for that file in `.editorconfig`, not in `[*.cs]`.
+	file in a section for that file in `.editorconfig`, not in `[*.cs]`. Put a suppression for one statement in a
+	`#pragma warning disable` and `restore` pair around that statement only.
+- An empty `catch` block needs a comment in it that says why the failure is safe to ignore (S108).
 - Give a new style rule the severity `warning` only when the code obeys it. Build first with
 	`-p:TreatWarningsAsErrors=false` to count the findings.
 - Build the add-in for 2025 too after a change to the add-in. It targets .NET 8, so a .NET 9 or later API breaks only

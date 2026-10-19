@@ -120,7 +120,7 @@ internal sealed partial class InventorOperations(
 		dispatcher.Register(BridgeOperations.Activity, (payload, _) =>
 		{
 			ActivityRequest request = ParseOrDefault(payload, new ActivityRequest());
-			return Task.FromResult<object?>(activity.Drain(request.SinceSequence, request.MaxEntries));
+			return Task.FromResult<object?>(operations._activity.Drain(request.SinceSequence, request.MaxEntries));
 		});
 	}
 
@@ -132,7 +132,7 @@ internal sealed partial class InventorOperations(
 		if (payload is not JsonElement element || element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
 			return fallback;
 
-		return JsonSerializer.Deserialize<T>(element, BridgeProtocol.SerializerOptions) ?? fallback;
+		return element.Deserialize<T>(BridgeProtocol.SerializerOptions) ?? fallback;
 	}
 
 	private static T ParseRequired<T>(JsonElement? payload)
@@ -140,7 +140,7 @@ internal sealed partial class InventorOperations(
 		if (payload is not JsonElement element || element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
 			throw new BridgeFailureException(BridgeErrorCodes.Internal, $"The operation needs a payload of type {typeof(T).Name}.");
 
-		return JsonSerializer.Deserialize<T>(element, BridgeProtocol.SerializerOptions)
+		return element.Deserialize<T>(BridgeProtocol.SerializerOptions)
 			?? throw new BridgeFailureException(BridgeErrorCodes.Internal, $"The payload could not be read as {typeof(T).Name}.");
 	}
 

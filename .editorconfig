@@ -285,8 +285,34 @@ dotnet_diagnostic.IDE0083.severity = warning
 dotnet_diagnostic.IDE0161.severity = warning
 dotnet_diagnostic.IDE1006.severity = warning
 
-# IDE0100 reports 'x is false' as redundant, and 'x is false' is the preferred form here
+# Roslynator's rules are off or info until set. These lines make each one a warning, so a new rule is enforced too.
+roslynator_analyzers.enabled_by_default = true
+dotnet_analyzer_diagnostic.category-roslynator.severity = warning
+
+# These report 'x is false' as redundant, and 'x is false' is the preferred form here
 dotnet_diagnostic.IDE0100.severity = none
+dotnet_diagnostic.RCS1049.severity = none
+dotnet_diagnostic.S1125.severity = none
+
+# A chain of ?: that reads as a list of cases is a form this code uses
+dotnet_diagnostic.RCS1238.severity = none
+dotnet_diagnostic.S3358.severity = none
+
+# An interpolated string is the form this code uses for text, also for a part with no value in it
+dotnet_diagnostic.RCS1217.severity = none
+
+# A // comment on a private member says why, which is not documentation for a caller
+dotnet_diagnostic.RCS1181.severity = none
+
+# No enum is stored or sent as a number, so its values carry no meaning
+dotnet_diagnostic.RCS1161.severity = none
+
+# A foreach with an early return is a form this code uses, and the reflection loops read alike
+dotnet_diagnostic.S3267.severity = none
+
+# Each exception is internal, and is thrown and caught in its own assembly with one constructor
+dotnet_diagnostic.RCS1194.severity = none
+dotnet_diagnostic.S3871.severity = none
 
 # Logging through LoggerMessage is not done yet, see Docs/Architecture.md, "The build enforces the code rules"
 dotnet_diagnostic.CA1848.severity = suggestion
@@ -311,11 +337,14 @@ dotnet_diagnostic.MA0051.severity = suggestion
 [{Source/InventorMcp.AddIn/StandardAddInServer.cs,Source/InventorMcp.AddIn.Loader/IsolatedAddInServerProxy.cs}]
 dotnet_diagnostic.CA1001.severity = none
 dotnet_diagnostic.CA1725.severity = none
+dotnet_diagnostic.RCS1168.severity = none
+dotnet_diagnostic.S927.severity = none
 
 [Tests/**/*.cs]
 
-# xUnit names a collection definition '...Collection'
+# xUnit names a collection definition '...Collection', and finds it by its class, which must not be static
 dotnet_diagnostic.CA1711.severity = none
+dotnet_diagnostic.S1118.severity = none
 
 # A comparer on an assertion or a test dictionary adds noise and no safety
 dotnet_diagnostic.MA0002.severity = none

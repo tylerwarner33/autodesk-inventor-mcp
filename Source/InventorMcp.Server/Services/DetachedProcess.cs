@@ -99,7 +99,10 @@ internal sealed class DetachedProcess : IDisposable
 
 			attributeListInitialised = true;
 
+			// The attribute list takes a raw handle, and shell stays open until the process is created.
+#pragma warning disable S3869
 			Marshal.WriteIntPtr(parentHandleValue, shell.DangerousGetHandle());
+#pragma warning restore S3869
 
 			if (UpdateProcThreadAttribute(attributeList, 0, _procThreadAttributeParentProcess, parentHandleValue, IntPtr.Size, IntPtr.Zero, IntPtr.Zero) is false)
 				throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not set Explorer as the parent process.");

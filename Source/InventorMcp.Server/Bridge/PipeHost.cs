@@ -99,7 +99,10 @@ internal static class PipeHost
 
 		using (token)
 		{
+			// WindowsIdentity takes a raw handle, and the using block keeps the token open while it is read.
+#pragma warning disable S3869
 			using WindowsIdentity identity = new(token.DangerousGetHandle());
+#pragma warning restore S3869
 
 			return identity.User;
 		}

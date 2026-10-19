@@ -105,7 +105,10 @@ public sealed class StandardAddInServer : ApplicationAddInServer
 
 		_inventor = null;
 
+		// Collects the COM wrappers that no code holds, so none keeps Inventor alive after it closes.
+#pragma warning disable S1215
 		GC.Collect();
+#pragma warning restore S1215
 		GC.WaitForPendingFinalizers();
 	}
 

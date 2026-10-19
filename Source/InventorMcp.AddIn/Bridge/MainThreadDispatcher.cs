@@ -38,9 +38,9 @@ internal sealed class MainThreadDispatcher : IDisposable
 	{
 		_mainThreadId = Environment.CurrentManagedThreadId;
 
-		WNDCLASSEX windowClass = new()
+		WindowClassEx windowClass = new()
 		{
-			cbSize = (uint)Marshal.SizeOf<WNDCLASSEX>(),
+			cbSize = (uint)Marshal.SizeOf<WindowClassEx>(),
 			lpfnWndProc = _wndProc,
 			hInstance = GetModuleHandle(null),
 			lpszClassName = _windowClassName
@@ -92,8 +92,8 @@ internal sealed class MainThreadDispatcher : IDisposable
 		TaskCompletionSource<TResult> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
 		// Kept until the work completes, so a cancel still reaches work that waits on a busy main thread.
-		using CancellationTokenRegistration registration = cancellationToken.Register(
-			static state => ((TaskCompletionSource<TResult>)state!).TrySetCanceled(),
+		await using CancellationTokenRegistration registration = cancellationToken.Register(
+			static (state, token) => ((TaskCompletionSource<TResult>)state!).TrySetCanceled(token),
 			completion);
 
 		_work.Enqueue(() =>
@@ -165,7 +165,7 @@ internal sealed class MainThreadDispatcher : IDisposable
 	private delegate IntPtr WndProcDelegate(IntPtr windowHandle, uint message, IntPtr wParam, IntPtr lParam);
 
 	[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-	private struct WNDCLASSEX
+	private struct WindowClassEx
 	{
 		public uint cbSize;
 		public uint style;
@@ -185,7 +185,7 @@ internal sealed class MainThreadDispatcher : IDisposable
 	}
 
 	[DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-	private static extern ushort RegisterClassEx(ref WNDCLASSEX windowClass);
+	private static extern ushort RegisterClassEx(ref WindowClassEx windowClass);
 
 	[DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
 	private static extern bool UnregisterClass(string className, IntPtr instance);

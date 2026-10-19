@@ -40,6 +40,7 @@ internal static class AuditLogRedirect
 		}
 		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
 		{
+			// A folder that is left behind only costs a little space.
 		}
 	}
 }

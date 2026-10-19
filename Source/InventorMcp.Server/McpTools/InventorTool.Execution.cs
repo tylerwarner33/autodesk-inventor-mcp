@@ -117,7 +117,7 @@ internal static partial class InventorTool
 		{
 			target = $"'{document.GetProperty("name").GetString()}' isModifiable={document.GetProperty("isModifiable").GetBoolean()}, " +
 				$"readOnlyFile={document.GetProperty("readOnlyFile").GetBoolean()}, " +
-				$"library={(document.GetProperty("library").GetString() ?? "none")}";
+				$"library={document.GetProperty("library").GetString() ?? "none"}";
 		}
 
 		string context = $"CONTEXT: this COM error gives no cause. The target document: {target}. " +

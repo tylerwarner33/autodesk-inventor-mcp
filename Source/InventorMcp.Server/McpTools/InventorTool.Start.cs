@@ -83,6 +83,7 @@ internal static partial class InventorTool
 				}
 				catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
 				{
+					// The release stopped since the pipe check, so it is started below.
 				}
 				catch (InventorBridgeException exception)
 				{
@@ -98,6 +99,7 @@ internal static partial class InventorTool
 			}
 			catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
 			{
+				// No session runs, so one is started below.
 			}
 			catch (InventorBridgeException exception)
 			{

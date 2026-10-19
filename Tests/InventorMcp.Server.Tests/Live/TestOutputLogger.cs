@@ -20,6 +20,7 @@ internal sealed class TestOutputLogger<T> : ILogger<T>
 		}
 		catch (InvalidOperationException)
 		{
+			// The test ended, so there is no output to write to.
 		}
 	}
 }

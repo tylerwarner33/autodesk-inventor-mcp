@@ -91,7 +91,7 @@ internal sealed class InventorInstallations(ILogger<InventorInstallations> logge
 		{
 			_ = InventorReleases.TryGetSoftwareVersion(year, out int softwareVersion);
 
-			if (filter is not null && filter.Contains(year) is false)
+			if (filter?.Contains(year) is false)
 				continue;
 
 			using RegistryKey? key = localMachine.OpenSubKey($@"SOFTWARE\Autodesk\Inventor\RegistryVersion{softwareVersion}.0");

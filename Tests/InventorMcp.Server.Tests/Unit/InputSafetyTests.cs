@@ -17,7 +17,7 @@ public sealed class InputSafetyTests
 	public async Task TestCopyRefusesAPrefixWithPathCharacters(string prefix)
 	{
 		string source = Path.Combine(Path.GetTempPath(), $"InventorMcp.Tests.{Guid.NewGuid():N}.ipt");
-		File.WriteAllText(source, string.Empty);
+		await File.WriteAllTextAsync(source, string.Empty, TestContext.Current.CancellationToken);
 
 		try
 		{
@@ -37,7 +37,7 @@ public sealed class InputSafetyTests
 	public async Task TestCopyRefusesARelativeSourceFolder()
 	{
 		string source = Path.Combine(Path.GetTempPath(), $"InventorMcp.Tests.{Guid.NewGuid():N}.ipt");
-		File.WriteAllText(source, string.Empty);
+		await File.WriteAllTextAsync(source, string.Empty, TestContext.Current.CancellationToken);
 
 		try
 		{

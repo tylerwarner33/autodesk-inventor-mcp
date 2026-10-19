@@ -431,8 +431,10 @@ document is skipped when the agent's context is full. So each rule that a tool c
 	`EnforceCodeStyleInBuild`. `TreatWarningsAsErrors` makes each warning an error.
 - `.editorconfig` sets the severity of each rule. It gives a style rule the severity `warning` only when the code
 	already obeys it, so the build stays clean and the rule stops new drift.
-- `Directory.Packages.props` adds `Meziantou.Analyzer` to every project as a `GlobalPackageReference`. That is
-	build time only, so no analyzer assembly reaches an output folder, which matters for the add-in loader.
+- `Directory.Packages.props` adds `Meziantou.Analyzer`, `Roslynator.Analyzers` and `SonarAnalyzer.CSharp` to every
+	project as a `GlobalPackageReference`. That is build time only, so no analyzer assembly reaches an output folder,
+	which matters for the add-in loader. `.editorconfig` makes every Roslynator rule a warning, because its rules are
+	off or `info` until set, and a rule that a new version adds is then enforced too.
 - The rules that need judgement (private data, a thin add-in, evidence in comments) are in the `repo-review` skill in
 	`.claude/skills/`. Run it in a new session, because the session that wrote the code defends it.
 
@@ -444,8 +446,13 @@ Measured on 2026-10-18 with the code as it was then, as unique findings:
 | `AnalysisMode` `All` | about 270 | Not used. Most are CA2007 (`ConfigureAwait`), CA1307, CA5392 and CA1031. |
 | Every style rule at `warning` | 2,184 | Only the rules with 0 findings, after the fixes below. |
 | `Meziantou.Analyzer` | 162 | Used, with 4 rules off or lowered. 42 findings fixed. |
-| `SonarAnalyzer.CSharp` | 141 | Not used. 105 are S1125, which reports `x is false`, the form this code prefers. |
-| `Roslynator.Analyzers` | 1 | Not used. Its rules are off until enabled one at a time, and many repeat the IDE rules. |
+| `SonarAnalyzer.CSharp` | 141 | Used, with 6 rules off. 105 are S1125. 18 findings fixed, 4 suppressed on the line. |
+
+Measured on 2026-10-19, with every Roslynator rule a warning:
+
+| Setting | Findings | Decision |
+| --- | --- | --- |
+| `Roslynator.Analyzers` | 139 | Used, with 7 rules off. 105 are RCS1049. 11 findings fixed. |
 
 Rules that are wrong for this code, and why:
 
@@ -453,14 +460,27 @@ Rules that are wrong for this code, and why:
 	nothing there. In the add-in, the context can be Inventor's main thread, where the COM calls must run.
 - CA1031 (a catch of `Exception`): every bridge handler and COM boundary must catch all, or one failure ends
 	Inventor. It is only in `All`.
-- IDE0100 and S1125: both report `x is false` as redundant.
+- IDE0100, RCS1049 and S1125: all report `x is false` as redundant.
+- RCS1238 and S3358 (nested `?:`), RCS1217 (an interpolated string with no value in it), S3267 (a loop that LINQ
+	could replace): each reports a form that this code uses.
+- RCS1181: it makes a `//` comment on a private member into a doc comment. That comment says why, for a maintainer.
+- RCS1161 (explicit enum values): no enum is stored or sent as a number.
+- RCS1194 and S3871 (exception constructors, a public exception): each exception is internal, and is thrown and
+	caught in its own assembly.
 - MA0048 (one type for each file): `InventorTool` is one `partial` class over files named `InventorTool.<Part>.cs`.
-- CA1725 and CA1001 in `StandardAddInServer` and `IsolatedAddInServerProxy`: the interop names the parameters of
-	`ApplicationAddInServer`, and Inventor ends the lifetime with `Deactivate`, not `Dispose`.
+- CA1725, RCS1168, S927 and CA1001 in `StandardAddInServer` and `IsolatedAddInServerProxy`: the interop names the
+	parameters of `ApplicationAddInServer`, and Inventor ends the lifetime with `Deactivate`, not `Dispose`.
+- S1118 in the tests: xUnit finds a collection definition by its class, which must not be static.
+
+Each suppression on one statement has its reason on the line above: `GC.Collect` when the add-in unloads (S1215),
+`DangerousGetHandle` for a Win32 call (S3869), and a log of a bridge error with no stack trace (S6667).
 
 The analyzers found real defects: a cancellation registration that `MainThreadDispatcher.InvokeAsync` disposed as
 it returned, before the work ran (MA0100), regular expressions with no match timeout (MA0009), parsing that used
 the culture of the machine (CA1305, MA0011), and `StringBuilder` buffers in P/Invoke signatures (CA1838).
+Sonar and Roslynator found smaller ones: a window owner read after a failed `GetWindowThreadProcessId` call, a
+cancelled task that did not record its token (S8949), a registration disposed without a wait for its callback
+(RCS1261), and an `InventorOperations` field that no code read (S1144).
 
 Two `.editorconfig` options did not match the code, and now follow it. The code uses braces only for a statement on
 more than one line (250 findings with `true`, 1 with `when_multiline`). It uses an expression body for a method on

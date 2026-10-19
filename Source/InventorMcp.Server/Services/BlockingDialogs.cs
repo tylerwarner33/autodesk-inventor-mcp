@@ -419,7 +419,7 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	{
 		List<IntPtr> children = [];
 
-		_ = EnumChildWindows(parent, (child, parameter) =>
+		_ = EnumChildWindows(parent, (child, _) =>
 		{
 			children.Add(child);
 			return true;
@@ -496,11 +496,10 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	{
 		List<WindowInfo> windows = [];
 
-		_ = EnumWindows((handle, parameter) =>
+		_ = EnumWindows((handle, _) =>
 		{
-			_ = GetWindowThreadProcessId(handle, out uint owner);
-
-			if (owner == processId && IsWindowVisible(handle))
+			// The call returns 0 when it fails, and then owner is not read.
+			if (GetWindowThreadProcessId(handle, out uint owner) != 0 && owner == processId && IsWindowVisible(handle))
 				windows.Add(new WindowInfo(handle, GetClassName(handle), GetTitle(handle), IsWindowEnabled(handle)));
 
 			return true;
@@ -524,7 +523,7 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	private static string GetClassName(IntPtr handle)
 	{
 		char[] className = new char[256];
-		int length = GetClassName(handle, className, className.Length);
+		int length = GetClassNameW(handle, className, className.Length);
 
 		return new string(className, 0, Math.Max(length, 0));
 	}
@@ -595,6 +594,6 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	[DllImport("user32.dll", EntryPoint = "GetWindowTextW", CharSet = CharSet.Unicode)]
 	private static extern int GetWindowText(IntPtr window, [Out] char[] text, int maxCount);
 
-	[DllImport("user32.dll", EntryPoint = "GetClassNameW", CharSet = CharSet.Unicode)]
-	private static extern int GetClassName(IntPtr window, [Out] char[] className, int maxCount);
+	[DllImport("user32.dll", CharSet = CharSet.Unicode)]
+	private static extern int GetClassNameW(IntPtr window, [Out] char[] className, int maxCount);
 }

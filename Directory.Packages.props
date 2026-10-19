@@ -18,11 +18,13 @@
 	-->
 	<ItemGroup>
 		<GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.307" />
+		<GlobalPackageReference Include="Roslynator.Analyzers" Version="5.0.1" />
+		<GlobalPackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" />
 	</ItemGroup>
 
 	<!-- Tests only. -->
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.10.0" />
-		<PackageVersion Include="xunit.v3" Version="4.0.1" />
+		<PackageVersion Include="xunit.v3" Version="4.0.2" />
 	</ItemGroup>
 </Project>
