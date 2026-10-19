@@ -29,8 +29,6 @@ which runs inside `Inventor.exe` and calls the COM API on Inventor's main thread
 - **Fix an analyzer error. Do not suppress it.** The build enforces the analyzers and the style rules, and each warning
 	is an error. Suppress a rule only when it is wrong for the code, with the reason on the line above.
 	See `Docs/Architecture.md`, "The build enforces the code rules".
-- **Review in a new session.** The `repo-review` skill (`.claude/skills/repo-review/`) checks a change against the
-	rules that a build cannot check. The session that wrote the code is the worst reviewer of it.
 
 ## No Private Data in the Repository
 

@@ -435,8 +435,6 @@ document is skipped when the agent's context is full. So each rule that a tool c
 	project as a `GlobalPackageReference`. That is build time only, so no analyzer assembly reaches an output folder,
 	which matters for the add-in loader. `.editorconfig` makes every Roslynator rule a warning, because its rules are
 	off or `info` until set, and a rule that a new version adds is then enforced too.
-- The rules that need judgement (private data, a thin add-in, evidence in comments) are in the `repo-review` skill in
-	`.claude/skills/`. Run it in a new session, because the session that wrote the code defends it.
 
 Measured on 2026-10-18 with the code as it was then, as unique findings:
 

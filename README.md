@@ -44,7 +44,6 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
 | `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
 | `.agents/rules/` | Coding agents: the Inventor behaviours and repository rules, one topic per file |
-| `.claude/skills/repo-review/` | Coding agents: a review of a change against the repository rules that the build cannot check. Claude Code and GitHub Copilot read skills from `.claude/skills/`. |
 
 ### Which coding agents read `AGENTS.md`
 
