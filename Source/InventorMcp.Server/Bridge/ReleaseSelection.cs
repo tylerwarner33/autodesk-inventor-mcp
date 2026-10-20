@@ -36,7 +36,7 @@ internal sealed class ReleaseSelection
 	/// </summary>
 	public const string EnvironmentVariable = "INVENTORMCP_RELEASE";
 
-	private const string _pipeDirectory = @"\\.\pipe\";
+	private const string PipeDirectory = @"\\.\pipe\";
 
 	private readonly string _pipePrefix;
 	private readonly string? _environmentValue;
@@ -73,14 +73,14 @@ internal sealed class ReleaseSelection
 	/// <summary>
 	/// 	The release from a tool, or from the environment. Null when the selection is automatic.
 	/// </summary>
-	public int? Chosen => _chosen ?? _environmentRelease;
+	public int? Chosen => _chosen ?? EnvironmentRelease;
 
 	/// <summary>
 	/// 	Where <see cref="Chosen"/> comes from: <c>chosen</c>, <c>environment</c> or <c>automatic</c>.
 	/// </summary>
-	public string Source => _chosen is not null ? "chosen" : _environmentRelease is not null ? "environment" : "automatic";
+	public string Source => _chosen is not null ? "chosen" : EnvironmentRelease is not null ? "environment" : "automatic";
 
-	private int? _environmentRelease =>
+	private int? EnvironmentRelease =>
 		int.TryParse(_environmentValue, NumberStyles.None, CultureInfo.InvariantCulture, out int year)
 			&& InventorReleases.TryGetSoftwareVersion(year, out _)
 			? year
@@ -123,7 +123,7 @@ internal sealed class ReleaseSelection
 	/// </returns>
 	public PipeResolution Resolve()
 	{
-		if (_chosen is null && string.IsNullOrWhiteSpace(_environmentValue) is false && _environmentRelease is null)
+		if (_chosen is null && string.IsNullOrWhiteSpace(_environmentValue) is false && EnvironmentRelease is null)
 		{
 			return new PipeResolution(
 				null,
@@ -176,7 +176,7 @@ internal sealed class ReleaseSelection
 	{
 		try
 		{
-			return [.. Directory.EnumerateFiles(_pipeDirectory, $"{_pipePrefix}*").Select(Path.GetFileName)!];
+			return [.. Directory.EnumerateFiles(PipeDirectory, $"{_pipePrefix}*").Select(Path.GetFileName)!];
 		}
 		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
 		{

@@ -13,7 +13,7 @@ namespace InventorMcp.AddIn.Bridge;
 /// </remarks>
 internal sealed class MainThreadDispatcher : IDisposable
 {
-	private const int _workMessage = 0x8000 + 1;
+	private const int WorkMessage = 0x8000 + 1;
 	private static readonly IntPtr _messageOnlyParent = new(-3);
 
 	private readonly ConcurrentQueue<Action> _work = new();
@@ -26,10 +26,7 @@ internal sealed class MainThreadDispatcher : IDisposable
 	private int _mainThreadId;
 	private bool _disposed;
 
-	public MainThreadDispatcher()
-	{
-		_wndProc = WindowProcedure;
-	}
+	public MainThreadDispatcher() => _wndProc = WindowProcedure;
 
 	/// <summary>
 	/// 	Creates the message only window. Must be called from Inventor's main thread.
@@ -111,7 +108,7 @@ internal sealed class MainThreadDispatcher : IDisposable
 			}
 		});
 
-		if (PostMessage(_windowHandle, _workMessage, IntPtr.Zero, IntPtr.Zero) is false)
+		if (PostMessage(_windowHandle, WorkMessage, IntPtr.Zero, IntPtr.Zero) is false)
 			_ = completion.TrySetException(new InvalidOperationException($"Could not post to the dispatcher window. Win32 error {Marshal.GetLastWin32Error()}."));
 
 		return await completion.Task.ConfigureAwait(false);
@@ -119,7 +116,7 @@ internal sealed class MainThreadDispatcher : IDisposable
 
 	private IntPtr WindowProcedure(IntPtr windowHandle, uint message, IntPtr wParam, IntPtr lParam)
 	{
-		if (message is _workMessage)
+		if (message is WorkMessage)
 		{
 			// Drain fully: several posts can coalesce into fewer messages under load.
 			while (_work.TryDequeue(out Action? item))

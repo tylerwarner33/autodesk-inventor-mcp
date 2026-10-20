@@ -68,7 +68,7 @@ internal sealed partial class InventorInstallations(ILogger<InventorInstallation
 	/// </remarks>
 	public const string ReleaseFilterVariable = "INVENTOR_MCP_RELEASES";
 
-	private const string _addInName = "InventorMcp.AddIn";
+	private const string AddInName = "InventorMcp.AddIn";
 
 	private readonly ILogger<InventorInstallations> _logger = logger;
 
@@ -203,8 +203,8 @@ internal sealed partial class InventorInstallations(ILogger<InventorInstallation
 	{
 		string applicationData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
-		string bundleManifest = Path.Combine(applicationData, "Autodesk", "ApplicationPlugins", _addInName, $"{_addInName}.{year}.addin");
-		string developmentManifest = Path.Combine(applicationData, "Autodesk", $"Inventor {year}", "Addins", $"{_addInName}.addin");
+		string bundleManifest = Path.Combine(applicationData, "Autodesk", "ApplicationPlugins", AddInName, $"{AddInName}.{year}.addin");
+		string developmentManifest = Path.Combine(applicationData, "Autodesk", $"Inventor {year}", "Addins", $"{AddInName}.addin");
 
 		return File.Exists(bundleManifest) || File.Exists(developmentManifest);
 	}

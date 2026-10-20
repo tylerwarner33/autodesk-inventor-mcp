@@ -123,7 +123,7 @@ internal static partial class InventorTool
 
 		return SafeAsync(async () =>
 		{
-			JsonElement result = await RunJsonSnippetAsync(bridge, _findToolDocument + $$"""
+			JsonElement result = await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
 				string[] files = new string[] { {{files}} };
 				HashSet<string> wanted = new(new string[] { {{names}} }, StringComparer.OrdinalIgnoreCase);
 				ScriptDeadline deadline = StartDeadline(8);

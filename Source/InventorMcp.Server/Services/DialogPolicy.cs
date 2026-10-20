@@ -80,18 +80,18 @@ internal static partial class DialogPolicy
 	/// </summary>
 	public const string DontRunRuleButton = "Don't run the rule";
 
-	private const string _win32DialogClass = "#32770";
-	private const string _winFormsClassPrefix = "WindowsForms10.";
-	private const string _migrationTitle = "Data Format Has Changed";
-	private const string _migrationCancelButton = "Cancel";
-	private const string _migrationHelpButton = "Help";
-	private const string _dotNetErrorTitle = "Microsoft .NET";
-	private const string _dotNetErrorDetailsButton = "Details";
-	private const string _disposedObjectMessage = "Cannot access a disposed object.";
-	private const string _securityAlertTitle = "Security Alert";
-	private const string _securityAlertMessage = "iLogic has disabled a potentially harmful rule.";
-	private const string _securityAdvisorTitle = "iLogic Security Advisor";
-	private const string _trustThisRuleOption = "Assume that this external rule is safe";
+	private const string Win32DialogClass = "#32770";
+	private const string WinFormsClassPrefix = "WindowsForms10.";
+	private const string MigrationTitle = "Data Format Has Changed";
+	private const string MigrationCancelButton = "Cancel";
+	private const string MigrationHelpButton = "Help";
+	private const string DotNetErrorTitle = "Microsoft .NET";
+	private const string DotNetErrorDetailsButton = "Details";
+	private const string DisposedObjectMessage = "Cannot access a disposed object.";
+	private const string SecurityAlertTitle = "Security Alert";
+	private const string SecurityAlertMessage = "iLogic has disabled a potentially harmful rule.";
+	private const string SecurityAdvisorTitle = "iLogic Security Advisor";
+	private const string TrustThisRuleOption = "Assume that this external rule is safe";
 
 	private static readonly string[] _securityAlertDetailsButtons = ["Show details", "Hide details"];
 
@@ -126,8 +126,8 @@ internal static partial class DialogPolicy
 	/// </returns>
 	public static string? Classify(DialogSnapshot dialog)
 	{
-		bool isWinForms = dialog.ClassName.StartsWith(_winFormsClassPrefix, StringComparison.Ordinal);
-		bool isWin32 = dialog.ClassName == _win32DialogClass;
+		bool isWinForms = dialog.ClassName.StartsWith(WinFormsClassPrefix, StringComparison.Ordinal);
+		bool isWin32 = dialog.ClassName == Win32DialogClass;
 
 		if (ILogicErrorTitle().IsMatch(dialog.Title))
 			return ILogicErrorType;
@@ -135,17 +135,17 @@ internal static partial class DialogPolicy
 		if (isWinForms && ILogicCompileErrorTitle().IsMatch(dialog.Title))
 			return ILogicCompileErrorType;
 
-		if (isWinForms && dialog.Title == _securityAdvisorTitle)
+		if (isWinForms && dialog.Title == SecurityAdvisorTitle)
 			return SecurityAdvisorType;
 
-		if (isWinForms && dialog.Title == _dotNetErrorTitle)
+		if (isWinForms && dialog.Title == DotNetErrorTitle)
 			return DotNetErrorType;
 
-		if (isWin32 && dialog.Title == _migrationTitle)
+		if (isWin32 && dialog.Title == MigrationTitle)
 			return MigrationType;
 
 		// The Security Alert is a task dialog, which has the class of a message box.
-		if (isWin32 && dialog.Title == _securityAlertTitle && dialog.Text.Contains(_securityAlertMessage, StringComparison.Ordinal))
+		if (isWin32 && dialog.Title == SecurityAlertTitle && dialog.Text.Contains(SecurityAlertMessage, StringComparison.Ordinal))
 			return SecurityAlertType;
 
 		if (isWin32)
@@ -175,9 +175,9 @@ internal static partial class DialogPolicy
 
 		bool asRead = type switch
 		{
-			MigrationType => HasOnly(buttons, [OkButton, _migrationCancelButton], [_migrationHelpButton]),
-			DotNetErrorType => dialog.Text.Contains(_disposedObjectMessage, StringComparison.Ordinal)
-				&& HasOnly(buttons, [ContinueButton], [_dotNetErrorDetailsButton]),
+			MigrationType => HasOnly(buttons, [OkButton, MigrationCancelButton], [MigrationHelpButton]),
+			DotNetErrorType => dialog.Text.Contains(DisposedObjectMessage, StringComparison.Ordinal)
+				&& HasOnly(buttons, [ContinueButton], [DotNetErrorDetailsButton]),
 			SecurityAlertType => HasOnly(buttons, [RunRuleButton, DontRunRuleButton], _securityAlertDetailsButtons),
 			SecurityAdvisorType => HasOnly(buttons, [OkButton], _securityAdvisorOtherButtons) && TrustsOnlyThisRule(dialog.Options),
 			_ => buttons is [OkButton]
@@ -225,7 +225,7 @@ internal static partial class DialogPolicy
 	/// 	With no option read, the scope is not known, so the dialog stays open.
 	/// </remarks>
 	private static bool TrustsOnlyThisRule(IReadOnlyList<DialogOption> options) =>
-		options.Where(option => option.IsSelected).Select(option => option.Name).SequenceEqual([_trustThisRuleOption], StringComparer.Ordinal);
+		options.Where(option => option.IsSelected).Select(option => option.Name).SequenceEqual([TrustThisRuleOption], StringComparer.Ordinal);
 
 	[GeneratedRegex(@"^Error on line \d+ in rule: ", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
 	private static partial Regex ILogicErrorTitle();

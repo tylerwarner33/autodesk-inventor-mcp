@@ -24,7 +24,7 @@ internal sealed class DialogSettings
 	/// </summary>
 	public const string AskValue = "Ask";
 
-	private const string _resourceName = "InventorMcp.Server.DialogSettings.json";
+	private const string ResourceName = "InventorMcp.Server.DialogSettings.json";
 
 	private static readonly JsonDocumentOptions _jsonOptions = new()
 	{
@@ -207,7 +207,7 @@ internal sealed class DialogSettings
 
 	private static string ReadDefaultText()
 	{
-		using Stream stream = typeof(DialogSettings).Assembly.GetManifestResourceStream(_resourceName)
+		using Stream stream = typeof(DialogSettings).Assembly.GetManifestResourceStream(ResourceName)
 			?? throw new InvalidOperationException($"The embedded resource {FileName} is missing.");
 
 		using StreamReader reader = new(stream);

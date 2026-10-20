@@ -21,8 +21,8 @@ namespace InventorMcp.Server.Bridge;
 /// </remarks>
 internal static class PipeHost
 {
-	private const uint _queryLimitedInformation = 0x1000;
-	private const uint _tokenQuery = 0x0008;
+	private const uint QueryLimitedInformation = 0x1000;
+	private const uint TokenQuery = 0x0008;
 
 	/// <summary>
 	/// 	Checks the process that hosts the pipe.
@@ -59,7 +59,7 @@ internal static class PipeHost
 		if (hostSession != ownSession)
 			return $"Process {processId} runs in Windows session {hostSession}, not in this user's session {ownSession}.";
 
-		using SafeProcessHandle process = OpenProcess(_queryLimitedInformation, false, (uint)processId);
+		using SafeProcessHandle process = OpenProcess(QueryLimitedInformation, false, (uint)processId);
 
 		if (process.IsInvalid)
 			return $"Windows refused to open process {processId}, so it can belong to a different user.";
@@ -94,7 +94,7 @@ internal static class PipeHost
 	/// </summary>
 	private static SecurityIdentifier? ReadOwner(SafeProcessHandle process)
 	{
-		if (OpenProcessToken(process, _tokenQuery, out SafeAccessTokenHandle token) is false)
+		if (OpenProcessToken(process, TokenQuery, out SafeAccessTokenHandle token) is false)
 			return null;
 
 		using (token)

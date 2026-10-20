@@ -217,7 +217,7 @@ internal static partial class InventorTool
 				cancellationToken));
 		}
 
-		return SafeAsync(async () => await RunJsonSnippetAsync(bridge, _findToolDocument + $$"""
+		return SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
 			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}}, allowOpen: false);
 			string ruleName = {{CSharpLiteral.String(ruleName)}};
 			if (!{{(allowUnsavedChanges ? "true" : "false")}} && document.Dirty)

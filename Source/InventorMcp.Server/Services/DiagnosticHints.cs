@@ -14,7 +14,7 @@ namespace InventorMcp.Server.Services;
 /// </remarks>
 internal static partial class DiagnosticHints
 {
-	private const int _maxHintMembers = 5;
+	private const int MaxHintMembers = 5;
 
 	/// <summary>
 	/// 	Removes noise from a successful result, and adds the near members to a missing member error.
@@ -66,7 +66,7 @@ internal static partial class DiagnosticHints
 	/// </returns>
 	private static string? Hint(string typeName, string memberName, ApiReferenceService apiReference, int? releaseYear)
 	{
-		(IReadOnlyList<ApiMember> near, IReadOnlyList<ApiMember> elsewhere, int elsewhereCount) = apiReference.FindNear(typeName, memberName, _maxHintMembers, releaseYear);
+		(IReadOnlyList<ApiMember> near, IReadOnlyList<ApiMember> elsewhere, int elsewhereCount) = apiReference.FindNear(typeName, memberName, MaxHintMembers, releaseYear);
 
 		if (near.Count == 0 && elsewhere.Count == 0)
 			return null;

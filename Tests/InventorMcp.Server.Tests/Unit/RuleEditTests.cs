@@ -5,12 +5,12 @@ namespace InventorMcp.Server.Tests.Unit;
 [Trait("Level", "Unit")]
 public sealed class RuleEditTests
 {
-	private const string _rule = "Sub Main()\r\n\tWidth = 10\r\n\tHeight = 20\r\nEnd Sub";
+	private const string Rule = "Sub Main()\r\n\tWidth = 10\r\n\tHeight = 20\r\nEnd Sub";
 
 	[Fact]
 	public void ReplaceAtAUniqueAnchorKeepsTheRuleLineEnds()
 	{
-		Assert.True(RuleEdit.TryApply(_rule, "\tWidth = 12\n\tDepth = 5", "\tWidth = 10", "replace", out string edited, out _));
+		Assert.True(RuleEdit.TryApply(Rule, "\tWidth = 12\n\tDepth = 5", "\tWidth = 10", "replace", out string edited, out _));
 
 		Assert.Equal("Sub Main()\r\n\tWidth = 12\r\n\tDepth = 5\r\n\tHeight = 20\r\nEnd Sub", edited);
 	}
@@ -18,8 +18,8 @@ public sealed class RuleEditTests
 	[Fact]
 	public void InsertAfterAndBefore()
 	{
-		Assert.True(RuleEdit.TryApply(_rule, "\r\n\tDepth = 5", "\tHeight = 20", "insert-after", out string after, out _));
-		Assert.True(RuleEdit.TryApply(_rule, "' Sizes\r\n", "\tWidth = 10", "insert-before", out string before, out _));
+		Assert.True(RuleEdit.TryApply(Rule, "\r\n\tDepth = 5", "\tHeight = 20", "insert-after", out string after, out _));
+		Assert.True(RuleEdit.TryApply(Rule, "' Sizes\r\n", "\tWidth = 10", "insert-before", out string before, out _));
 
 		Assert.Contains("\tHeight = 20\r\n\tDepth = 5\r\nEnd Sub", after);
 		Assert.Contains("Sub Main()\r\n' Sizes\r\n\tWidth = 10", before);
@@ -28,16 +28,16 @@ public sealed class RuleEditTests
 	[Fact]
 	public void AnchorThatOccursTwiceChangesNothing()
 	{
-		Assert.False(RuleEdit.TryApply(_rule, "x", " = ", "replace", out string edited, out string? problem));
+		Assert.False(RuleEdit.TryApply(Rule, "x", " = ", "replace", out string edited, out string? problem));
 
-		Assert.Equal(_rule, edited);
+		Assert.Equal(Rule, edited);
 		Assert.Contains("occurs 2 times", problem);
 	}
 
 	[Fact]
 	public void MissingAnchorChangesNothing()
 	{
-		Assert.False(RuleEdit.TryApply(_rule, "x", "Depth", "replace", out _, out string? problem));
+		Assert.False(RuleEdit.TryApply(Rule, "x", "Depth", "replace", out _, out string? problem));
 
 		Assert.Contains("does not occur", problem);
 	}
@@ -45,7 +45,7 @@ public sealed class RuleEditTests
 	[Fact]
 	public void AnchorWithOtherLineEndsStillMatches()
 	{
-		Assert.True(RuleEdit.TryApply(_rule, "Sub Main()\n", "Sub Main()\n", "replace", out _, out _));
+		Assert.True(RuleEdit.TryApply(Rule, "Sub Main()\n", "Sub Main()\n", "replace", out _, out _));
 	}
 
 	[Fact]
@@ -65,9 +65,9 @@ public sealed class RuleEditTests
 
 		try
 		{
-			string path = RuleEdit.WriteBackup(@"C:\Designs\Top Assembly.iam", "Main Rule", _rule);
+			string path = RuleEdit.WriteBackup(@"C:\Designs\Top Assembly.iam", "Main Rule", Rule);
 
-			Assert.Equal(_rule, File.ReadAllText(path));
+			Assert.Equal(Rule, File.ReadAllText(path));
 			Assert.EndsWith("_Top Assembly_Main Rule.iLogicVb", path);
 		}
 		finally
@@ -86,14 +86,14 @@ public sealed class RuleEditTests
 
 		try
 		{
-			string expired = RuleEdit.WriteBackup(@"C:\Work\Old.iam", "Main Rule", _rule);
-			string recent = RuleEdit.WriteBackup(@"C:\Work\Recent.iam", "Main Rule", _rule);
+			string expired = RuleEdit.WriteBackup(@"C:\Work\Old.iam", "Main Rule", Rule);
+			string recent = RuleEdit.WriteBackup(@"C:\Work\Recent.iam", "Main Rule", Rule);
 			string other = Path.Combine(folder, "notes.txt");
 			File.WriteAllText(other, "kept");
 			File.SetLastWriteTimeUtc(expired, DateTime.UtcNow - RuleEdit.BackupRetention - TimeSpan.FromDays(1));
 			File.SetLastWriteTimeUtc(other, DateTime.UtcNow - RuleEdit.BackupRetention - TimeSpan.FromDays(1));
 
-			string newest = RuleEdit.WriteBackup(@"C:\Work\New.iam", "Main Rule", _rule);
+			string newest = RuleEdit.WriteBackup(@"C:\Work\New.iam", "Main Rule", Rule);
 
 			Assert.False(File.Exists(expired));
 			Assert.True(File.Exists(recent));

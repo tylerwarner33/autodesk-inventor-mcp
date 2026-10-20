@@ -21,7 +21,7 @@ internal static partial class InventorTool
 	/// 	in to Vault, is not modifiable, and a write to it fails with only E_FAIL, so a model needs this to read the
 	/// 	failure. RulesEnabled is in the result because <c>suppressRules</c> changes it for the whole session.
 	/// </remarks>
-	private const string _sessionStateSnippet = """
+	private const string SessionStateSnippet = """
 		string? only = __DOCUMENT__;
 		DesignProject project = Application.DesignProjectManager.ActiveDesignProject;
 		// A project path can be relative to the folder of the .ipj, ex. .\Designs.
@@ -78,17 +78,17 @@ internal static partial class InventorTool
 		});
 		""";
 
-	private const int _maxSessionDocuments = 200;
+	private const int MaxSessionDocuments = 200;
 
 	/// <summary>
-	/// 	Runs <see cref="_sessionStateSnippet"/>, for every document or for one.
+	/// 	Runs <see cref="SessionStateSnippet"/>, for every document or for one.
 	/// </summary>
 	private static Task<JsonElement> ReadSessionStateAsync(BridgeClient bridge, string? documentName, CancellationToken cancellationToken) =>
 		RunJsonSnippetAsync(
 			bridge,
-			_sessionStateSnippet
+			SessionStateSnippet
 				.Replace("__DOCUMENT__", Services.CSharpLiteral.String(documentName), StringComparison.Ordinal)
-				.Replace("__MAX__", _maxSessionDocuments.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal),
+				.Replace("__MAX__", MaxSessionDocuments.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal),
 			cancellationToken);
 
 	[McpServerTool(Name = "inventor_session")]
@@ -210,9 +210,9 @@ internal static partial class InventorTool
 	/// <remarks>
 	/// 	One tree at depth 3 gave 106,000 characters, over a client's limit for one result.
 	/// </remarks>
-	private const int _maxTreeCharacters = 60_000;
+	private const int MaxTreeCharacters = 60_000;
 
-	private const int _maxSummaryDocuments = 200;
+	private const int MaxSummaryDocuments = 200;
 
 	internal static object ShapeTree(Contracts.Models.AssemblyTree tree, bool summary)
 	{
@@ -221,11 +221,11 @@ internal static partial class InventorTool
 
 		int characters = JsonSerializer.Serialize(tree, BridgeProtocol.SerializerOptions).Length;
 
-		return characters <= _maxTreeCharacters
+		return characters <= MaxTreeCharacters
 			? tree
 			: SummarizeTree(
 				tree,
-				$"The tree is {characters:N0} characters, over the limit of {_maxTreeCharacters:N0}, so this is the summary. " +
+				$"The tree is {characters:N0} characters, over the limit of {MaxTreeCharacters:N0}, so this is the summary. " +
 				"Call again with a smaller maxDepth or maxNodes for the tree.");
 	}
 
@@ -245,7 +245,7 @@ internal static partial class InventorTool
 		List<object> documents = [.. nodes
 			.GroupBy(static entry => entry.Node.ReferencedFile, StringComparer.OrdinalIgnoreCase)
 			.OrderByDescending(static group => group.Count())
-			.Take(_maxSummaryDocuments)
+			.Take(MaxSummaryDocuments)
 			.Select(static group => new
 			{
 				file = group.Key,
@@ -264,7 +264,7 @@ internal static partial class InventorTool
 			suppressedOccurrences = nodes.Count(static entry => entry.Node.IsSuppressed),
 			uniqueDocuments = nodes.Select(static entry => entry.Node.ReferencedFile).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
 			documents,
-			documentsLeftOut = Math.Max(0, nodes.Select(static entry => entry.Node.ReferencedFile).Distinct(StringComparer.OrdinalIgnoreCase).Count() - _maxSummaryDocuments)
+			documentsLeftOut = Math.Max(0, nodes.Select(static entry => entry.Node.ReferencedFile).Distinct(StringComparer.OrdinalIgnoreCase).Count() - MaxSummaryDocuments)
 		};
 	}
 

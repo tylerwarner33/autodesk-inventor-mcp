@@ -65,9 +65,9 @@ internal sealed partial class BridgeClient(
 	/// <remarks>
 	/// 	The main frame is also disabled for a moment while a dialog opens or closes.
 	/// </remarks>
-	private const int _checksBeforeBlockWithoutDialog = 2;
+	private const int ChecksBeforeBlockWithoutDialog = 2;
 
-	private const int _maxTextInMessage = 600;
+	private const int MaxTextInMessage = 600;
 
 	private readonly ILogger<BridgeClient> _logger = logger;
 	private readonly IBlockingDialogs _dialogs = dialogs;
@@ -358,7 +358,7 @@ internal sealed partial class BridgeClient(
 
 		if (state.Dialogs.Count == 0)
 		{
-			if (++watch.ChecksWithoutDialog < _checksBeforeBlockWithoutDialog)
+			if (++watch.ChecksWithoutDialog < ChecksBeforeBlockWithoutDialog)
 				return;
 
 			LogBlockedWithoutDialog(processId);
@@ -440,7 +440,7 @@ internal sealed partial class BridgeClient(
 	private static InventorBridgeException BlockedByDialog(DialogSnapshot dialog)
 	{
 		string? type = DialogPolicy.Classify(dialog);
-		string text = dialog.Text.Length > _maxTextInMessage ? dialog.Text[.._maxTextInMessage] + " ..." : dialog.Text;
+		string text = dialog.Text.Length > MaxTextInMessage ? dialog.Text[..MaxTextInMessage] + " ..." : dialog.Text;
 
 		string message =
 			"Inventor is blocked by a modal dialog. The call cannot run until the dialog is closed." + Environment.NewLine +

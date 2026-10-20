@@ -17,7 +17,7 @@ internal static partial class InventorTool
 	/// <summary>
 	/// 	Reads a length in the document's length unit, with the unit name.
 	/// </summary>
-	private const string _documentLengthHelper = """
+	private const string DocumentLengthHelper = """
 		UnitsOfMeasure __units = document.UnitsOfMeasure;
 		string LengthUnit() => __units.GetStringFromType(__units.LengthUnits);
 		// + 0.0 turns -0 into 0.
@@ -37,7 +37,7 @@ internal static partial class InventorTool
 		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
 		[Description("Include each feature's parameters. Default true.")] bool includeParameters = true,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(async () => await RunJsonSnippetAsync(bridge, _findToolDocument + $$"""
+		SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
 			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
 			bool includeParameters = {{(includeParameters ? "true" : "false")}};
 			System.Collections.IEnumerable all = document switch
@@ -170,9 +170,9 @@ internal static partial class InventorTool
 		[Description("The name of the pattern or mirror feature, as inventor_features lists it.")] string featureName,
 		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(async () => await RunJsonSnippetAsync(bridge, _findToolDocument + $$"""
+		SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
 			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
-			{{_documentLengthHelper}}
+			{{DocumentLengthHelper}}
 			string featureName = {{CSharpLiteral.String(featureName)}};
 			System.Collections.IEnumerable all = document switch
 			{
@@ -231,9 +231,9 @@ internal static partial class InventorTool
 		[Description("Display name or full path of an open part, or the full path of a file. Omit to use the active document.")] string? documentName = null,
 		[Description("The most hole positions to list for each diameter. Default 50.")] int maxPositions = 50,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(async () => await RunJsonSnippetAsync(bridge, _findToolDocument + $$"""
+		SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
 			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
-			{{_documentLengthHelper}}
+			{{DocumentLengthHelper}}
 			int maxPositions = {{(maxPositions <= 0 ? 50 : maxPositions)}};
 			PartDocument part = document as PartDocument ?? throw new ArgumentException("inventor_hole_check reads a part.");
 			const double tolerance = 1e-4;
@@ -436,7 +436,7 @@ internal static partial class InventorTool
 		CancellationToken cancellationToken = default) =>
 		SafeAsync(async () =>
 		{
-			JsonElement result = await RunJsonSnippetAsync(bridge, _findToolDocument + StylesSnippet("first", documentName) +
+			JsonElement result = await RunJsonSnippetAsync(bridge, FindToolDocument + StylesSnippet("first", documentName) +
 				(compareWith is null ? "string? second = null;\n" : StylesSnippet("second", compareWith)) + """
 				CloseDocumentsOpenedHere();
 				return System.Text.Json.JsonSerializer.Serialize(new { first, second });

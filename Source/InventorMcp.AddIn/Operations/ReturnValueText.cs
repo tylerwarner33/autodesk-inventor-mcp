@@ -17,14 +17,14 @@ namespace InventorMcp.AddIn.Operations;
 /// </remarks>
 internal static class ReturnValueText
 {
-	private const int _maxDepth = 6;
+	private const int MaxDepth = 6;
 
-	private const int _maxItems = 10_000;
+	private const int MaxItems = 10_000;
 
 	private static readonly JsonSerializerOptions _options = new()
 	{
 		IncludeFields = true,
-		MaxDepth = _maxDepth + 2,
+		MaxDepth = MaxDepth + 2,
 		ReferenceHandler = ReferenceHandler.IgnoreCycles
 	};
 
@@ -86,7 +86,7 @@ internal static class ReturnValueText
 		if (IsScalar(type))
 			return true;
 
-		if (depth >= _maxDepth || Marshal.IsComObject(value) || type.IsCOMObject || typeof(Delegate).IsAssignableFrom(type))
+		if (depth >= MaxDepth || Marshal.IsComObject(value) || type.IsCOMObject || typeof(Delegate).IsAssignableFrom(type))
 			return false;
 
 		if (value is IDictionary dictionary)
@@ -95,7 +95,7 @@ internal static class ReturnValueText
 
 			foreach (DictionaryEntry entry in dictionary)
 			{
-				if (++count > _maxItems || entry.Key is not string || IsPlain(entry.Value, depth + 1) is false)
+				if (++count > MaxItems || entry.Key is not string || IsPlain(entry.Value, depth + 1) is false)
 					return false;
 			}
 
@@ -108,7 +108,7 @@ internal static class ReturnValueText
 
 			foreach (object? item in items)
 			{
-				if (++count > _maxItems || IsPlain(item, depth + 1) is false)
+				if (++count > MaxItems || IsPlain(item, depth + 1) is false)
 					return false;
 			}
 
