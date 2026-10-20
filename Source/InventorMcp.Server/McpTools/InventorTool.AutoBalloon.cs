@@ -27,7 +27,7 @@ internal static partial class InventorTool
 	/// 	packed over the parts they name. The rules come from two production implementations. See
 	/// 	<c>Docs/Research/Auto-Balloon.md</c>.
 	/// </remarks>
-	private const string _autoBalloonSnippet = """
+	private const string AutoBalloonSnippet = """
 		#nullable enable
 
 		// One part file's balloon: the curve and point its leader attaches to, and where the balloon goes.
@@ -586,7 +586,7 @@ internal static partial class InventorTool
 
 		// One pass, so a placeholder name inside an argument (ex. a view named '__SHEET__') is never replaced.
 		string code = ScriptPrelude.Apply(DrawingLayoutPlaceholder().Replace(
-			_autoBalloonSnippet,
+			AutoBalloonSnippet,
 			match => values.TryGetValue(match.Value, out string? value) ? value : match.Value));
 
 		return SafeAsync(async () => await AddFailureContextAsync(

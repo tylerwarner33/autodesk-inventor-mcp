@@ -14,8 +14,8 @@ namespace InventorMcp.AddIn.Bridge;
 /// </remarks>
 internal sealed class OperationDispatcher(Action<string> log)
 {
-	private const int _callRejected = unchecked((int)0x80010001);
-	private const int _serverCallRetryLater = unchecked((int)0x8001010A);
+	private const int CallRejected = unchecked((int)0x80010001);
+	private const int ServerCallRetryLater = unchecked((int)0x8001010A);
 
 	private readonly Dictionary<string, Func<JsonElement?, CancellationToken, Task<object?>>> _handlers = new(StringComparer.Ordinal);
 	private readonly Action<string> _log = log;
@@ -66,7 +66,7 @@ internal sealed class OperationDispatcher(Action<string> log)
 		{
 			return Logged(request, Failure(request, failure.Code, failure.Message, failure.Detail));
 		}
-		catch (COMException comException) when (comException.HResult is _callRejected or _serverCallRetryLater)
+		catch (COMException comException) when (comException.HResult is CallRejected or ServerCallRetryLater)
 		{
 			// Inventor is mid command or showing a modal dialog. This is transient, so say so rather than failing hard.
 			return Logged(request, Failure(request, BridgeErrorCodes.Busy, "Inventor rejected the call because it is busy. Retry once the current command finishes.", comException.Message));

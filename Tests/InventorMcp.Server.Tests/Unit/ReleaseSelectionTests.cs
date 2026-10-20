@@ -12,10 +12,10 @@ namespace InventorMcp.Server.Tests.Unit;
 [Trait("Level", "Unit")]
 public sealed class ReleaseSelectionTests
 {
-	private const string _prefix = "InventorMcp.Test.Selection";
+	private const string Prefix = "InventorMcp.Test.Selection";
 
 	private static ReleaseSelection Selection(string environmentValue = "", params string[] pipes) =>
-		new(_prefix, environmentValue, () => pipes);
+		new(Prefix, environmentValue, () => pipes);
 
 	// The test process hosts the fake pipes, so the host check accepts it.
 	private static BridgeClient ClientFor(ReleaseSelection selection) =>
@@ -24,16 +24,16 @@ public sealed class ReleaseSelectionTests
 	[Fact]
 	public void NoChoiceAndOnePipeUsesThatPipe()
 	{
-		PipeResolution resolution = Selection(pipes: $"{_prefix}.2026").Resolve();
+		PipeResolution resolution = Selection(pipes: $"{Prefix}.2026").Resolve();
 
-		Assert.Equal($"{_prefix}.2026", resolution.PipeName);
+		Assert.Equal($"{Prefix}.2026", resolution.PipeName);
 		Assert.Equal(2026, resolution.ReleaseYear);
 	}
 
 	[Fact]
 	public void NoChoiceAndTwoPipesRequiresAChoice()
 	{
-		PipeResolution resolution = Selection(string.Empty, $"{_prefix}.2025", $"{_prefix}.2027").Resolve();
+		PipeResolution resolution = Selection(string.Empty, $"{Prefix}.2025", $"{Prefix}.2027").Resolve();
 
 		Assert.Equal(BridgeErrorCodes.ReleaseRequired, resolution.ErrorCode);
 		Assert.Contains("2025", resolution.Message);
@@ -43,9 +43,9 @@ public sealed class ReleaseSelectionTests
 	[Fact]
 	public void EnvironmentVariableWinsOverAnotherPipe()
 	{
-		PipeResolution resolution = Selection("2027", $"{_prefix}.2025", $"{_prefix}.2027").Resolve();
+		PipeResolution resolution = Selection("2027", $"{Prefix}.2025", $"{Prefix}.2027").Resolve();
 
-		Assert.Equal($"{_prefix}.2027", resolution.PipeName);
+		Assert.Equal($"{Prefix}.2027", resolution.PipeName);
 	}
 
 	[Fact]
@@ -67,17 +67,17 @@ public sealed class ReleaseSelectionTests
 	[Fact]
 	public void ChosenReleaseNeverFallsBackToAnotherPipe()
 	{
-		ReleaseSelection selection = Selection(pipes: $"{_prefix}.2025");
+		ReleaseSelection selection = Selection(pipes: $"{Prefix}.2025");
 
 		selection.Choose(2026);
 
-		Assert.Equal($"{_prefix}.2026", selection.Resolve().PipeName);
+		Assert.Equal($"{Prefix}.2026", selection.Resolve().PipeName);
 	}
 
 	[Fact]
 	public void EnvironmentValueThatIsNotAReleaseIsReported()
 	{
-		PipeResolution resolution = Selection("2019", $"{_prefix}.2025").Resolve();
+		PipeResolution resolution = Selection("2019", $"{Prefix}.2025").Resolve();
 
 		Assert.Equal(BridgeErrorCodes.ReleaseRequired, resolution.ErrorCode);
 		Assert.Contains("2019", resolution.Message);
@@ -85,7 +85,7 @@ public sealed class ReleaseSelectionTests
 
 	[Fact]
 	public void OnlyTheLegacyPipeIsOutdated() =>
-		Assert.Equal(BridgeErrorCodes.BridgeOutdated, Selection(pipes: _prefix).Resolve().ErrorCode);
+		Assert.Equal(BridgeErrorCodes.BridgeOutdated, Selection(pipes: Prefix).Resolve().ErrorCode);
 
 	[Fact]
 	public void NoPipeIsNotRunning() => Assert.Equal(BridgeErrorCodes.NotRunning, Selection().Resolve().ErrorCode);

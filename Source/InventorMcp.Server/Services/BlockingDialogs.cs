@@ -61,11 +61,11 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 	/// </summary>
 	public const string PasswordFieldText = "[password field]";
 
-	private const string _textSeparator = "\r\n---\r\n";
-	private const string _win32DialogClass = "#32770";
-	private const uint _getAncestorRoot = 2;
-	private const uint _commandMessage = 0x0111;
-	private const uint _sendAbortIfHung = 0x0002;
+	private const string TextSeparator = "\r\n---\r\n";
+	private const string Win32DialogClass = "#32770";
+	private const uint GetAncestorRoot = 2;
+	private const uint CommandMessage = 0x0111;
+	private const uint SendAbortIfHung = 0x0002;
 
 	private static readonly TimeSpan _closeWait = TimeSpan.FromSeconds(1);
 
@@ -185,7 +185,7 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 			.Select(pair => pair.Element)];
 
 		// The same condition as the Win32 read in Read, so a button that the read found through Win32 is clicked that way.
-		if (content.Buttons.Count == 0 && GetClassName(handle) == _win32DialogClass)
+		if (content.Buttons.Count == 0 && GetClassName(handle) == Win32DialogClass)
 			return InvokeThroughWin32(handle, title, buttonName);
 
 		if (matches.Count != 1)
@@ -217,7 +217,7 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 
 		// BN_CLICKED is 0, so the high word of wParam stays 0.
 		IntPtr command = new(matches[0].Id & 0xFFFF);
-		IntPtr answered = SendMessageTimeout(handle, _commandMessage, command, matches[0].Handle, _sendAbortIfHung, (uint)_readTimeout.TotalMilliseconds, out _);
+		IntPtr answered = SendMessageTimeout(handle, CommandMessage, command, matches[0].Handle, SendAbortIfHung, (uint)_readTimeout.TotalMilliseconds, out _);
 
 		if (answered == IntPtr.Zero)
 			return new ClickOutcome(ClickStatus.Failed, $"'{title}' did not answer the click on '{buttonName}' within {_readTimeout.TotalSeconds:0} s.");
@@ -267,7 +267,7 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 
 		// UI Automation finds nothing in some Win32 dialogs (seen on Inventor's migration dialog), so the child windows
 		// are read directly. See Docs/Research/Blocking-Dialog-Detection.md, "The migration dialog".
-		if (buttons.Count == 0 && window.ClassName == _win32DialogClass)
+		if (buttons.Count == 0 && window.ClassName == Win32DialogClass)
 		{
 			List<Win32Control> controls = Win32Controls(window.Handle);
 
@@ -282,7 +282,7 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 			window.Title,
 			window.ClassName,
 			content.Framework,
-			string.Join(_textSeparator, texts),
+			string.Join(TextSeparator, texts),
 			buttons,
 			Choices: content.Options.Count > 0 ? content.Options : null);
 	}
@@ -339,7 +339,7 @@ internal sealed class BlockingDialogs(Func<string, string, bool>? isMainWindow =
 
 			if (handle != IntPtr.Zero)
 			{
-				if (GetAncestor(handle, _getAncestorRoot) != dialog)
+				if (GetAncestor(handle, GetAncestorRoot) != dialog)
 					continue;
 
 				_ = seenHandles.Add(handle);

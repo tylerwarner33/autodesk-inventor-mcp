@@ -16,7 +16,7 @@ internal static partial class InventorTool
 	/// 	Composed on top of the execution operation rather than added as a new bridge operation,
 	/// 	so it needs no add-in rebuild and therefore no Inventor restart.
 	/// </remarks>
-	private const string _orientationSnippet = """
+	private const string OrientationSnippet = """
 		// The execution tool runs with no document open, so say why there is nothing to read.
 		if (Application.ActiveView is null)
 			throw new InvalidOperationException("No document is open, so there is no ViewCube to read. Open a document first.");
@@ -86,6 +86,6 @@ internal static partial class InventorTool
 			BridgeOperations.EvalCSharp,
 			// The unsaved guard protects the model from damage. This snippet only moves the camera and puts it back,
 			// so refusing it on a dirty document would block a read for no benefit.
-			new ExecuteRequest(_orientationSnippet, documentName, AllowUnsavedChanges: true),
+			new ExecuteRequest(OrientationSnippet, documentName, AllowUnsavedChanges: true),
 			cancellationToken));
 }

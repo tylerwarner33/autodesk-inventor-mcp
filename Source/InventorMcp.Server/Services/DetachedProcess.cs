@@ -19,13 +19,13 @@ namespace InventorMcp.Server.Services;
 /// </remarks>
 internal sealed class DetachedProcess : IDisposable
 {
-	private const uint _processCreateProcess = 0x0080;
-	private const uint _extendedStartupInfoPresent = 0x00080000;
-	private const uint _createUnicodeEnvironment = 0x00000400;
-	private const int _procThreadAttributeParentProcess = 0x00020000;
-	private const uint _waitObject0 = 0x00000000;
-	private const uint _tokenQuery = 0x0008;
-	private const uint _tokenDuplicate = 0x0002;
+	private const uint ProcessCreateProcess = 0x0080;
+	private const uint ExtendedStartupInfoPresent = 0x00080000;
+	private const uint CreateUnicodeEnvironment = 0x00000400;
+	private const int ProcThreadAttributeParentProcess = 0x00020000;
+	private const uint WaitObject0 = 0x00000000;
+	private const uint TokenQuery = 0x0008;
+	private const uint TokenDuplicate = 0x0002;
 
 	private readonly SafeProcessHandle _handle;
 
@@ -43,7 +43,7 @@ internal sealed class DetachedProcess : IDisposable
 	/// <summary>
 	/// 	True once the process has ended.
 	/// </summary>
-	public bool HasExited => WaitForSingleObject(_handle, 0) == _waitObject0;
+	public bool HasExited => WaitForSingleObject(_handle, 0) == WaitObject0;
 
 	/// <summary>
 	/// 	Exit code, or null while the process runs.
@@ -79,7 +79,7 @@ internal sealed class DetachedProcess : IDisposable
 
 		_ = GetWindowThreadProcessId(shellWindow, out uint shellProcessId);
 
-		using SafeProcessHandle shell = OpenProcess(_processCreateProcess, false, shellProcessId);
+		using SafeProcessHandle shell = OpenProcess(ProcessCreateProcess, false, shellProcessId);
 
 		if (shell.IsInvalid)
 			throw new Win32Exception(Marshal.GetLastWin32Error(), $"Could not open the Explorer process {shellProcessId}.");
@@ -104,7 +104,7 @@ internal sealed class DetachedProcess : IDisposable
 			Marshal.WriteIntPtr(parentHandleValue, shell.DangerousGetHandle());
 #pragma warning restore S3869
 
-			if (UpdateProcThreadAttribute(attributeList, 0, _procThreadAttributeParentProcess, parentHandleValue, IntPtr.Size, IntPtr.Zero, IntPtr.Zero) is false)
+			if (UpdateProcThreadAttribute(attributeList, 0, ProcThreadAttributeParentProcess, parentHandleValue, IntPtr.Size, IntPtr.Zero, IntPtr.Zero) is false)
 				throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not set Explorer as the parent process.");
 
 			environment = CreateUserEnvironment();
@@ -118,7 +118,7 @@ internal sealed class DetachedProcess : IDisposable
 			// CreateProcess may write to the command line buffer, so it cannot be a string.
 			char[] commandLine = $"\"{executablePath}\"\0".ToCharArray();
 
-			uint creationFlags = _extendedStartupInfoPresent | (environment == IntPtr.Zero ? 0 : _createUnicodeEnvironment);
+			uint creationFlags = ExtendedStartupInfoPresent | (environment == IntPtr.Zero ? 0 : CreateUnicodeEnvironment);
 
 			if (CreateProcess(
 				executablePath,
@@ -157,7 +157,7 @@ internal sealed class DetachedProcess : IDisposable
 	/// </summary>
 	private static IntPtr CreateUserEnvironment()
 	{
-		if (OpenProcessToken(GetCurrentProcess(), _tokenQuery | _tokenDuplicate, out IntPtr token) is false)
+		if (OpenProcessToken(GetCurrentProcess(), TokenQuery | TokenDuplicate, out IntPtr token) is false)
 			return IntPtr.Zero;
 
 		try

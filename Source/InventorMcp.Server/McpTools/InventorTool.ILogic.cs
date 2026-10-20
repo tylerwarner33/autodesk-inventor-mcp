@@ -27,7 +27,7 @@ internal static partial class InventorTool
 	/// 	no save. A write passes allowOpen false, because a change to a document that the call opens is lost when it
 	/// 	closes, and a hidden document that stays open is a leak.
 	/// </remarks>
-	private const string _findToolDocument = """
+	private const string FindToolDocument = """
 		Document FindToolDocument(string? nameOrPath, bool allowOpen = true)
 		{
 			if (string.IsNullOrWhiteSpace(nameOrPath))
@@ -66,7 +66,7 @@ internal static partial class InventorTool
 		BridgeClient bridge,
 		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(async () => await RunJsonSnippetAsync(bridge, _findToolDocument + $$"""
+		SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
 			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
 			string json = System.Text.Json.JsonSerializer.Serialize(new
 			{
@@ -95,7 +95,7 @@ internal static partial class InventorTool
 
 		return SafeAsync(async () =>
 		{
-			JsonElement rules = await RunJsonSnippetAsync(bridge, _findToolDocument + $$"""
+			JsonElement rules = await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
 				Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
 				string? onlyRule = {{CSharpLiteral.String(ruleName)}};
 				List<object> rules = new();
@@ -175,7 +175,7 @@ internal static partial class InventorTool
 			if (mode is not ("replace" or "insert-before" or "insert-after" or "replace-all"))
 				return new { error = "invalid-arguments", message = $"Unknown mode '{mode}'. Use replace, insert-before, insert-after or replace-all." };
 
-			JsonElement current = await RunJsonSnippetAsync(bridge, _findToolDocument + $$"""
+			JsonElement current = await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
 				Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
 				string json = System.Text.Json.JsonSerializer.Serialize(new
 				{
@@ -216,7 +216,7 @@ internal static partial class InventorTool
 
 			string? backup = oldText is null ? null : RuleEdit.WriteBackup(documentPath, ruleName, oldText);
 
-			JsonElement written = await RunJsonSnippetAsync(bridge, _findToolDocument + $$"""
+			JsonElement written = await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
 				Document document = FindToolDocument({{CSharpLiteral.String(documentPath)}}, allowOpen: {{(save ? "true" : "false")}});
 				string? expected = {{CSharpLiteral.String(oldText)}};
 				string? now = ILogicRuleText(document, {{CSharpLiteral.String(ruleName)}});
@@ -299,7 +299,7 @@ internal static partial class InventorTool
 		foreach ((string name, string value) in parameters)
 			_ = entries.Append(CultureInfo.InvariantCulture, $"\t({CSharpLiteral.String(name)}, {CSharpLiteral.String(value)}),\n");
 
-		return _findToolDocument + $$"""
+		return FindToolDocument + $$"""
 			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}}, allowOpen: false);
 			if (!{{(allowUnsavedChanges ? "true" : "false")}} && document.Dirty)
 				throw new InvalidOperationException($"'{document.DisplayName}' has unsaved changes. Save it, or pass allowUnsavedChanges.");

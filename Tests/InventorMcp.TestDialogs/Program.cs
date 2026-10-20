@@ -22,8 +22,8 @@ internal static class Program
 {
 	public const string MainWindowTitle = "InventorMcp Test Main";
 
-	private const uint _getWindowOwner = 4;
-	private const uint _windowMessageClose = 0x0010;
+	private const uint GetWindowOwner = 4;
+	private const uint WindowMessageClose = 0x0010;
 
 	[STAThread]
 	private static int Main(string[] args)
@@ -74,7 +74,7 @@ internal static class Program
 					close.Tick += (_, _) =>
 					{
 						close.Stop();
-						_ = PostMessage(dialog, _windowMessageClose, IntPtr.Zero, IntPtr.Zero);
+						_ = PostMessage(dialog, WindowMessageClose, IntPtr.Zero, IntPtr.Zero);
 					};
 					close.Start();
 				}
@@ -316,7 +316,7 @@ internal static class Program
 
 		_ = EnumThreadWindows(GetCurrentThreadId(), (window, _) =>
 		{
-			if (window != main && IsWindowVisible(window) && GetWindow(window, _getWindowOwner) == main)
+			if (window != main && IsWindowVisible(window) && GetWindow(window, GetWindowOwner) == main)
 			{
 				found = window;
 				return false;

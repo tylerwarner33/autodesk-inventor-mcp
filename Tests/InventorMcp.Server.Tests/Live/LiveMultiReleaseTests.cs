@@ -16,7 +16,7 @@ namespace InventorMcp.Server.Tests.Live;
 [Trait("Level", "Live")]
 public sealed class LiveMultiReleaseTests
 {
-	private static CancellationToken _cancellation => TestContext.Current.CancellationToken;
+	private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
 	[Fact]
 	public async Task EachReleaseAnswersWithItsOwnYearAndProcess()
@@ -33,7 +33,7 @@ public sealed class LiveMultiReleaseTests
 		{
 			await using BridgeClient client = LiveInventor.CreateClient(year);
 
-			SessionInfo session = await client.InvokeAsync<SessionInfo>(BridgeOperations.Session, null, _cancellation);
+			SessionInfo session = await client.InvokeAsync<SessionInfo>(BridgeOperations.Session, null, Cancellation);
 
 			Assert.Equal(year, session.ReleaseYear);
 			Assert.Equal(year, client.ReleaseYear);
@@ -55,7 +55,7 @@ public sealed class LiveMultiReleaseTests
 		await using BridgeClient client = LiveInventor.CreateClient(missing);
 
 		InventorBridgeException exception = await Assert.ThrowsAsync<InventorBridgeException>(
-			() => client.InvokeAsync<SessionInfo>(BridgeOperations.Session, null, _cancellation));
+			() => client.InvokeAsync<SessionInfo>(BridgeOperations.Session, null, Cancellation));
 
 		Assert.Equal(BridgeErrorCodes.NotRunning, exception.Code);
 		Assert.Contains(missing.Value.ToString(CultureInfo.InvariantCulture), exception.Message);

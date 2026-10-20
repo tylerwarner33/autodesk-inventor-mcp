@@ -19,9 +19,9 @@ namespace InventorMcp.Server.McpTools;
 /// </remarks>
 internal static partial class InventorTool
 {
-	private const int _defaultSheetImageWidth = 1600;
+	private const int DefaultSheetImageWidth = 1600;
 
-	private const int _maxSheetImageWidth = 4000;
+	private const int MaxSheetImageWidth = 4000;
 
 	[McpServerTool(Name = "inventor_export_sheet_image", ReadOnly = true)]
 	[Description("""
@@ -37,19 +37,19 @@ internal static partial class InventorTool
 		[Description("Display name or full path of an open drawing, or the full path of a file. Omit to use the active document.")] string? documentName = null,
 		[Description("The sheet name, ex. 'Sheet:1'. Omit to use the active sheet.")] string? sheetName = null,
 		[Description("A region to render, as [x1, y1, x2, y2] in inches from the sheet's lower left corner. Omit for the whole sheet.")] double[]? region = null,
-		[Description("The image width in pixels, 200 to 4000. Default 1600. The height follows the region.")] int widthPixels = _defaultSheetImageWidth,
+		[Description("The image width in pixels, 200 to 4000. Default 1600. The height follows the region.")] int widthPixels = DefaultSheetImageWidth,
 		CancellationToken cancellationToken = default)
 	{
 		if (region is not null && (region.Length != 4 || region[2] <= region[0] || region[3] <= region[1]))
 			return [Text(new { error = "invalid-arguments", message = "Give region as [x1, y1, x2, y2] with x2 > x1 and y2 > y1." })];
 
 		string file = Path.Combine(Path.GetTempPath(), $"InventorMcp.Sheet.{Guid.NewGuid():N}.png");
-		int width = Math.Clamp(widthPixels, 200, _maxSheetImageWidth);
+		int width = Math.Clamp(widthPixels, 200, MaxSheetImageWidth);
 		string regionLiteral = region is null
 			? "null"
 			: "new double[] { " + string.Join(", ", region.Select(static value => value.ToString("R", CultureInfo.InvariantCulture))) + " }";
 
-		object result = await SafeAsync(async () => await RunJsonSnippetAsync(bridge, _findToolDocument + $$"""
+		object result = await SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
 			DrawingDocument drawing = FindToolDocument({{CSharpLiteral.String(documentName)}}) as DrawingDocument
 				?? throw new ArgumentException("inventor_export_sheet_image renders a drawing.");
 			string? sheetName = {{CSharpLiteral.String(sheetName)}};

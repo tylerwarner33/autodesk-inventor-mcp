@@ -9,13 +9,13 @@ namespace InventorMcp.Server.Tests.Unit;
 [Trait("Level", "Unit")]
 public sealed class DialogPolicyTests
 {
-	private const string _iLogicTitle = "Error on line 16 in rule: Drawing_Test, in document: Test Drawing.idw";
-	private const string _winFormsClass = "WindowsForms10.Window.8.app.0.22c9f37_r3_ad1";
-	private const string _compileErrorTitle = "Rule Compile Errors in McpSecurityTest, in Part1";
-	private const string _trustThisRule = "Assume that this external rule is safe";
-	private const string _trustTheFolder = "Assume that all external rules in this folder are safe";
+	private const string ILogicTitle = "Error on line 16 in rule: Drawing_Test, in document: Test Drawing.idw";
+	private const string WinFormsClass = "WindowsForms10.Window.8.app.0.22c9f37_r3_ad1";
+	private const string CompileErrorTitle = "Rule Compile Errors in McpSecurityTest, in Part1";
+	private const string TrustThisRule = "Assume that this external rule is safe";
+	private const string TrustTheFolder = "Assume that all external rules in this folder are safe";
 
-	private const string _securityAlertText =
+	private const string SecurityAlertText =
 		"Security Alert\r\n---\r\niLogic has disabled a potentially harmful rule. (external rule \"McpSecurityTest\" running from " +
 		"file \"Part1\")\r\n\r\nIf you trust the contents of this rule and would like to enable it on your machine, click Run the rule.";
 
@@ -23,16 +23,16 @@ public sealed class DialogPolicyTests
 	private static readonly DialogSettings _defaults = DialogSettings.Defaults;
 	private static readonly DialogSettings _trustsRules = TestDialogSettings.TrustsRules;
 
-	private const string _unhandledExceptionText =
+	private const string UnhandledExceptionText =
 		"Unhandled exception has occurred in a component in your application. If you click Continue, the application will " +
 		"ignore this error and attempt to continue.\r\n\r\n";
 
-	private const string _disposedObjectText =
-		_unhandledExceptionText + "Cannot access a disposed object.\r\nObject name: 'DevExpress.XtraTab.XtraTabPage'.";
+	private const string DisposedObjectText =
+		UnhandledExceptionText + "Cannot access a disposed object.\r\nObject name: 'DevExpress.XtraTab.XtraTabPage'.";
 
 	[Fact]
 	public void ILogicErrorWithOnlyOkCloses() =>
-		Assert.True(ShouldClose(Dialog(_iLogicTitle, _winFormsClass, Button("OK")), autoCloseEnabled: true));
+		Assert.True(ShouldClose(Dialog(ILogicTitle, WinFormsClass, Button("OK")), autoCloseEnabled: true));
 
 	[Fact]
 	public void MessageBoxWithOnlyOkCloses() =>
@@ -41,7 +41,7 @@ public sealed class DialogPolicyTests
 	[Fact]
 	public void HiddenButtonsDoNotCount() =>
 		Assert.True(ShouldClose(
-			Dialog(_iLogicTitle, _winFormsClass, Button("OK"), Button("Cancel", visible: false), Button("Apply", visible: false)),
+			Dialog(ILogicTitle, WinFormsClass, Button("OK"), Button("Cancel", visible: false), Button("Apply", visible: false)),
 			autoCloseEnabled: true));
 
 	[Fact]
@@ -53,7 +53,7 @@ public sealed class DialogPolicyTests
 	[Fact]
 	public void ScrollBarButtonsDoNotCount() =>
 		Assert.True(ShouldClose(
-			Dialog(_iLogicTitle, _winFormsClass, Button("OK"), new DialogButton("Line up", true, true, IsWindowFrame: true), new DialogButton("Column right", true, true, IsWindowFrame: true)),
+			Dialog(ILogicTitle, WinFormsClass, Button("OK"), new DialogButton("Line up", true, true, IsWindowFrame: true), new DialogButton("Column right", true, true, IsWindowFrame: true)),
 			autoCloseEnabled: true));
 
 	[Fact]
@@ -72,11 +72,11 @@ public sealed class DialogPolicyTests
 
 	[Fact]
 	public void UnknownTypeWithOnlyOkStaysOpen() =>
-		Assert.False(ShouldClose(Dialog("Custom Tool Message", _winFormsClass, Button("OK")), autoCloseEnabled: true));
+		Assert.False(ShouldClose(Dialog("Custom Tool Message", WinFormsClass, Button("OK")), autoCloseEnabled: true));
 
 	[Fact]
 	public void SettingOffLeavesEveryDialogOpen() =>
-		Assert.False(ShouldClose(Dialog(_iLogicTitle, _winFormsClass, Button("OK")), autoCloseEnabled: false));
+		Assert.False(ShouldClose(Dialog(ILogicTitle, WinFormsClass, Button("OK")), autoCloseEnabled: false));
 
 	[Fact]
 	public void UnreadDialogStaysOpen() =>
@@ -126,7 +126,7 @@ public sealed class DialogPolicyTests
 	[Fact]
 	public void MigrationTitleOfADifferentClassIsNotTheMigrationDialog() =>
 		Assert.False(ShouldClose(
-			Dialog("Data Format Has Changed", _winFormsClass, Button("OK"), Button("Cancel")),
+			Dialog("Data Format Has Changed", WinFormsClass, Button("OK"), Button("Cancel")),
 			autoCloseEnabled: true,
 			acceptMigrationEnabled: true));
 
@@ -137,7 +137,7 @@ public sealed class DialogPolicyTests
 	[Fact]
 	public void DisposedObjectErrorClosesWithContinue()
 	{
-		DialogSnapshot dialog = DotNetErrorDialog(_disposedObjectText, Button("Details"), Button("Continue"));
+		DialogSnapshot dialog = DotNetErrorDialog(DisposedObjectText, Button("Details"), Button("Continue"));
 
 		Assert.True(ShouldClose(dialog, autoCloseEnabled: true));
 		Assert.Equal("Continue", DialogPolicy.ButtonToClick(dialog, _defaults));
@@ -145,40 +145,40 @@ public sealed class DialogPolicyTests
 
 	[Fact]
 	public void DisposedObjectErrorWithoutDetailsCloses() =>
-		Assert.True(ShouldClose(DotNetErrorDialog(_disposedObjectText, Button("Continue")), autoCloseEnabled: true));
+		Assert.True(ShouldClose(DotNetErrorDialog(DisposedObjectText, Button("Continue")), autoCloseEnabled: true));
 
 	[Fact]
 	public void DisposedObjectErrorStaysOpenWhenAutoCloseIsOff() =>
-		Assert.False(ShouldClose(DotNetErrorDialog(_disposedObjectText, Button("Details"), Button("Continue")), autoCloseEnabled: false));
+		Assert.False(ShouldClose(DotNetErrorDialog(DisposedObjectText, Button("Details"), Button("Continue")), autoCloseEnabled: false));
 
 	[Fact]
 	public void DotNetErrorOfADifferentExceptionStaysOpen() =>
 		Assert.False(ShouldClose(
-			DotNetErrorDialog(_unhandledExceptionText + "Object reference not set to an instance of an object.", Button("Details"), Button("Continue")),
+			DotNetErrorDialog(UnhandledExceptionText + "Object reference not set to an instance of an object.", Button("Details"), Button("Continue")),
 			autoCloseEnabled: true));
 
 	[Fact]
 	public void DotNetErrorWithQuitStaysOpen() =>
-		Assert.False(ShouldClose(DotNetErrorDialog(_disposedObjectText, Button("Details"), Button("Continue"), Button("Quit")), autoCloseEnabled: true));
+		Assert.False(ShouldClose(DotNetErrorDialog(DisposedObjectText, Button("Details"), Button("Continue"), Button("Quit")), autoCloseEnabled: true));
 
 	[Fact]
 	public void DotNetErrorWithoutContinueStaysOpen() =>
-		Assert.False(ShouldClose(DotNetErrorDialog(_disposedObjectText, Button("Details")), autoCloseEnabled: true));
+		Assert.False(ShouldClose(DotNetErrorDialog(DisposedObjectText, Button("Details")), autoCloseEnabled: true));
 
 	[Fact]
 	public void UnreadDotNetErrorStaysOpen() =>
 		Assert.False(ShouldClose(
-			DotNetErrorDialog(_disposedObjectText, Button("Details"), Button("Continue")) with { ReadError = "The dialog did not answer within 2 s." },
+			DotNetErrorDialog(DisposedObjectText, Button("Details"), Button("Continue")) with { ReadError = "The dialog did not answer within 2 s." },
 			autoCloseEnabled: true));
 
 	[Fact]
 	public void OtherTypesCloseWithOk() =>
-		Assert.Equal("OK", DialogPolicy.ButtonToClick(Dialog(_iLogicTitle, _winFormsClass, Button("OK")), _defaults));
+		Assert.Equal("OK", DialogPolicy.ButtonToClick(Dialog(ILogicTitle, WinFormsClass, Button("OK")), _defaults));
 
 	[Fact]
 	public void CompileErrorWithOnlyOkCloses() =>
 		Assert.True(ShouldClose(
-			Dialog(_compileErrorTitle, _winFormsClass, Button("OK"), Button("", visible: false), Button("Apply", visible: false), Button("Cancel", visible: false)),
+			Dialog(CompileErrorTitle, WinFormsClass, Button("OK"), Button("", visible: false), Button("Apply", visible: false), Button("Cancel", visible: false)),
 			autoCloseEnabled: true));
 
 	[Fact]
@@ -224,15 +224,15 @@ public sealed class DialogPolicyTests
 
 	[Fact]
 	public void AdvisorStaysOpenByDefault() =>
-		Assert.Null(DialogPolicy.ButtonToClick(Advisor(Option(_trustThisRule, true), Option(_trustTheFolder, false)), _defaults));
+		Assert.Null(DialogPolicy.ButtonToClick(Advisor(Option(TrustThisRule, true), Option(TrustTheFolder, false)), _defaults));
 
 	[Fact]
 	public void AdvisorTrustingTheRuleClosesWithOk() =>
-		Assert.Equal("OK", DialogPolicy.ButtonToClick(Advisor(Option(_trustThisRule, true), Option(_trustTheFolder, false)), _trustsRules));
+		Assert.Equal("OK", DialogPolicy.ButtonToClick(Advisor(Option(TrustThisRule, true), Option(TrustTheFolder, false)), _trustsRules));
 
 	[Fact]
 	public void AdvisorTrustingTheFolderStaysOpen() =>
-		Assert.Null(DialogPolicy.ButtonToClick(Advisor(Option(_trustThisRule, false), Option(_trustTheFolder, true)), _trustsRules));
+		Assert.Null(DialogPolicy.ButtonToClick(Advisor(Option(TrustThisRule, false), Option(TrustTheFolder, true)), _trustsRules));
 
 	[Fact]
 	public void AdvisorWithNoOptionReadStaysOpen() =>
@@ -241,7 +241,7 @@ public sealed class DialogPolicyTests
 	[Fact]
 	public void AdvisorAskStaysOpen() =>
 		Assert.Null(DialogPolicy.ButtonToClick(
-			Advisor(Option(_trustThisRule, true), Option(_trustTheFolder, false)),
+			Advisor(Option(TrustThisRule, true), Option(TrustTheFolder, false)),
 			WithUserFile("""{ "iLogicSecurityAdvisor": "Ask" }""")));
 
 	[Fact]
@@ -255,18 +255,18 @@ public sealed class DialogPolicyTests
 	}
 
 	[Theory]
-	[InlineData(_iLogicTitle, _winFormsClass, "iLogicError")]
+	[InlineData(ILogicTitle, WinFormsClass, "iLogicError")]
 	[InlineData("Data Format Has Changed", "#32770", "migration")]
-	[InlineData("Data Format Has Changed", _winFormsClass, null)]
-	[InlineData("Microsoft .NET", _winFormsClass, "dotNetDisposedObjectError")]
+	[InlineData("Data Format Has Changed", WinFormsClass, null)]
+	[InlineData("Microsoft .NET", WinFormsClass, "dotNetDisposedObjectError")]
 	[InlineData("Microsoft .NET", "#32770", "messageBox")]
 	[InlineData("Autodesk Inventor", "#32770", "messageBox")]
-	[InlineData("iLogic Security Alert", _winFormsClass, null)]
-	[InlineData(_compileErrorTitle, _winFormsClass, "iLogicCompileError")]
-	[InlineData(_compileErrorTitle, "#32770", "messageBox")]
-	[InlineData("iLogic Security Advisor", _winFormsClass, "iLogicSecurityAdvisor")]
+	[InlineData("iLogic Security Alert", WinFormsClass, null)]
+	[InlineData(CompileErrorTitle, WinFormsClass, "iLogicCompileError")]
+	[InlineData(CompileErrorTitle, "#32770", "messageBox")]
+	[InlineData("iLogic Security Advisor", WinFormsClass, "iLogicSecurityAdvisor")]
 	[InlineData("Security Alert", "#32770", "messageBox")]
-	[InlineData("Error in rule", _winFormsClass, null)]
+	[InlineData("Error in rule", WinFormsClass, null)]
 	public void ClassifiesFromTheCatalog(string title, string className, string? expected) =>
 		Assert.Equal(expected, DialogPolicy.Classify(Dialog(title, className)));
 
@@ -311,7 +311,7 @@ public sealed class DialogPolicyTests
 	/// 	The iLogic Security Alert as the server read it on Inventor 2027. See Docs/Research/Blocking-Dialog-Detection.md.
 	/// </summary>
 	private static DialogSnapshot SecurityAlert(params DialogButton[] buttons) =>
-		new(0x1234, "Security Alert", "#32770", "Win32", _securityAlertText, buttons);
+		new(0x1234, "Security Alert", "#32770", "Win32", SecurityAlertText, buttons);
 
 	/// <summary>
 	/// 	The iLogic Security Advisor as the server read it on Inventor 2027, with the options the read missed then.
@@ -319,7 +319,7 @@ public sealed class DialogPolicyTests
 	private static DialogSnapshot Advisor(params DialogOption[] options) => new(
 		0x1234,
 		"iLogic Security Advisor",
-		_winFormsClass,
+		WinFormsClass,
 		"WinForm",
 		"In the future:\r\n---\r\nTo change  these options later:",
 		[Button("Security Options"), Button("OK"), Button("<< Back"), Button("")],

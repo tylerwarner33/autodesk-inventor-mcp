@@ -19,12 +19,12 @@ internal static partial class InventorTool
 	/// <summary>
 	/// 	The <c>requestState</c> of a call that asked the user to choose a release.
 	/// </summary>
-	private const string _chooseReleaseState = "choose-release";
+	private const string ChooseReleaseState = "choose-release";
 
 	/// <summary>
 	/// 	Key of the elicitation in <c>inputRequests</c>, and of the field inside its form.
 	/// </summary>
-	private const string _releaseField = "release";
+	private const string ReleaseField = "release";
 
 	/// <summary>
 	/// 	How long the start waits for the add-in to open the pipe.
@@ -176,8 +176,8 @@ internal static partial class InventorTool
 		else if (CanAskUser(context.Server))
 		{
 			throw new InputRequiredException(
-				new Dictionary<string, InputRequest>(StringComparer.Ordinal) { [_releaseField] = InputRequest.ForElicitation(ChooseReleaseForm(deployed)) },
-				_chooseReleaseState);
+				new Dictionary<string, InputRequest>(StringComparer.Ordinal) { [ReleaseField] = InputRequest.ForElicitation(ChooseReleaseForm(deployed)) },
+				ChooseReleaseState);
 		}
 		else
 		{
@@ -330,7 +330,7 @@ internal static partial class InventorTool
 		{
 			Properties = new Dictionary<string, ElicitRequestParams.PrimitiveSchemaDefinition>(StringComparer.Ordinal)
 			{
-				[_releaseField] = new ElicitRequestParams.TitledSingleSelectEnumSchema
+				[ReleaseField] = new ElicitRequestParams.TitledSingleSelectEnumSchema
 				{
 					Title = "Inventor release",
 					OneOf =
@@ -343,7 +343,7 @@ internal static partial class InventorTool
 					]
 				}
 			},
-			Required = [_releaseField]
+			Required = [ReleaseField]
 		}
 	};
 
@@ -354,8 +354,8 @@ internal static partial class InventorTool
 	{
 		answer = null;
 
-		if (parameters?.RequestState != _chooseReleaseState
-			|| parameters.InputResponses?.TryGetValue(_releaseField, out InputResponse? response) is not true)
+		if (parameters?.RequestState != ChooseReleaseState
+			|| parameters.InputResponses?.TryGetValue(ReleaseField, out InputResponse? response) is not true)
 		{
 			return false;
 		}
@@ -367,7 +367,7 @@ internal static partial class InventorTool
 
 	private static int? ReadChosenYear(ElicitResult answer)
 	{
-		if (answer.Content?.TryGetValue(_releaseField, out JsonElement value) is not true)
+		if (answer.Content?.TryGetValue(ReleaseField, out JsonElement value) is not true)
 			return null;
 
 		string? text = value.ValueKind switch

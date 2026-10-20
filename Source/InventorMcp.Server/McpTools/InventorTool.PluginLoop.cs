@@ -23,7 +23,7 @@ internal static partial class InventorTool
 	/// 	The tokens in capitals are replaced with C# literals built by <see cref="CSharpLiteral" />, never with raw
 	/// 	argument text.
 	/// </remarks>
-	private const string _runPluginSnippet = """
+	private const string RunPluginSnippet = """
 		#nullable enable
 
 		using System.Globalization;
@@ -516,7 +516,7 @@ internal static partial class InventorTool
 		foreach ((string path, string content) in shadowFiles ?? [])
 			shadowFileEntries.AppendLine(CultureInfo.InvariantCulture, $"\t[{CSharpLiteral.String(path)}] = {CSharpLiteral.String(content)},");
 
-		return _runPluginSnippet
+		return RunPluginSnippet
 			.Replace("__BUILD_OUTPUT__", CSharpLiteral.String(buildOutputDirectory.TrimEnd('\\', '/')), StringComparison.Ordinal)
 			.Replace("__ASSEMBLY_FILE__", CSharpLiteral.String(assemblyFileName), StringComparison.Ordinal)
 			.Replace("__TYPE_NAME__", CSharpLiteral.String(typeName), StringComparison.Ordinal)

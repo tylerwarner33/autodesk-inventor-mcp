@@ -11,8 +11,8 @@ namespace InventorMcp.Server.Services;
 /// </remarks>
 internal static class RuleEdit
 {
-	private const int _diffContextLines = 2;
-	private const int _maxDiffLines = 200;
+	private const int DiffContextLines = 2;
+	private const int MaxDiffLines = 200;
 
 	/// <summary>
 	/// 	The folder of the rule backups.
@@ -143,14 +143,14 @@ internal static class RuleEdit
 			return "No change.";
 
 		StringBuilder diff = new();
-		int start = Math.Max(0, prefix - _diffContextLines);
+		int start = Math.Max(0, prefix - DiffContextLines);
 		_ = diff.Append("@@ line ").Append(start + 1).Append(" @@\n");
 
 		int lines = 0;
 
 		void Add(char marker, string line)
 		{
-			if (lines++ < _maxDiffLines)
+			if (lines++ < MaxDiffLines)
 				_ = diff.Append(marker).Append(' ').Append(line).Append('\n');
 		}
 
@@ -163,11 +163,11 @@ internal static class RuleEdit
 		for (int index = prefix; index < newLines.Length - suffix; index++)
 			Add('+', newLines[index]);
 
-		for (int index = newLines.Length - suffix; index < Math.Min(newLines.Length, newLines.Length - suffix + _diffContextLines); index++)
+		for (int index = newLines.Length - suffix; index < Math.Min(newLines.Length, newLines.Length - suffix + DiffContextLines); index++)
 			Add(' ', newLines[index]);
 
-		if (lines > _maxDiffLines)
-			_ = diff.Append(CultureInfoInvariant($"... {lines - _maxDiffLines} more lines\n"));
+		if (lines > MaxDiffLines)
+			_ = diff.Append(CultureInfoInvariant($"... {lines - MaxDiffLines} more lines\n"));
 
 		return diff.ToString();
 	}

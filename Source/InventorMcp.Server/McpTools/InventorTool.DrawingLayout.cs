@@ -22,7 +22,7 @@ internal static partial class InventorTool
 	/// 	A balloon has no range box in the API, so a style that scales to its text is estimated at 3 times the text
 	/// 	height. See <c>Docs/Plugin-Development-Loop.md</c>, "Measuring drawings".
 	/// </remarks>
-	private const string _drawingLayoutSnippet = """
+	private const string DrawingLayoutSnippet = """
 		#nullable enable
 
 		string? drawingPath = __DRAWING_PATH__;
@@ -446,7 +446,7 @@ internal static partial class InventorTool
 
 		// One pass, so a placeholder name inside an argument (ex. a path with '__SHEET__') is never replaced.
 		string code = ScriptPrelude.Apply(DrawingLayoutPlaceholder().Replace(
-			_drawingLayoutSnippet,
+			DrawingLayoutSnippet,
 			match => values.TryGetValue(match.Value, out string? value) ? value : match.Value));
 
 		return SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ExecutionResult>(

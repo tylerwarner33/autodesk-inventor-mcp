@@ -26,7 +26,7 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 	/// 	The pipe ACL admits only the current user, so the limit guards resources, not access.
 	/// 	See <c>Docs/Architecture.md</c>, "A named pipe rather than a local HTTP port".
 	/// </remarks>
-	private const int _maxPipeInstances = 16;
+	private const int MaxPipeInstances = 16;
 
 	/// <summary>
 	/// 	Pause after a failed accept, so a failure that repeats cannot spin the loop and flood the log.
@@ -69,7 +69,7 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 				_ = connections.RemoveAll(static connection => connection.IsCompleted);
 
 				// With every instance serving a client, creating another fails at once. Wait for a slot instead.
-				if (connections.Count >= _maxPipeInstances)
+				if (connections.Count >= MaxPipeInstances)
 				{
 					_ = await Task.WhenAny(connections).WaitAsync(cancellationToken).ConfigureAwait(false);
 					continue;
@@ -121,7 +121,7 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 		return NamedPipeServerStreamAcl.Create(
 			PipeName,
 			PipeDirection.InOut,
-			_maxPipeInstances,
+			MaxPipeInstances,
 			PipeTransmissionMode.Byte,
 			PipeOptions.Asynchronous,
 			inBufferSize: 0,
