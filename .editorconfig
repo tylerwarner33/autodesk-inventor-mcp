@@ -13,6 +13,11 @@ trim_trailing_whitespace = true
 [*.md]
 trim_trailing_whitespace = false
 
+# Windows PowerShell 5.1 reads a script with no BOM as the ANSI code page, so a non-ASCII character breaks it.
+# The server runs Scripts/Copy-DesignTree.ps1 with powershell.exe.
+[*.{ps1,psm1,psd1}]
+charset = utf-8-bom
+
 # These files use tabs
 [*.{csproj,props,targets,config,json}]
 indent_style = tab

@@ -1,4 +1,4 @@
-# Copies a document tree for a test, through Inventor Apprentice, so no iLogic rule runs and Inventor can stay closed.
+﻿# Copies a document tree for a test, through Inventor Apprentice, so no iLogic rule runs and Inventor can stay closed.
 # inventor_test_copy runs this in a child Windows PowerShell process, so the native Apprentice DLL never loads into the
 # server. It reads one request file (JSON) and writes one result (JSON) to the output.
 #
