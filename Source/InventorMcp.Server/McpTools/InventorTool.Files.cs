@@ -277,6 +277,7 @@ internal static partial class InventorTool
 			try
 			{
 				await File.WriteAllTextAsync(requestFile, JsonSerializer.Serialize(new { sources, target, sourceFolder = folder, prefix }), cancellationToken).ConfigureAwait(false);
+				// Encoding.UTF8 writes a BOM. Windows PowerShell needs it to read the script as UTF-8.
 				await File.WriteAllTextAsync(scriptFile, ReadEmbeddedText("InventorMcp.Server.Scripts.Copy-DesignTree.ps1"), Encoding.UTF8, cancellationToken).ConfigureAwait(false);
 
 				(int exitCode, string output, string error) = await RunPowerShellAsync(scriptFile, requestFile, cancellationToken).ConfigureAwait(false);
