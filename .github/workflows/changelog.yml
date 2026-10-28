@@ -1,0 +1,32 @@
+# Checks that CHANGELOG.md has the right format, that its newest version is <Version> in Directory.Build.props, and that
+# a pull request adds the next version. The check is Pipelines/Scripts/Test-Changelog.ps1. See .agents/rules/changelog.md.
+name: Changelog
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changelog:
+    name: Changelog
+    runs-on: ubuntu-latest
+    steps:
+      # Depth 2, because a pull request run compares the merge commit with its first parent, the target branch.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      # A manual run checks only the format and that the 2 versions are the same.
+      - name: Check changelog
+        shell: pwsh
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+        run: ./Pipelines/Scripts/Test-Changelog.ps1 -SourcesDirectory $env:GITHUB_WORKSPACE -BaseRef $env:BASE_REF
