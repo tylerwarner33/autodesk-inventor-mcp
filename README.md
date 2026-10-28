@@ -1,5 +1,10 @@
 # Autodesk Inventor MCP Server
 
+![Inventor Versions](https://img.shields.io/badge/Inventor-2025--2027-blue.svg)
+[![.NET Versions](https://img.shields.io/badge/.NET-8.0--10.0-blue.svg)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftylerwarner33%2Fautodesk-inventor-mcp%2Fmaster%2FDirectory.Build.props&query=%2F%2FVersion&label=Version&color=brightgreen)](Directory.Build.props)
+
 An MCP server that lets Claude inspect and drive a live Autodesk Inventor session, 2025 through 2027.
 It is built for developing Inventor plugins and automation, so Claude can see what a running automation loop creates, in order, as it runs.
 
