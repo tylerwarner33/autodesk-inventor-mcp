@@ -169,4 +169,6 @@ if ($BaseRef) {
 	}
 }
 
+# Exit explicitly. The GitHub pwsh shell exits with $LASTEXITCODE, which a failed 'git show' above leaves set.
 if ($errors -gt 0) { exit 1 }
+exit 0
