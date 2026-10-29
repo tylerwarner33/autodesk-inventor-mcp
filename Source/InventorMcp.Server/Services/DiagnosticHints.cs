@@ -106,7 +106,29 @@ internal static partial class DiagnosticHints
 			|| (result.ExceptionType?.EndsWith("COMException", StringComparison.Ordinal) is true
 				&& message.StartsWith("Exception has been thrown by the target of an invocation", StringComparison.Ordinal)));
 
+	/// <summary>
+	/// 	Removes CS1701 and CS1702 from the result of any tool: the add-in was built against an older interop version
+	/// 	than the Inventor that runs it.
+	/// </summary>
+	/// <remarks>
+	/// 	Inventor 2026 gave up to eight in each result, success or failure. The script binds to the loaded interop anyway.
+	/// 	See <c>Docs/Research/OpenTelemetry-Findings.md</c>, "A live session on Inventor 2026".
+	/// </remarks>
+	/// <param name="result">
+	/// 	The result from the add-in.
+	/// </param>
+	/// <returns>
+	/// 	The same result, without those warnings.
+	/// </returns>
+	public static ExecutionResult WithoutVersionWarnings(ExecutionResult result) =>
+		result.Diagnostics.Any(IsVersionNoise)
+			? result with { Diagnostics = [.. result.Diagnostics.Where(static diagnostic => IsVersionNoise(diagnostic) is false)] }
+			: result;
+
 	private static bool IsNullableNoise(string diagnostic) => diagnostic.Contains("CS8632", StringComparison.Ordinal);
+
+	private static bool IsVersionNoise(string diagnostic) =>
+		diagnostic.Contains("warning CS1701:", StringComparison.Ordinal) || diagnostic.Contains("warning CS1702:", StringComparison.Ordinal);
 
 	/// <summary>
 	/// 	CS1061 (instance member) and CS0117 (static member or enum value), ex.

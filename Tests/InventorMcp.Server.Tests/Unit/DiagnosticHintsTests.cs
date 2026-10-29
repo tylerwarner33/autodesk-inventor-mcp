@@ -21,6 +21,21 @@ public sealed class DiagnosticHintsTests
 		Assert.Empty(DiagnosticHints.Improve(result, _apiReference, 2026).Diagnostics);
 	}
 
+	[Theory]
+	[InlineData(true)]
+	[InlineData(false)]
+	public void InteropVersionWarningIsRemoved(bool succeeded)
+	{
+		ExecutionResult result = Result(
+			succeeded,
+			"warning CS1701: Assuming assembly reference 'Autodesk.Inventor.Interop, Version=30.20.0.0' used by 'InventorMcp.AddIn' matches identity 'Autodesk.Inventor.Interop, Version=30.40.0.0'",
+			"warning CS1702: Assuming assembly reference 'Autodesk.Inventor.Interop, Version=30.20.0.0' matches identity 'Autodesk.Inventor.Interop, Version=31.0.0.0'",
+			"(2,1): error CS0103: The name 'x' does not exist in the current context");
+
+		string kept = Assert.Single(DiagnosticHints.WithoutVersionWarnings(result).Diagnostics);
+		Assert.Contains("CS0103", kept, StringComparison.Ordinal);
+	}
+
 	[Fact]
 	public void NullableWarningStaysInAFailure()
 	{

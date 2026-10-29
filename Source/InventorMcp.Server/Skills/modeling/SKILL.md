@@ -31,7 +31,7 @@ way from the face's world normal. A cut in the wrong direction removes nothing, 
 `kDriverLostHealth`, not as an error.
 
 Never assume the direction. Create the feature, update, and check that material was removed. If nothing was cut,
-delete the feature and use the other direction.
+delete the feature with `Delete(true, false, false)`, which keeps its sketch, and use the other direction.
 
 ## Use the feature that the request names
 
