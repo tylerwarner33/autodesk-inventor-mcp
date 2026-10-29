@@ -17,9 +17,11 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 ### Changed
 - The MCP library `ModelContextProtocol` is version 2.3.0 (was 2.0.0). ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
 - With telemetry on, each line of the server log ends with the trace ID of its tool call. ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
-- After Inventor closed, `inventor_start` no longer reports the new Inventor as started at once through the pipe of the closed one, and `inventor_dialogs` no longer examines the closed process. ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
 - A snippet result no longer holds the compiler warnings CS1701 and CS1702, which Inventor 2026 gave in each result. ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
 - The skills name two traps of `PartFeature.Delete` and of feature names, and say to create the first document of a session in its own call. ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
+
+### Fixed
+- After Inventor closed, `inventor_start` no longer reports the new Inventor as started at once through the pipe of the closed one, and `inventor_dialogs` no longer examines the closed process. ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
 
 ## [0.1.0] - 2026-10-28
 
