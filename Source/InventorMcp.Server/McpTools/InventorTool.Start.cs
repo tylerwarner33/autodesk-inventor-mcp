@@ -55,7 +55,9 @@ internal static partial class InventorTool
 		ask the user, then call again with version.
 
 		On success, call inventor_session to confirm the session. Inventor can still be at a sign-in or recovery dialog.
-		On still-starting or inventor-starting-or-no-bridge, wait with inventor_session and waitSeconds.
+		On still-starting or inventor-starting-or-no-bridge, wait with inventor_session and waitSeconds. On
+		waiting-for-user, a dialog holds the start (ex. a Vault sign-in): tell the user, never answer it for them, and
+		then wait with inventor_session and waitSeconds.
 		""")]
 	public static async Task<object> StartAsync(
 		BridgeClient bridge,
@@ -277,6 +279,22 @@ internal static partial class InventorTool
 					processId = process.Id,
 					message = "Inventor started and the MCP bridge add-in answered. Call inventor_session to confirm the session. " +
 						"Inventor can still be finishing its start, or waiting for the user at a sign-in or recovery dialog."
+				};
+			}
+
+			// A dialog before the add-in loads (ex. the Vault "Log In") needs a person, so a longer wait cannot help.
+			if (await bridge.GetStartingBlockStateAsync(cancellationToken).ConfigureAwait(false) is { Blocked: true, Dialogs.Count: > 0 } blocked)
+			{
+				return new
+				{
+					status = "waiting-for-user",
+					release = release.DisplayName,
+					processId = process.Id,
+					message = $"{release.DisplayName} is running, but a dialog waits for the user before the MCP bridge add-in can " +
+						"load. Tell the user, and never answer the dialog for them. Then call inventor_session with waitSeconds. " +
+						"Do not call inventor_start again.",
+					blockedByDialog = blocked.Summary,
+					dialogs = blocked.Dialogs.Select(dialog => DescribeDialog(dialog, bridge.DialogSettings))
 				};
 			}
 

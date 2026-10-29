@@ -506,6 +506,63 @@ each type:
 Not yet known: the text of the Advisor for a rule inside a document, not an external rule. Its option text can
 differ, and then it stays open until a real example is read.
 
+## The Vault "Log In" dialog
+
+Read on Inventor 2026 on 2026-10-29, while Inventor started with the Vault add-in. It held the start until the user
+answered it.
+
+- A WinForms window titled `Log In`. Its text has the fields `User Name:`, `Password:`, `Server:`, `Vault:` and
+	`Authentication:`, and a password field, which the server reads as `[password field]`. The buttons were `Open`,
+	`<<`, `Help` and `Cancel`.
+- It opens after the bridge add-in loads (see the starts below). For a dialog that holds a start before the add-in
+	loads, the server takes the process from the process list, for the release that the session chose, and only when
+	exactly one runs (`BridgeClient.GetStartingBlockStateAsync`). `inventor_start` then returns `waiting-for-user` with
+	the dialog, and `inventor_session` with `waitSeconds` stops early with `blocked-by-dialog`. This path is unit tested
+	only: no start had such a dialog.
+- The type is `vaultLogIn`: the title `Log In`, the WinForms class, and `Vault:` in the text. It accepts only
+	`"Ask"`, because a sign-in needs the user's password.
+
+A second start of 2026 on the same day, from the server log:
+
+| Time | Event |
+| --- | --- |
+| 0.0 s | The bridge connected, and `inventor_start` returned `started`. |
+| 2.7 s | `inventor_session` started. The check before the bridge call found no block. |
+| 6.0 s | The watchdog of the call found the main frame disabled and the dialog `vaultLogIn`, and stopped the call with `blocked-by-dialog`. |
+
+- **The dialog disables the main frame**, because the watchdog uses the same check as the dialog tools, and that
+	check reports a block only for a disabled main frame. So the block check works for this dialog.
+- The dialog showed 3 to 6 s after the bridge connected.
+- So the check before a call can miss the dialog in the first seconds after `inventor_start`, and the call goes to
+	Inventor while the dialog opens. The watchdog then stops the call, as it did here. A wait in `inventor_start` for a
+	late dialog would make every start slower for a rare case, so the server does not wait.
+
+A third start, after a new connection of the client: `inventor_start` returned `started` (the bridge first), and
+`inventor_dialogs` at once found no block. The next `inventor_session` returned `blocked-by-dialog` with `vaultLogIn`, and the message said
+that the call was not sent: this time the check before the call found the dialog. The server left it open, and the
+user closed it.
+
+A fifth start, with the user's Vault server out of reach, so the dialog stayed open (the fourth is below):
+
+| Time | Event |
+| --- | --- |
+| 0.0 s | `inventor_start`. The wait polled the pipe and the process list. |
+| 7.7 s | The add-in started the bridge, and the server connected 20 ms later. |
+| 9.9 s | `inventor_dialogs`: no block, and no main frame visible yet. |
+| 13.8 s | `inventor_dialogs`: the main frame disabled, and the dialog `vaultLogIn`. |
+
+**The order is fixed: the add-in loads, then Inventor shows its main frame, then Vault shows the sign-in.** Each of
+the five starts fits it. The first start only seemed to show the dialog first. Its add-in started the bridge 1 min
+52 s after the start (`addin.log`), longer than the wait of `inventor_start` then (45 s). The 0.1.0 server could not
+look for a dialog with no pipe, and the dialog was first seen 6 s after the bridge connected. So the Vault dialog
+never needs the process list path.
+
+**A pipe of a closed Inventor.** The fourth start came after Inventor was closed while the server held its pipe. A
+client pipe stays connected after its host process ended, until a read or a write fails. So `inventor_start` took the
+dead pipe as the new bridge and returned `started` in 62 ms, without a wait, and `inventor_dialogs` examined the
+closed process. The server now checks that the host process still runs before it uses a pipe
+(`BridgeClient.HasLiveConnection`).
+
 ## Risks and limits
 
 - **A click is a user decision.** A dialog can ask to save or discard data. Only an information dialog with one
