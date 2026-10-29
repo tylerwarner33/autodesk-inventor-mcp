@@ -20,11 +20,13 @@
     <File Path=".agents/rules/inventor-interop.md" />
     <File Path=".agents/rules/inventor-modeling.md" />
     <File Path=".agents/rules/plugin-loop.md" />
+    <File Path=".agents/rules/telemetry.md" />
   </Folder>
   <Folder Name="/Solution Items/Docs/">
     <File Path="Docs/Architecture.md" />
     <File Path="Docs/Plugin-Development-Loop.md" />
     <File Path="Docs/Setup-and-Usage-Guide.md" />
+    <File Path="Docs/Telemetry.md" />
   </Folder>
   <Project Path="Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj" />
   <Project Path="Source/InventorMcp.AddIn.Loader/InventorMcp.AddIn.Loader.csproj" />

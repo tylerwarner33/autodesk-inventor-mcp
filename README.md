@@ -44,6 +44,7 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
 | `Docs/Plugin-Development-Loop.md` | Plugin developers: running and iterating on a plugin in a live session, and making a plugin ready for it |
 | `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
+| `Docs/Telemetry.md` | Users: the optional traces and metrics, what is sent, and the local stack in `Tools/Telemetry` |
 | `Source/InventorMcp.Server/DialogSettings.json` | Users: how the server answers each Inventor dialog that blocks a call (ex. the iLogic Security Alert). Edit it for your choice. See "Dialog settings". |
 | `Docs/Research/` | Maintainers: findings and measurements that tasks and decisions come from. Kept after the task is done. |
 | `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
@@ -584,6 +585,7 @@ server embeds the file.
 | `migration` | "Data Format Has Changed", when a save migrates files to the running release | `"Ask"` | `"OK"` |
 | `iLogicSecurityAlert` | "Security Alert", "iLogic has disabled a potentially harmful rule." | `"Ask"` | `"Run the rule"`, `"Don't run the rule"` |
 | `iLogicSecurityAdvisor` | "iLogic Security Advisor", which comes after "Run the rule" | `"Ask"` | `"OK"` |
+| `vaultLogIn` | The Vault "Log In", which can hold Inventor while it starts | `"Ask"` | None: the server never signs in for you |
 
 Before you change a default, know what each click does:
 
@@ -642,3 +644,13 @@ To add a dialog type, read a real example first, then add it to `Services/Dialog
 
 Each Inventor release has its own folder, ex. `%LOCALAPPDATA%\InventorMcp\2025`, because two releases can run at the
 same time. The server logs stay at the top, because one server can talk to different releases during its life.
+
+## Telemetry (optional)
+
+The server can export traces and metrics over OpenTelemetry, ex. the time and the failures of each tool, the main
+thread time of a snippet, and the connections to each Inventor release. It is off by default. Set
+`OTEL_EXPORTER_OTLP_ENDPOINT` in the `env` of a client entry to turn it on. No snippet, argument, result, path or dialog
+text is sent.
+
+`Docs/Telemetry.md` tells how to turn it on, what is sent, and how to start a local Collector, Prometheus, Tempo
+and Grafana with the configs and the dashboard in `Tools/Telemetry`.

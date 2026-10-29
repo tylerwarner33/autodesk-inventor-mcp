@@ -421,6 +421,47 @@ Then:
 Keep the vendored interop per release and keep the loader.
 `UseInventorAssemblyContext` is an Inventor 2027 feature, not a runtime feature, so 2025 and 2026 still ignore it.
 
+### Telemetry is optional, and goes through a Collector
+
+The server can export traces and metrics over OTLP, for questions that the file log answers only by hand: the time
+and the failures of each tool, the main thread time of a snippet, the skill reads, the connections to each release,
+and the dialogs. The runbook is `Docs/Telemetry.md`. The checks and the measurements are in
+`Docs/Research/OpenTelemetry-Findings.md`.
+
+1. **The OpenTelemetry .NET SDK, with the .NET APIs.** The code calls `ActivitySource` and `Meter`
+	(`Telemetry/ServerTelemetry.cs`). Only `Telemetry/TelemetryRegistration.cs` knows about OpenTelemetry.
+2. **The span of the MCP library for each tool call.** The library starts `tools/call <tool>`, and
+	`Activity.Current` in the call tool filter is that span. The server adds its tags to it, and starts its own span
+	only for each bridge round trip.
+3. **OTLP only, to a Collector.** Each server knows one endpoint. A long running Collector receives the push, applies
+	the second guard, and pushes OTLP on to Tempo and to Prometheus. Prometheus takes OTLP, not a scrape, because OTLP
+	has the start time of each counter: each server is a short stdio process, and a scrape lost the first calls of each.
+4. **Off by default, with the standard variables.** The SDK is registered only when `OTEL_EXPORTER_OTLP_ENDPOINT` is
+	set and `OTEL_SDK_DISABLED` is not `true`. Claude Code passes `OTEL_*` values from an entry's own `env`. The server
+	sets defaults for the export timeout (500 ms, so the process ends within 2 s with no Collector) and the metric
+	interval (10 s, so a killed server loses little).
+5. **Serilog stays.** The file log always exists. With telemetry on, each line ends with its trace ID.
+6. **Nothing on stdout.** No console exporter.
+7. **The repository holds config, not data.** `Tools/Telemetry` holds the configs, the dashboard and the start
+	script. The programs and the data are in `%LOCALAPPDATA%\InventorMcp\Telemetry` or in container volumes.
+8. **Two guards for privacy.** `AllowlistProcessor` removes each span tag that is not in `TelemetryTags.Allowed`, and
+	the span status text, where the library puts the result of a failed call. A metric view keeps only the allowed
+	tags. The Collector applies the same lists again, and a test fails when the lists differ. A value from outside the
+	server (a bridge error code, an exception type, a dialog action, a tool or method name) is sent only when it is a
+	known value. The library's span name is made again from known values.
+9. **Trace context from a client is accepted.** The library reads `traceparent` from `_meta`. Claude Code sends none
+	to a stdio server, so its calls start their own traces.
+10. **Each source and meter is named.** The sources `InventorMcp.Server` and `Experimental.ModelContextProtocol`, and
+	the meter `InventorMcp.Server` only, never `"*"`, so a source of another package cannot export a value that the
+	allowlist did not plan for. The library's meter is left out: its metrics have the client's tool and method names,
+	and a view cannot change a value. The library's name is one
+	constant, and `LibraryTelemetryTests` fails when a library update changes a name or adds a tag.
+11. **No sensitive attribute.** The server never turns on `gen_ai.tool.call.arguments`, `gen_ai.tool.call.result`
+	or `gen_ai.prompt.variable.*`, and exports no log, because a log line can hold a dialog text or a path.
+
+Not done: telemetry in the add-in (the server times each round trip), trace context over the pipe, a shared backend,
+a log store, and alerts.
+
 ### The build enforces the code rules
 
 A coding agent reads the output of `dotnet build`, not the rule files. A rule that the build enforces is obeyed
