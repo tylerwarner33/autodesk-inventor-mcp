@@ -61,6 +61,12 @@ internal static partial class DialogPolicy
 	public const string SecurityAdvisorType = "iLogicSecurityAdvisor";
 
 	/// <summary>
+	/// 	The Vault "Log In" dialog, which can hold Inventor while it starts. It asks for a password, so only a person
+	/// 	answers it.
+	/// </summary>
+	public const string VaultLogInType = "vaultLogIn";
+
+	/// <summary>
 	/// 	The OK button.
 	/// </summary>
 	public const string OkButton = "OK";
@@ -92,6 +98,8 @@ internal static partial class DialogPolicy
 	private const string SecurityAlertMessage = "iLogic has disabled a potentially harmful rule.";
 	private const string SecurityAdvisorTitle = "iLogic Security Advisor";
 	private const string TrustThisRuleOption = "Assume that this external rule is safe";
+	private const string VaultLogInTitle = "Log In";
+	private const string VaultLogInField = "Vault:";
 
 	private static readonly string[] _securityAlertDetailsButtons = ["Show details", "Hide details"];
 
@@ -111,7 +119,9 @@ internal static partial class DialogPolicy
 		[DotNetErrorType] = [ContinueButton],
 		[MigrationType] = [OkButton],
 		[SecurityAlertType] = [RunRuleButton, DontRunRuleButton],
-		[SecurityAdvisorType] = [OkButton]
+		[SecurityAdvisorType] = [OkButton],
+		// No button: the server never signs in for the user.
+		[VaultLogInType] = []
 	};
 
 	/// <summary>
@@ -140,6 +150,9 @@ internal static partial class DialogPolicy
 
 		if (isWinForms && dialog.Title == DotNetErrorTitle)
 			return DotNetErrorType;
+
+		if (isWinForms && dialog.Title == VaultLogInTitle && dialog.Text.Contains(VaultLogInField, StringComparison.Ordinal))
+			return VaultLogInType;
 
 		if (isWin32 && dialog.Title == MigrationTitle)
 			return MigrationType;
