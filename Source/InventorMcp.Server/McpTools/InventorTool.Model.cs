@@ -2,6 +2,7 @@ using System.ComponentModel;
 
 using InventorMcp.Contracts;
 using InventorMcp.Server.Bridge;
+using InventorMcp.Server.Telemetry;
 
 using ModelContextProtocol.Server;
 
@@ -94,10 +95,19 @@ internal static partial class InventorTool
 		CancellationToken cancellationToken = default) =>
 		UnlessBlockedAsync(
 			bridge,
-			() => SafeAsync(async () => FilterSuppressed(AddHealthHints(await bridge.InvokeAsync<Contracts.Models.HealthInfo>(
-				BridgeOperations.Health,
-				new DocumentScopedRequest(documentName),
-				cancellationToken).ConfigureAwait(false)), includeSuppressed)),
+			() => SafeAsync(async () =>
+			{
+				Contracts.Models.HealthInfo health = await bridge.InvokeAsync<Contracts.Models.HealthInfo>(
+					BridgeOperations.Health,
+					new DocumentScopedRequest(documentName),
+					cancellationToken).ConfigureAwait(false);
+
+				ServerTelemetry.RecordHealth(
+					health.SickFeatures.Where(static feature => feature.IsSuppressed is false).Select(static feature => feature.HealthStatus),
+					bridge.ReleaseYear);
+
+				return FilterSuppressed(AddHealthHints(health), includeSuppressed);
+			}),
 			cancellationToken);
 
 	/// <summary>

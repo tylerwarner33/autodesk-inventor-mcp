@@ -2,6 +2,7 @@ using System.ComponentModel;
 
 using InventorMcp.Contracts;
 using InventorMcp.Server.Services;
+using InventorMcp.Server.Telemetry;
 
 using ModelContextProtocol.Server;
 
@@ -36,12 +37,18 @@ internal static partial class InventorTool
 		if (string.IsNullOrWhiteSpace(name))
 			return new { error = "invalid-arguments", message = "Give the name of the skill to read. Call with action 'list' for the names." };
 
-		return skills.Read(name, file) is string text
-			? new { name, file = file ?? SkillCatalog.SkillFile, text }
-			: new
-			{
-				error = BridgeErrorCodes.NotFound,
-				message = $"No skill '{name}' with a file '{file ?? SkillCatalog.SkillFile}'. Skills: {string.Join(", ", skills.Skills.Select(static skill => skill.Name))}."
-			};
+		if (skills.Read(name, file) is string text)
+		{
+			// The name from the catalog, never the raw argument, which a model can fill with any text.
+			ServerTelemetry.RecordSkillRead(skills.Skills.First(skill => string.Equals(skill.Name, name, StringComparison.OrdinalIgnoreCase)).Name);
+
+			return new { name, file = file ?? SkillCatalog.SkillFile, text };
+		}
+
+		return new
+		{
+			error = BridgeErrorCodes.NotFound,
+			message = $"No skill '{name}' with a file '{file ?? SkillCatalog.SkillFile}'. Skills: {string.Join(", ", skills.Skills.Select(static skill => skill.Name))}."
+		};
 	}
 }

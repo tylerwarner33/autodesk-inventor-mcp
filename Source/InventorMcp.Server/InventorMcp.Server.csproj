@@ -36,6 +36,8 @@
 		<PackageReference Include="Interop.UIAutomationClient" />
 		<PackageReference Include="Microsoft.Extensions.Hosting" />
 		<PackageReference Include="ModelContextProtocol" />
+		<PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+		<PackageReference Include="OpenTelemetry.Extensions.Hosting" />
 		<PackageReference Include="Serilog.Extensions.Logging" />
 		<PackageReference Include="Serilog.Sinks.File" />
 	</ItemGroup>
