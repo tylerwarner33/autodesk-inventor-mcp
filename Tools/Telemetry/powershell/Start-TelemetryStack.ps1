@@ -1,12 +1,14 @@
-﻿<#
+<#
 .SYNOPSIS
 	Starts the local telemetry stack: the Collector, Prometheus, Tempo and
 	Grafana.
 
 .DESCRIPTION
 	Step A of Docs/Telemetry.md. Each program runs in the background, with no
-	window, and listens on 127.0.0.1 only. The config files come from this
-	folder. The data and the logs go to -DataFolder, outside the repository.
+	window, and listens on 127.0.0.1 only. The Collector and Tempo configs come
+	from this folder. The Prometheus config and the Grafana files come from the
+	parent folder, which the Docker stack shares. The data and
+	the logs go to -DataFolder, outside the repository.
 
 	A program that already runs is not started again. Stop-TelemetryStack.ps1
 	stops all four.
@@ -27,6 +29,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $configFolder = $PSScriptRoot
+$sharedFolder = Split-Path $PSScriptRoot
 $logFolder = Join-Path $DataFolder 'logs'
 
 foreach ($folder in 'logs', 'prometheus', 'tempo', 'grafana') {
@@ -91,7 +94,7 @@ Start-Program 'tempo' $tempo @("-config.file=$(Join-Path $configFolder 'tempo.ya
 
 $prometheus = Find-Program 'prometheus.exe'
 Start-Program 'prometheus' $prometheus @(
-	"--config.file=$(Join-Path $configFolder 'prometheus.yaml')",
+	"--config.file=$(Join-Path $sharedFolder 'prometheus.yaml')",
 	"--storage.tsdb.path=$(Join-Path $DataFolder 'prometheus')",
 	'--storage.tsdb.retention.time=90d',
 	# The Collector sends the metrics over OTLP. The 0 at the start time of each counter counts the first call of a
@@ -106,7 +109,7 @@ $grafanaHome = Split-Path (Split-Path $grafana)
 Start-Program 'grafana' $grafana @('server', "--homepath=$grafanaHome") @{
 	GF_PATHS_DATA = Join-Path $DataFolder 'grafana'
 	GF_PATHS_LOGS = $logFolder
-	GF_PATHS_PROVISIONING = Join-Path $configFolder 'grafana\provisioning'
+	GF_PATHS_PROVISIONING = Join-Path $sharedFolder 'grafana\provisioning'
 	GF_SERVER_HTTP_ADDR = '127.0.0.1'
 	GF_SERVER_HTTP_PORT = '3000'
 	GF_ANALYTICS_REPORTING_ENABLED = 'false'
@@ -116,7 +119,7 @@ Start-Program 'grafana' $grafana @('server', "--homepath=$grafanaHome") @{
 	GF_AUTH_DISABLE_LOGIN_FORM = 'true'
 	INVENTORMCP_PROMETHEUS_URL = 'http://127.0.0.1:9090'
 	INVENTORMCP_TEMPO_URL = 'http://127.0.0.1:3200'
-	INVENTORMCP_DASHBOARDS = Join-Path $configFolder 'grafana\dashboards'
+	INVENTORMCP_DASHBOARDS = Join-Path $sharedFolder 'grafana\dashboards'
 } $grafanaHome
 
 $collector = Find-Program 'otelcol-contrib.exe'

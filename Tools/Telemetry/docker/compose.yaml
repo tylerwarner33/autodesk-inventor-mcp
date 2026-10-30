@@ -1,5 +1,5 @@
-# The local telemetry stack in containers (Docs/Telemetry.md, Step B).
-# Start it from this folder with 'docker compose up -d', or with 'podman compose up -d'.
+# The local telemetry stack in Docker (Docs/Telemetry.md, Step B).
+# Start it from this folder with 'docker compose up -d --wait'.
 # Each image has an exact version. Each port is published on 127.0.0.1 only. The data is in named volumes.
 
 name: inventor-mcp-telemetry
@@ -13,9 +13,14 @@ services:
     ports:
       - "127.0.0.1:4317:4317"
       - "127.0.0.1:4318:4318"
-    depends_on: [tempo, prometheus]
+    depends_on:
+      tempo:
+        condition: service_started
+      prometheus:
+        condition: service_healthy
     restart: unless-stopped
 
+  # The Collector and Tempo images have no shell, so they have no health check. Grafana's Tempo data source checks it.
   tempo:
     image: grafana/tempo:3.1.1
     command: ["-config.file=/etc/tempo.yaml", "-config.expand-env=true"]
@@ -35,10 +40,16 @@ services:
       - --web.enable-otlp-receiver
       - --enable-feature=exemplar-storage,created-timestamp-zero-ingestion,promql-extended-range-selectors
     volumes:
-      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      # The same file as Step A, by mount: it has no address of another service.
+      - ../prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
       - prometheus-data:/prometheus
     ports:
       - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
     restart: unless-stopped
 
   grafana:
@@ -59,7 +70,16 @@ services:
       - grafana-data:/var/lib/grafana
     ports:
       - "127.0.0.1:3000:3000"
-    depends_on: [prometheus, tempo]
+    depends_on:
+      tempo:
+        condition: service_started
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
     restart: unless-stopped
 
 volumes:

@@ -75,8 +75,8 @@ public sealed partial class TelemetryTagsTests
 	/// 	The Collector applies the same allowlist again, so a new tag must go in its config too.
 	/// </summary>
 	[Theory]
-	[InlineData("otel-collector.yaml")]
-	[InlineData("compose/otel-collector.yaml")]
+	[InlineData("powershell/otel-collector.yaml")]
+	[InlineData("docker/otel-collector.yaml")]
 	public void CollectorKeepsTheSameTagsAsTheServer(string config)
 	{
 		string text = File.ReadAllText(Path.Combine(RepositoryRoot(), "Tools", "Telemetry", config));
@@ -94,8 +94,8 @@ public sealed partial class TelemetryTagsTests
 	/// 	The Collector checks the form of each name that the client can write. Each name that the server sends must pass.
 	/// </summary>
 	[Theory]
-	[InlineData("otel-collector.yaml")]
-	[InlineData("compose/otel-collector.yaml")]
+	[InlineData("powershell/otel-collector.yaml")]
+	[InlineData("docker/otel-collector.yaml")]
 	public void CollectorKeepsEveryNameThatTheServerSends(string config)
 	{
 		string text = File.ReadAllText(Path.Combine(RepositoryRoot(), "Tools", "Telemetry", config));

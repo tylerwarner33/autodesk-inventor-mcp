@@ -1,7 +1,7 @@
 # The OpenTelemetry Collector for the stack started by hand (Docs/Telemetry.md, Step A).
 # It receives OTLP from each server, removes every attribute that is not on the allowlist, and sends the traces to
 # Tempo and the metrics to Prometheus, which keep them on disk.
-# compose/otel-collector.yaml is the same file with the service names of Docker Compose.
+# ../docker/otel-collector.yaml is the same file with the service names of Docker Compose.
 
 receivers:
   otlp:

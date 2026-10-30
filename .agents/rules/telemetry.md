@@ -48,5 +48,5 @@ in `Docs/Research/OpenTelemetry-Findings.md`.
 
 ## Check by hand
 
-Start the stack (`Tools/Telemetry/Start-TelemetryStack.ps1`), point a server at `http://127.0.0.1:4317`, and read the
+Start the stack (`Tools/Telemetry/powershell/Start-TelemetryStack.ps1`), point a server at `http://127.0.0.1:4317`, and read the
 trace in Tempo. Stdout must hold only JSON-RPC lines.

@@ -1,8 +1,8 @@
-# The OpenTelemetry Collector for Docker Compose (Docs/Telemetry.md, Step B).
+# The OpenTelemetry Collector for Docker (Docs/Telemetry.md, Step B).
 # It receives OTLP from each server, removes every attribute that is not on the allowlist, and sends the traces to
 # Tempo and the metrics to Prometheus, which keep them on disk.
-# The same as ../otel-collector.yaml, with the service names of Docker Compose, and receivers on every address of the
-# container. docker-compose.yaml publishes 4317 and 4318 on 127.0.0.1 only.
+# The same as ../powershell/otel-collector.yaml, with the service names of Docker Compose, and receivers on every address of the
+# container. compose.yaml publishes 4317 and 4318 on 127.0.0.1 only.
 
 receivers:
   otlp:

@@ -1,4 +1,4 @@
-# The same as ../tempo.yaml, but it listens on every address of the container, which Docker Compose keeps private.
+# The same as ../powershell/tempo.yaml, but it listens on every address of the container, which Docker Compose keeps private.
 
 stream_over_http_enabled: true
 

@@ -679,7 +679,7 @@ and the failures of each tool, the main thread time of a snippet, and the connec
 - The server only **sends** data, over OTLP, to the address in `OTEL_EXPORTER_OTLP_ENDPOINT`. It stores nothing. With no
 	address, or with nothing that listens at it, the data is lost.
 - To see and keep the data, run a backend. The repository has one in `Tools/Telemetry`: a Collector, Prometheus,
-	Tempo and Grafana, with a dashboard. Docker is optional.
+	Tempo and Grafana, with a dashboard. It runs from PowerShell, or in Docker.
 - No snippet, argument, result, path or dialog text is sent.
 
 To turn it on, add `"OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317"` to the `env` of the client entry and

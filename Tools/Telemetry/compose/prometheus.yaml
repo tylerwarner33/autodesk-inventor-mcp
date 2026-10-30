@@ -1,8 +1,0 @@
-# The same as ../prometheus.yaml. The Collector sends to it, so it has no address of another service.
-# docker-compose.yaml gives the flags.
-
-global:
-  evaluation_interval: 15s
-
-otlp:
-  promote_resource_attributes: ["service.version"]

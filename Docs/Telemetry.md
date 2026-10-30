@@ -27,8 +27,8 @@ a program must receive it. That program is a *backend*:
 | An OTLP viewer, ex. the Aspire dashboard | A live look at traces and metrics | Often in memory only |
 | The stack in `Tools/Telemetry` (Collector, Prometheus, Tempo, Grafana) | The "Inventor MCP" dashboard, and a trace for each call | 90 days, on disk |
 
-In the stack, Prometheus keeps the metrics, Tempo keeps the traces, and Grafana shows both. Docker is optional: Step A
-runs the same programs as plain Windows executables, and Step B runs them in containers.
+In the stack, Prometheus keeps the metrics, Tempo keeps the traces, and Grafana shows both. Step A runs the programs as
+plain Windows executables. Step B runs them in Docker, with nothing to download by hand.
 
 ```mermaid
 graph LR
@@ -165,11 +165,11 @@ Prometheus counts the first call of a new server process. A Prometheus scrape ha
 of short sessions.
 
 ```powershell
-.\Tools\Telemetry\Start-TelemetryStack.ps1
+.\Tools\Telemetry\powershell\Start-TelemetryStack.ps1
 ```
 
 Then set `OTEL_EXPORTER_OTLP_ENDPOINT` to `http://127.0.0.1:4317` in the client entry, and reconnect.
-`.\Tools\Telemetry\Stop-TelemetryStack.ps1` stops all four programs. A program that already runs is not started again.
+`.\Tools\Telemetry\powershell\Stop-TelemetryStack.ps1` stops all four programs. A program that already runs is not started again.
 
 | Program | Port | Use |
 | --- | --- | --- |
@@ -179,8 +179,8 @@ Then set `OTEL_EXPORTER_OTLP_ENDPOINT` to `http://127.0.0.1:4317` in the client 
 | Prometheus | 9090 | UI and API for Grafana, and OTLP HTTP from the Collector (`/api/v1/otlp`) |
 | Grafana | 3000 | UI, with no login |
 
-The ports are in one place for each program: `otel-collector.yaml`, `tempo.yaml`, and `Start-TelemetryStack.ps1` for
-Prometheus and Grafana. To change a port that is in use, change it there and in the files that send to it.
+The ports are in one place for each program: `powershell/otel-collector.yaml`, `powershell/tempo.yaml`, and
+`Start-TelemetryStack.ps1` for Prometheus and Grafana. To change a port that is in use, change it there and in the files that send to it.
 
 | Data | Folder | Kept |
 | --- | --- | --- |
@@ -195,21 +195,59 @@ the features `created-timestamp-zero-ingestion` (a 0 at the start time of each c
 on each metric. The connection panel counts a server for 1 minute after its last export, so with an
 `OTEL_METRIC_EXPORT_INTERVAL` above 60000 a connected server shows gaps.
 
-## Step B: Docker Compose
+## Step B: Docker
 
-The same stack in containers, with each image at an exact version and the data in named volumes.
+The same stack in containers, with each image at an exact version and the data in named volumes. Install Docker
+Desktop (`winget install Docker.DockerDesktop`), start it once to set up WSL 2, then:
 
 ```
-cd Tools\Telemetry\compose
-docker compose up -d
+cd Tools\Telemetry\docker
+docker compose up -d --wait
 ```
 
-Podman reads the same file (`podman compose up -d`). Docker Desktop can need a paid license in a company. The ports
-are the same as Step A, and only 4317, 4318, 9090 and 3000 are published, on `127.0.0.1`. Grafana mounts the
-provisioning and dashboard files of Step A, so there is one copy of each. The Collector, Prometheus and Tempo have their
-own file in `compose/`, because their addresses are service names there.
+`--wait` returns when Prometheus and Grafana are healthy and the Collector and Tempo run. Then set
+`OTEL_EXPORTER_OTLP_ENDPOINT` to `http://127.0.0.1:4317` in the client entry, and reconnect.
 
-This step was not run on a machine with Docker. Each image tag was checked in its registry.
+| Task | Command, in `Tools\Telemetry\docker` |
+| --- | --- |
+| Status | `docker compose ps` |
+| Stop, keep the data | `docker compose down` |
+| Stop, delete the data | `docker compose down -v` |
+
+- Docker Desktop is free for personal use and small companies. A larger company needs a paid subscription.
+- Run Step A or Step B, not both. They use the same ports.
+- The ports are the same as Step A, and only 4317, 4318, 9090 and 3000 are published, on `127.0.0.1`.
+- Prometheus and Grafana mount the shared files in `Tools/Telemetry`. The Collector and Tempo have their own file in
+	`docker/`, because in a container they listen on `0.0.0.0` and find the other programs by service name (ex.
+	`tempo:4417`).
+- Prometheus shows a new count within the export interval (10 s). Tempo finds a new trace in search about 20 s after
+	the call.
+- Grafana logs errors for the folders `provisioning/plugins` and `provisioning/alerting`, and Tempo logs
+	`no jobs found` while it has nothing to compact. Both are harmless.
+
+## Test the stack
+
+`Tools/Telemetry/docker/Test-TelemetryStack.ps1` tests Step B end to end, in about 1 minute. It needs Docker and a
+built server, not Inventor.
+
+```powershell
+dotnet build Source/InventorMcp.Server -c Release
+.\Tools\Telemetry\docker\Test-TelemetryStack.ps1
+```
+
+1. It starts the stack with `--wait`, and checks that both Grafana data sources work and the dashboard is loaded.
+2. It runs the real server two times with `OTEL_EXPORTER_OTLP_ENDPOINT` set, each with one `inventor_skill` call.
+3. It finds the two calls in Prometheus (`inventor_tool_calls_total`) and their traces in Tempo. Each run gives its
+	calls a new client name (`stack-test <run>`), so the data of an earlier run does not change the result.
+4. It stops the stack with `docker compose down`, which keeps the data. `-KeepRunning` leaves it running, to look at
+	it in Grafana.
+
+Each check writes `PASS` or `FAIL`, and the exit code is 0 only when each check passes.
+
+The workflow `.github/workflows/telemetry-stack.yml` runs the same script on a Linux runner, which has Docker. A Windows
+runner runs only Windows containers. The workflow runs only for a change that can break the stack: a file in
+`Tools/Telemetry/`, the server's `Telemetry/` folder or `Program.cs`, `Directory.Packages.props`, or the workflow.
+Do not make it a required check: a pull request that it skips never gets its result.
 
 ## Delete the data
 

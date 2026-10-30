@@ -265,8 +265,29 @@ With the five programs started by `Tools/Telemetry/Start-TelemetryStack.ps1` and
 	round trip (`inventor_session` makes two).
 - Each dashboard query returned data, and each TraceQL panel found traces.
 - After Prometheus, Tempo and Grafana restarted, the older trace, the counts and the dashboard were still there.
-- Docker Compose (Step C) was not run: the test machine has no Docker or Podman. Each image tag was checked in its
-	registry.
+- Docker Compose (Step C) was not run then: the test machine had no Docker or Podman. Each image tag was checked in
+	its registry. See "Docker" for the later run.
+
+## Docker
+
+On 2026-10-30, the Docker stack ran on Docker Desktop 4.97.0 (engine 29.9.2, WSL 2).
+
+- Each container stayed up. Grafana reported its database `ok`, both data sources passed their health check, and the
+	dashboard "Inventor MCP" loaded from the shared `grafana/` folder.
+- Two server processes, each with one `inventor_skill` call, gave a count of 2 in Prometheus, and Tempo had both
+	`tools/call inventor_skill` traces. Tempo found them in search about 20 s after the calls, not at once.
+- The client name is a label of `inventor_tool_calls_total` only, not of the duration histogram. The first version of
+	the test counted on the histogram and found 0.
+- The Collector and Tempo images have no shell and no `wget`, so `compose.yaml` gives a health check to Prometheus and
+	Grafana only. Grafana's Tempo data source check proves that Tempo answers.
+- The server, built on Windows, ran in a Linux .NET 10 container and answered `inventor_skill`, so the workflow can run
+	the real server on a Linux runner.
+- `Test-TelemetryStack.ps1` passed in PowerShell 7 and in Windows PowerShell 5.1, in about 50 s. In 5.1,
+	`ProcessStartInfo.UseShellExecute` must be set to false: its default on .NET Framework is true.
+- Grafana logs errors for the missing `provisioning/plugins` and `provisioning/alerting` folders, and Tempo logs
+	`no jobs found` while it has nothing to compact. Both are harmless.
+- Podman 6.1.4 also ran the same stack, then was dropped: the repository supports and tests Docker only, which the
+	hosted runners have.
 
 ## A live session on Inventor 2026
 
