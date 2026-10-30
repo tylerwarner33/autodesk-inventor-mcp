@@ -1,0 +1,57 @@
+# Runs the Docker telemetry stack, sends telemetry from the real server, and finds it in Prometheus and Tempo.
+# Only a change that can break the stack starts it: the stack's own files, what the server sends, or this file.
+# Linux, because the images are Linux images, and a Windows runner runs Windows containers only.
+# See Docs/Telemetry.md, "Test the stack".
+name: Telemetry stack
+
+on:
+  pull_request:
+    paths: &stack-paths
+      - Tools/Telemetry/**
+      - Source/InventorMcp.Server/Telemetry/**
+      - Source/InventorMcp.Server/Program.cs
+      - Directory.Packages.props
+      - .github/workflows/telemetry-stack.yml
+  push:
+    branches: [master]
+    paths: *stack-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  docker:
+    name: Docker stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      # The server runs on Linux for inventor_skill, which needs no Inventor.
+      - name: Build the server
+        run: dotnet build Source/InventorMcp.Server/InventorMcp.Server.csproj -c Release
+
+      - name: Test the stack
+        shell: pwsh
+        run: ./Tools/Telemetry/docker/Test-TelemetryStack.ps1 -KeepRunning
+
+      - name: Logs of the stack
+        if: failure()
+        run: docker compose -f Tools/Telemetry/docker/compose.yaml logs --no-color
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose -f Tools/Telemetry/docker/compose.yaml down -v

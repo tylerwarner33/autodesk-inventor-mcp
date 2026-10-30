@@ -1,0 +1,88 @@
+# The local telemetry stack in Docker (Docs/Telemetry.md, Step B).
+# Start it from this folder with 'docker compose up -d --wait'.
+# Each image has an exact version. Each port is published on 127.0.0.1 only. The data is in named volumes.
+
+name: inventor-mcp-telemetry
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    depends_on:
+      tempo:
+        condition: service_started
+      prometheus:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # The Collector and Tempo images have no shell, so they have no health check. Grafana's Tempo data source checks it.
+  tempo:
+    image: grafana/tempo:3.1.1
+    command: ["-config.file=/etc/tempo.yaml", "-config.expand-env=true"]
+    environment:
+      INVENTORMCP_TELEMETRY_DATA: /var/tempo/data
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=90d
+      - --web.enable-otlp-receiver
+      - --enable-feature=exemplar-storage,created-timestamp-zero-ingestion,promql-extended-range-selectors
+    volumes:
+      # The same file as Step A, by mount: it has no address of another service.
+      - ../prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.3.0
+    environment:
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      INVENTORMCP_PROMETHEUS_URL: http://prometheus:9090
+      INVENTORMCP_TEMPO_URL: http://tempo:3200
+      INVENTORMCP_DASHBOARDS: /etc/grafana/dashboards
+    volumes:
+      # The same provisioning and dashboard files as Step A, by mount, so there is one copy of each.
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      tempo:
+        condition: service_started
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+    restart: unless-stopped
+
+volumes:
+  tempo-data:
+  prometheus-data:
+  grafana-data:

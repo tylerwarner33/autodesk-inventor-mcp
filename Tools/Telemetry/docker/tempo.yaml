@@ -1,0 +1,35 @@
+# The same as ../powershell/tempo.yaml, but it listens on every address of the container, which Docker Compose keeps private.
+
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+  log_level: warn
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4417
+
+live_store:
+  wal:
+    path: ${INVENTORMCP_TELEMETRY_DATA}/tempo/live-store
+
+backend_worker:
+  compaction:
+    # 90 days.
+    block_retention: 2160h
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: ${INVENTORMCP_TELEMETRY_DATA}/tempo/wal
+    local:
+      path: ${INVENTORMCP_TELEMETRY_DATA}/tempo/blocks
+
+usage_report:
+  reporting_enabled: false

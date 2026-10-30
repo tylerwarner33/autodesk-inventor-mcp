@@ -82,6 +82,14 @@ E_INVALIDARG causes:
   `FileManager.GetModelStates` first.
 - A Content Center part through `Occurrences.Add`. See the `projects-and-files` skill.
 
+## Features and their names
+
+- `PartFeature.Delete(false, ...)` also deletes the sketch that the feature consumed. The first argument keeps the
+  consumed sketch when it is `true`. Pass `true` to make the feature again from the same sketch, ex. in the other
+  direction.
+- A feature cannot take the name of a sketch: the rename throws `COMException`. Give each its own name, ex.
+  `Hole Sketch` for the sketch and `Hole` for the feature.
+
 ## Collections
 
 - `SubOccurrences` has no `ItemByName`.

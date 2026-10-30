@@ -27,6 +27,12 @@ return new { done, nextOffset = offset + done };
 
 Call again with `nextOffset` until the work is done.
 
+## The first document of a session is slow
+
+The first `Documents.Add` or `Documents.Open` in an Inventor session loads the template or the file and its
+references, and can take more than 6 s by itself. Create or open the first document in its own call, and do the
+work on it in the next call.
+
 ## One change per call
 
 - Change one parameter, one feature or one document per call when each change is slow, ex. when rules run.

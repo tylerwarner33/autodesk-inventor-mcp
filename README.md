@@ -8,8 +8,6 @@
 An MCP server that lets Claude inspect and drive a live Autodesk Inventor session, 2025 through 2027.
 It is built for developing Inventor plugins and automation, so Claude can see what a running automation loop creates, in order, as it runs.
 
-## Architecture
-
 ```mermaid
 graph LR
     Client["MCP Client<br/>(ex. Claude Code)"]
@@ -25,56 +23,38 @@ graph LR
     AddIn ---|"Main thread"| Api
 ```
 
-| Hop | Transport | Notes |
-| --- | --- | --- |
-| Client to server | stdio | Claude Code, Claude Desktop, Visual Studio or Visual Studio Code starts the server with `dotnet tool exec`. |
-| Server to add-in | Named pipe `InventorMcp.Bridge.<year>`, one for each Inventor release | Only the current Windows user can connect. |
-| Add-in to Inventor | In-process COM | Every call runs on Inventor's main thread. |
+## Contents
 
-The server targets `net10.0`. The add-in targets `net8.0-windows` on Inventor 2025 and 2026, and `net10.0-windows` on 2027.
-The server holds every MCP tool. The add-in is only a thin bridge: pipe listener, dispatch, and main thread marshaling.
+- [Quick start](#quick-start)
+- **Get started**
+	- [Requirements](#requirements)
+	- [Install the add-in](#install-the-add-in)
+	- [Connecting a client](#connecting-a-client)
+- **Use it**
+	- [Inventor must be running](#inventor-must-be-running)
+	- [Tools](#tools)
+	- [Executing code](#executing-code)
+	- [Units and parameter kinds](#units-and-parameter-kinds)
+	- [Dialog settings](#dialog-settings)
+- **Diagnose it**
+	- [Logs](#logs)
+	- [Telemetry (optional)](#telemetry-optional)
+- **Contribute to it**
+	- [How it is built](#how-it-is-built)
+	- [Documentation](#documentation)
 
-The add-in stays thin on purpose.
-Changing it costs an Inventor restart, while the tool surface changes constantly during development.
+## Quick start
 
-## Documentation
+1. Check the [requirements](#requirements): the .NET 10 SDK, and Inventor 2025, 2026 or 2027.
+2. [Install the add-in](#install-the-add-in) for each Inventor release that you use, and restart Inventor.
+3. [Connect a client](#connecting-a-client): open the section of your client, and copy the entry.
+4. Ask Claude about your Inventor session. If Inventor is closed, Claude asks before it starts it.
 
-| Path | Audience |
-| --- | --- |
-| `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
-| `Docs/Plugin-Development-Loop.md` | Plugin developers: running and iterating on a plugin in a live session, and making a plugin ready for it |
-| `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
-| `Source/InventorMcp.Server/DialogSettings.json` | Users: how the server answers each Inventor dialog that blocks a call (ex. the iLogic Security Alert). Edit it for your choice. See "Dialog settings". |
-| `Docs/Research/` | Maintainers: findings and measurements that tasks and decisions come from. Kept after the task is done. |
-| `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
-| `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
-| `.agents/rules/` | Coding agents: the Inventor behaviours and repository rules, one topic per file |
+---
 
-### Which coding agents read `AGENTS.md`
+## Get started
 
-`AGENTS.md` sits at the repository root, where each agent that supports it looks.
-
-| Agent | Reads the root `AGENTS.md` |
-| --- | --- |
-| Claude Code | Yes, from v2.1.277, when no `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists in the working folder or above it. Not in a session with telemetry disabled, on a third-party provider (ex. Amazon Bedrock), or in the first session after an upgrade. |
-| GitHub Copilot in Visual Studio Code | Yes, through the setting `chat.useAgentsMdFile`. |
-| GitHub Copilot in Visual Studio | No. It reads `.github/copilot-instructions.md`, which this repository does not have. |
-
-The name `.agents/` has no special meaning to any tool. It is only a neutral folder that keeps the agent rules apart
-from `Docs/`, which is written for people. No agent reads `.agents/` by itself: `AGENTS.md` lists each rule with its
-trigger, and an agent opens a rule only when a task matches it. So the rules cost no context until they are needed.
-
-## Projects
-
-| Project | Purpose |
-| --- | --- |
-| `Source/InventorMcp.Contracts` | The pipe wire contract. Holds no Inventor interop, so the server builds without Inventor installed. |
-| `Source/InventorMcp.AddIn` | The Inventor add-in. Owns the pipe listener and main thread dispatch only. |
-| `Source/InventorMcp.AddIn.Loader` | Isolates the add-in on Inventor 2025 and 2026, which cannot do it themselves. Unused on 2027. |
-| `Source/InventorMcp.Server` | The MCP server. Owns every tool. |
-| `Libs/Inventor/<version>` | The vendored Inventor interop assembly per release, so a machine without Inventor can still build. |
-
-## Requirements
+### Requirements
 
 - .NET 10 SDK
 - Autodesk Inventor 2025, 2026 or 2027 to run. Not needed to build, because the interop assemblies are vendored under `Libs`.
@@ -82,7 +62,7 @@ trigger, and an agent opens a rule only when a task matches it. So the rules cos
 The Inventor release is chosen per build with `-p:AutodeskVersion=<year>`. The default, 2027, is in `Directory.Build.props`.
 Only the add-in is built per release. The server and the contract are built once.
 
-## Setup
+### Install the add-in
 
 Build everything and deploy the add-in manifest:
 
@@ -103,7 +83,21 @@ a client. See "Connecting a client".
 Restart Inventor.
 Confirm the bridge started by checking `%LOCALAPPDATA%\InventorMcp\<year>\addin.log`, ex. `2027\addin.log`.
 
-## Connecting a client
+<details>
+<summary><b>Release style install</b> (a bundle that does not point back into a build folder)</summary>
+
+```
+dotnet build Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj -c Release -p:AutodeskVersion=2027 -p:DeployBundle=true
+```
+
+This writes a self contained bundle to `%APPDATA%\Autodesk\ApplicationPlugins\InventorMcp.AddIn`, which is version
+independent. Run it once per release: each adds its own manifest and `Contents` subfolder, and every Inventor loads
+only the manifest gated to its own version.
+Use one form or the other, not both, or Inventor loads the add-in twice.
+
+</details>
+
+### Connecting a client
 
 The server is a stdio MCP server, so the client starts it. There is nothing to leave running and no port.
 Claude Code, Claude Desktop, and GitHub Copilot Chat in Visual Studio and in Visual Studio Code can all use it.
@@ -111,28 +105,7 @@ Claude Code, Claude Desktop, and GitHub Copilot Chat in Visual Studio and in Vis
 Each client is configured **machine wide**, in its own user configuration file, so the server is available in every
 folder, repository and solution. The repository holds no client configuration.
 
-### How a client starts the server
-
-Every client runs the server as a .NET tool:
-
-```
-dotnet tool exec InventorMcp.Server [--prerelease] --source <feed> --yes
-```
-
-with `DOTNET_NOLOGO=1` and `DOTNET_CLI_TELEMETRY_OPTOUT=1` in the environment.
-
-- NuGet extracts each package version to its own cache folder and the server runs from there. No client runs the
-	build output, so a rebuild succeeds while clients are connected.
-- With no version given, `dotnet tool exec` runs the newest package in the feed. A client picks up a new version
-	when it restarts the server.
-- `--source` makes the feed the only source for that call, so a package of the same name on nuget.org is never used.
-- `--yes` removes a confirmation prompt that nobody can answer, because the client owns stdin.
-- `DOTNET_NOLOGO` stops the first run banner, which `dotnet` writes to stdout and which would corrupt the protocol.
-
-The server sends the modelling rules (named faces, units, extent direction, health checks, call length) in its
-`initialize` response, so every client gets them. The text is `Source/InventorMcp.Server/ServerInstructions.md`.
-
-### Two setups
+#### Pick a setup
 
 | | Using the server | Developing the server |
 | --- | --- | --- |
@@ -142,7 +115,10 @@ The server sends the modelling rules (named faces, units, extent direction, heal
 | New version | When a release is published to the feed | After every build that changes the server |
 | Needs the repository | No | Yes |
 
-Both setups need the Inventor add-in installed for each release in use. See "Setup" and "Bundle deployment".
+Both setups need the Inventor add-in installed for each release in use. See "Install the add-in".
+
+<details>
+<summary><b>The team feed, and where each client keeps its configuration</b></summary>
 
 No team feed and no release pipeline exist yet. The "Using the server" examples show where the team feed goes.
 `<team feed>` is its path or URL, ex. `\\server\share\InventorMcp` or
@@ -162,7 +138,14 @@ The local feed differs per user, and the four clients differ in how they name a 
 
 In the examples, replace `<you>` with your Windows user name.
 
-### Claude Code
+</details>
+
+#### Set up one client
+
+Open the section of the client that you use. Each section has the entry for both setups.
+
+<details>
+<summary><b>Claude Code</b></summary>
 
 Add the server at user scope from any terminal. It is then available in every folder.
 
@@ -187,7 +170,10 @@ claude mcp add-json autodesk-inventor-mcp-server -s user '{"type":"stdio","comma
 	"Conflicting scopes".
 - An entry that still runs `bin\Debug\InventorMcp.Server.exe` locks the build output. Replace it.
 
-### Claude Desktop
+</details>
+
+<details>
+<summary><b>Claude Desktop</b></summary>
 
 Open Settings, Developer, Edit Config. That opens the correct file, also for a Microsoft Store installation, which
 keeps it in a different folder. Add the entry to `mcpServers`.
@@ -242,7 +228,10 @@ keeps it in a different folder. Add the entry to `mcpServers`.
 	once it calls Inventor. See "More than one client".
 - A failed start is logged in `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log`.
 
-### Visual Studio
+</details>
+
+<details>
+<summary><b>Visual Studio</b></summary>
 
 Needs Visual Studio 2022 17.14 or later, or Visual Studio 2026, with Copilot Chat in **Agent** mode.
 Ask mode does not call tools.
@@ -303,7 +292,10 @@ if it does not exist. Keep any servers already in it.
 - If the tools picker shows no MCP servers, check the organisation policy "MCP servers in Copilot" first.
 - The log is in `%TEMP%\VSGitHubCopilotLogs\`. A failed start there quotes the server's stderr.
 
-### Visual Studio Code
+</details>
+
+<details>
+<summary><b>Visual Studio Code</b></summary>
 
 Needs GitHub Copilot Chat in **Agent** mode. Ask mode does not call tools.
 
@@ -368,7 +360,34 @@ It is then available in every folder and workspace.
 - If `chat.mcp.discovery.enabled` includes `claude-desktop`, Visual Studio Code also lists the server from the
 	Claude Desktop configuration, and each copy starts its own server.
 
-### More than one client
+</details>
+
+<details>
+<summary><b>How a client starts the server</b></summary>
+
+Every client runs the server as a .NET tool:
+
+```
+dotnet tool exec InventorMcp.Server [--prerelease] --source <feed> --yes
+```
+
+with `DOTNET_NOLOGO=1` and `DOTNET_CLI_TELEMETRY_OPTOUT=1` in the environment.
+
+- NuGet extracts each package version to its own cache folder and the server runs from there. No client runs the
+	build output, so a rebuild succeeds while clients are connected.
+- With no version given, `dotnet tool exec` runs the newest package in the feed. A client picks up a new version
+	when it restarts the server.
+- `--source` makes the feed the only source for that call, so a package of the same name on nuget.org is never used.
+- `--yes` removes a confirmation prompt that nobody can answer, because the client owns stdin.
+- `DOTNET_NOLOGO` stops the first run banner, which `dotnet` writes to stdout and which would corrupt the protocol.
+
+The server sends the modelling rules (named faces, units, extent direction, health checks, call length) in its
+`initialize` response, so every client gets them. The text is `Source/InventorMcp.Server/ServerInstructions.md`.
+
+</details>
+
+<details>
+<summary><b>More than one client</b></summary>
 
 Each client starts its own server, and Claude Desktop starts two. A server opens a pipe connection on its first
 Inventor call. The add-in accepts 16 connections at once and runs every call on Inventor's main thread, so a call
@@ -379,7 +398,13 @@ from one client waits while another client's call runs, then succeeds.
 - A server that finds every connection in use waits 3 s, then returns `inventor-not-running` with a message that
 	says Inventor is running and not to call `inventor_start`.
 
-## Inventor must be running
+</details>
+
+---
+
+## Use it
+
+### Inventor must be running
 
 The add-in hosts the named pipe, so the bridge exists only while Inventor is open with the add-in loaded.
 
@@ -393,7 +418,8 @@ If Inventor is already open, make sure the Inventor MCP Bridge add-in is loaded.
 The MCP server itself still starts and lists its tools, so the connection stays healthy while Inventor is closed.
 That is the reason for the two process design.
 
-### Starting Inventor from Claude
+<details>
+<summary><b>Starting Inventor from Claude</b></summary>
 
 `inventor_start` starts Inventor, only when you ask for it. It offers only releases that have the add-in deployed.
 
@@ -409,7 +435,10 @@ The call waits up to 45 s for the add-in. After that it returns `still-starting`
 dialog can hold Inventor. To wait longer, `inventor_session` takes `waitSeconds` (up to 45 s for each call).
 Set `INVENTOR_MCP_RELEASES` (ex. `2025`) on the server to limit the releases it considers.
 
-### More than one Inventor release
+</details>
+
+<details>
+<summary><b>More than one Inventor release</b></summary>
 
 Inventor 2025, 2026 and 2027 can run at the same time. Each add-in listens on its own pipe, and each Claude session
 uses one release.
@@ -431,44 +460,12 @@ and names the release. Two Inventor processes of the same release still compete 
 
 A Claude session that started before an upgrade keeps its old server, with the old pipe name, until you restart it.
 
-### Debugging the add-in
+</details>
 
-The add-in project sets `StartProgram` to Inventor, so pressing F5 on it launches Inventor with the debugger attached.
-Deploy the manifest once first, otherwise Inventor has nothing to load.
+### Tools
 
-**Inventor must be closed to rebuild the add-in.**
-Unloading it through the Add-In Manager runs `Deactivate` but does not release the assembly,
-because Inventor's assembly load context is not collectible, so the build still fails with a file lock.
-
-This is the reason the add-in stays thin.
-Every line in it costs a CAD restart to change, while the server's tools can be changed freely.
-
-### Bundle deployment
-
-For a release style install, which does not point back into a build folder:
-
-```
-dotnet build Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj -c Release -p:AutodeskVersion=2027 -p:DeployBundle=true
-```
-
-This writes a self contained bundle to `%APPDATA%\Autodesk\ApplicationPlugins\InventorMcp.AddIn`, which is version
-independent. Run it once per release: each adds its own manifest and `Contents` subfolder, and every Inventor loads
-only the manifest gated to its own version.
-Use one form or the other, not both, or Inventor loads the add-in twice.
-
-### Assembly isolation
-
-The manifest sets `UseInventorAssemblyContext` to `0`, which loads the add-in in its own `AssemblyLoadContext`.
-The element names whether to use *Inventor's* context, so `0` is the isolated mode.
-This keeps the add-in's dependencies from clashing with the versions Inventor and other vendors' add-ins load into the same process.
-
-Inventor 2025 and 2026 ignore that element.
-There, the manifest names `InventorMcp.AddIn.Loader`, which loads the add-in from an `App\` subfolder into an isolated context.
-
-The `Autodesk.Inventor.Interop` reference must stay `Private=false` for this to work.
-The interop has to resolve from Inventor itself, while the add-in's own packages resolve from its output folder.
-
-## Tools
+<details>
+<summary><b>All tools</b> (the list and what each does)</summary>
 
 | Tool | Purpose |
 | --- | --- |
@@ -508,7 +505,9 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | `inventor_dialogs` | The modal dialogs that block Inventor, with their text and buttons. Works while Inventor is blocked. |
 | `inventor_dialog_click` | Click one visible button of a blocking dialog. Marked destructive, so a client can ask first. |
 
-## Executing code
+</details>
+
+### Executing code
 
 `inventor_eval_csharp` is the general purpose tool. It reaches every member of the Inventor API, so it covers
 everything the narrower tools do not, such as creating sketches, features, and geometry.
@@ -525,9 +524,8 @@ The same tool can run a plugin under development inside the live session, with n
 `inventor_api_lookup` answers what a member is called and what it takes, before a snippet is written.
 It reads the vendored documentation file, so it needs no Inventor session.
 
-### Safeguards
-
-Arbitrary execution inside a CAD process is the most dangerous capability here, so it is bounded:
+<details>
+<summary><b>Safeguards</b> (arbitrary execution inside a CAD process is bounded)</summary>
 
 - Every snippet is appended to `%LOCALAPPDATA%\InventorMcp\executed-code.log`, with a timestamp and the target document.
 - Execution is refused when the document has unsaved changes, unless `allowUnsavedChanges` is passed.
@@ -538,7 +536,9 @@ Arbitrary execution inside a CAD process is the most dangerous capability here, 
 A snippet that throws is reported as a result, with its exception type and message, rather than failing the call.
 Compiler errors come back as diagnostics.
 
-## Units and parameter kinds
+</details>
+
+### Units and parameter kinds
 
 Inventor stores every length in centimetres and every angle in radians, whatever a document displays.
 Parameter results therefore carry `internalValue` in those units alongside `expression` and `displayValue`.
@@ -547,7 +547,63 @@ Not every parameter is numeric.
 Each one reports a `valueKind` of `Numeric`, `Text`, `Boolean`, or `Unknown`, because a write uses a different accessor for each.
 A text parameter has no internal value, and its expression is returned with the surrounding quotation marks removed.
 
-## Writes and dialogs
+### Dialog settings
+
+A modal dialog stops every tool except `inventor_activity`. The server answers a dialog as the **dialog settings** say,
+or leaves it open for you.
+
+**Edit `Source/InventorMcp.Server/DialogSettings.json` to choose the answer to each dialog.** It is the one place
+that sets this. Each entry is a dialog type, and its value is the button that the server clicks, or `"Ask"` to leave
+the dialog for you. The comment above each entry lists the values it accepts. A change needs a build, because the
+server embeds the file.
+
+| Entry | Dialog | Default | Other values |
+| --- | --- | --- | --- |
+| `iLogicError` | "Error on line N in rule: ...", after a rule throws | `"OK"` | `"Ask"` |
+| `iLogicCompileError` | "Rule Compile Errors in ...", when a rule does not compile | `"OK"` | `"Ask"` |
+| `messageBox` | A Win32 message box with only `OK` | `"OK"` | `"Ask"` |
+| `dotNetDisposedObjectError` | "Microsoft .NET", "Cannot access a disposed object.", which can come after an iLogic error | `"Continue"` | `"Ask"` |
+| `migration` | "Data Format Has Changed", when a save migrates files to the running release | `"Ask"` | `"OK"` |
+| `iLogicSecurityAlert` | "Security Alert", "iLogic has disabled a potentially harmful rule." | `"Ask"` | `"Run the rule"`, `"Don't run the rule"` |
+| `iLogicSecurityAdvisor` | "iLogic Security Advisor", which comes after "Run the rule" | `"Ask"` | `"OK"` |
+| `vaultLogIn` | The Vault "Log In", which can hold Inventor while it starts | `"Ask"` | None: the server never signs in for you |
+
+<details>
+<summary><b>Before you change a default</b> (what each click does)</summary>
+
+- `migration` `"OK"` saves the files in the running release's format, which earlier releases cannot open. Leave it
+	`"Ask"` when files go to an older Inventor (ex. a Design Automation engine).
+- `iLogicSecurityAlert` `"Run the rule"` runs a rule that iLogic flagged as potentially harmful, ex. one that reads the
+	registry or writes files. It is `"Ask"` by default, because a call can open a file from a source that you do not
+	trust. Set `"Run the rule"` in your own file (next section) only if you trust every rule that your calls run.
+	`"Don't run the rule"` disables the rule until you enable it in Tools > Options > iLogic Configuration.
+- `iLogicSecurityAdvisor` `"OK"` trusts that one rule on this machine from now on. The server clicks it only when
+	"Assume that this external rule is safe" is selected, never when the option for all rules in the folder is.
+	You can remove a trusted rule in Tools > Options > iLogic Configuration > Security.
+
+</details>
+
+<details>
+<summary><b>Your own settings, with no build</b></summary>
+
+Put a file of the same name, `DialogSettings.json`, in `%LOCALAPPDATA%\InventorMcp\`. Each entry in it replaces the
+entry of the same name in the repository file, ex. `{ "iLogicSecurityAlert": "Run the rule", "iLogicSecurityAdvisor": "OK" }`.
+The server reads it one time, when it starts, so restart the server in the client after a change. An agent that runs
+as you can write the file too, and the restart keeps you in the loop before a looser setting has an effect. An entry
+that is not in your file keeps the repository default, so a new dialog type or a changed default needs no change to
+your file. Use it when you run the server from a team feed, or to keep a setting that differs from the default while
+you work on the repository.
+The file is outside the repository, so git never commits it. A file that the server cannot read makes every dialog `"Ask"`, and
+`inventor_dialogs` lists the problems in `dialogSettingsProblems`.
+
+Two environment variables on the server still work, and apply after both files:
+`INVENTORMCP_AUTOCLOSE_DIALOGS=false` makes every dialog `"Ask"`, and `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true` makes
+`migration` `"OK"`.
+
+</details>
+
+<details>
+<summary><b>How the server watches for a dialog, and answers it</b></summary>
 
 A modal dialog owns Inventor's message pump, and the bridge posts its work to that pump.
 So an unanswered dialog stalls every tool except `inventor_activity`, which reads plain managed memory.
@@ -568,50 +624,12 @@ writes it to the server log, and answers it as the dialog settings say:
 
 The server answers only a dialog that blocks one of its own calls, never one that comes after your own action.
 
-### Dialog settings: choose how each dialog is answered
+</details>
 
-**Edit `Source/InventorMcp.Server/DialogSettings.json` to choose the answer to each dialog.** It is the one place
-that sets this. Each entry is a dialog type, and its value is the button that the server clicks, or `"Ask"` to leave
-the dialog for you. The comment above each entry lists the values it accepts. A change needs a build, because the
-server embeds the file.
+<details>
+<summary><b>How a dialog matches an entry</b></summary>
 
-| Entry | Dialog | Default | Other values |
-| --- | --- | --- | --- |
-| `iLogicError` | "Error on line N in rule: ...", after a rule throws | `"OK"` | `"Ask"` |
-| `iLogicCompileError` | "Rule Compile Errors in ...", when a rule does not compile | `"OK"` | `"Ask"` |
-| `messageBox` | A Win32 message box with only `OK` | `"OK"` | `"Ask"` |
-| `dotNetDisposedObjectError` | "Microsoft .NET", "Cannot access a disposed object.", which can come after an iLogic error | `"Continue"` | `"Ask"` |
-| `migration` | "Data Format Has Changed", when a save migrates files to the running release | `"Ask"` | `"OK"` |
-| `iLogicSecurityAlert` | "Security Alert", "iLogic has disabled a potentially harmful rule." | `"Ask"` | `"Run the rule"`, `"Don't run the rule"` |
-| `iLogicSecurityAdvisor` | "iLogic Security Advisor", which comes after "Run the rule" | `"Ask"` | `"OK"` |
-
-Before you change a default, know what each click does:
-
-- `migration` `"OK"` saves the files in the running release's format, which earlier releases cannot open. Leave it
-	`"Ask"` when files go to an older Inventor (ex. a Design Automation engine).
-- `iLogicSecurityAlert` `"Run the rule"` runs a rule that iLogic flagged as potentially harmful, ex. one that reads the
-	registry or writes files. It is `"Ask"` by default, because a call can open a file from a source that you do not
-	trust. Set `"Run the rule"` in your own file (below) only if you trust every rule that your calls run.
-	`"Don't run the rule"` disables the rule until you enable it in Tools > Options > iLogic Configuration.
-- `iLogicSecurityAdvisor` `"OK"` trusts that one rule on this machine from now on. The server clicks it only when
-	"Assume that this external rule is safe" is selected, never when the option for all rules in the folder is.
-	You can remove a trusted rule in Tools > Options > iLogic Configuration > Security.
-
-**Your own settings, with no build.** Put a file of the same name, `DialogSettings.json`, in
-`%LOCALAPPDATA%\InventorMcp\`. Each entry in it replaces the entry of the same name in the repository file, ex.
-`{ "iLogicSecurityAlert": "Run the rule", "iLogicSecurityAdvisor": "OK" }`. The server reads it one
-time, when it starts, so restart the server in the client after a change. An agent that runs as you can write the
-file too, and the restart keeps you in the loop before a looser setting has an effect. An entry that is not in your file keeps the repository default, so a new
-dialog type or a changed default needs no change to your file. Use it when you run the server from a team feed, or to
-keep a setting that differs from the default while you work on the repository.
-The file is outside the repository, so git never commits it. A file that the server cannot read makes every dialog `"Ask"`, and
-`inventor_dialogs` lists the problems in `dialogSettingsProblems`.
-
-Two environment variables on the server still work, and apply after both files:
-`INVENTORMCP_AUTOCLOSE_DIALOGS=false` makes every dialog `"Ask"`, and `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true` makes
-`migration` `"OK"`.
-
-**How a dialog matches an entry.** A dialog gets the button of an entry only when all of these match the example that
+A dialog gets the button of an entry only when all of these match the example that
 was read. Otherwise it stays open, whatever the settings say:
 
 - The title (ex. `Security Alert`, or the pattern `Error on line N in rule: ...`), and the window class: `#32770` for a
@@ -629,7 +647,13 @@ To add a dialog type, read a real example first, then add it to `Services/Dialog
 `Docs/Architecture.md`, "How the server finds, reads and clicks a dialog", has the method, and
 `Docs/Research/Blocking-Dialog-Detection.md` has the examples that were read.
 
-## Logs
+</details>
+
+---
+
+## Diagnose it
+
+### Logs
 
 | Path | Contents |
 | --- | --- |
@@ -642,3 +666,118 @@ To add a dialog type, read a real example first, then add it to `Services/Dialog
 
 Each Inventor release has its own folder, ex. `%LOCALAPPDATA%\InventorMcp\2025`, because two releases can run at the
 same time. The server logs stay at the top, because one server can talk to different releases during its life.
+
+The logs are always on. Telemetry (next section) does not replace or change them. The only change: with telemetry on,
+each line of `server-<date>.log` that is written during a tool call ends with the trace ID.
+
+### Telemetry (optional)
+
+Telemetry is a diagnostics feature for a developer or an admin who wants to measure the server over time, ex. the time
+and the failures of each tool, the main thread time of a snippet, and the connections to each Inventor release.
+**You do not need it to use the tools, and it is off by default.** With no setting, no data leaves the process.
+
+- The server only **sends** data, over OTLP, to the address in `OTEL_EXPORTER_OTLP_ENDPOINT`. It stores nothing. With no
+	address, or with nothing that listens at it, the data is lost.
+- To see and keep the data, run a backend. The repository has one in `Tools/Telemetry`: a Collector, Prometheus,
+	Tempo and Grafana, with a dashboard. It runs from PowerShell, or in Docker.
+- No snippet, argument, result, path or dialog text is sent.
+
+To turn it on, add `"OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317"` to the `env` of the client entry and
+reconnect. `Docs/Telemetry.md` has every variable, what is sent, and how to start the stack.
+
+---
+
+## Contribute to it
+
+### How it is built
+
+<details>
+<summary><b>The three hops, and why the add-in is thin</b></summary>
+
+| Hop | Transport | Notes |
+| --- | --- | --- |
+| Client to server | stdio | Claude Code, Claude Desktop, Visual Studio or Visual Studio Code starts the server with `dotnet tool exec`. |
+| Server to add-in | Named pipe `InventorMcp.Bridge.<year>`, one for each Inventor release | Only the current Windows user can connect. |
+| Add-in to Inventor | In-process COM | Every call runs on Inventor's main thread. |
+
+The server targets `net10.0`. The add-in targets `net8.0-windows` on Inventor 2025 and 2026, and `net10.0-windows` on 2027.
+The server holds every MCP tool. The add-in is only a thin bridge: pipe listener, dispatch, and main thread marshaling.
+
+The add-in stays thin on purpose.
+Changing it costs an Inventor restart, while the tool surface changes constantly during development.
+
+</details>
+
+<details>
+<summary><b>Projects</b></summary>
+
+| Project | Purpose |
+| --- | --- |
+| `Source/InventorMcp.Contracts` | The pipe wire contract. Holds no Inventor interop, so the server builds without Inventor installed. |
+| `Source/InventorMcp.AddIn` | The Inventor add-in. Owns the pipe listener and main thread dispatch only. |
+| `Source/InventorMcp.AddIn.Loader` | Isolates the add-in on Inventor 2025 and 2026, which cannot do it themselves. Unused on 2027. |
+| `Source/InventorMcp.Server` | The MCP server. Owns every tool. |
+| `Libs/Inventor/<version>` | The vendored Inventor interop assembly per release, so a machine without Inventor can still build. |
+
+</details>
+
+<details>
+<summary><b>Debugging the add-in</b></summary>
+
+The add-in project sets `StartProgram` to Inventor, so pressing F5 on it launches Inventor with the debugger attached.
+Deploy the manifest once first, otherwise Inventor has nothing to load.
+
+**Inventor must be closed to rebuild the add-in.**
+Unloading it through the Add-In Manager runs `Deactivate` but does not release the assembly,
+because Inventor's assembly load context is not collectible, so the build still fails with a file lock.
+
+This is the reason the add-in stays thin.
+Every line in it costs a CAD restart to change, while the server's tools can be changed freely.
+
+</details>
+
+<details>
+<summary><b>Assembly isolation</b></summary>
+
+The manifest sets `UseInventorAssemblyContext` to `0`, which loads the add-in in its own `AssemblyLoadContext`.
+The element names whether to use *Inventor's* context, so `0` is the isolated mode.
+This keeps the add-in's dependencies from clashing with the versions Inventor and other vendors' add-ins load into the same process.
+
+Inventor 2025 and 2026 ignore that element.
+There, the manifest names `InventorMcp.AddIn.Loader`, which loads the add-in from an `App\` subfolder into an isolated context.
+
+The `Autodesk.Inventor.Interop` reference must stay `Private=false` for this to work.
+The interop has to resolve from Inventor itself, while the add-in's own packages resolve from its output folder.
+
+</details>
+
+### Documentation
+
+| Path | Audience |
+| --- | --- |
+| `Docs/Setup-and-Usage-Guide.md` | Users: install, connect Claude, what to ask for, troubleshooting |
+| `Docs/Plugin-Development-Loop.md` | Plugin developers: running and iterating on a plugin in a live session, and making a plugin ready for it |
+| `Docs/Architecture.md` | Users: how it is built and why those decisions were made |
+| `Docs/Telemetry.md` | Users: the optional traces and metrics, what is sent, and the local stack in `Tools/Telemetry` |
+| `Source/InventorMcp.Server/DialogSettings.json` | Users: how the server answers each Inventor dialog that blocks a call (ex. the iLogic Security Alert). Edit it for your choice. See "Dialog settings". |
+| `Docs/Research/` | Maintainers: findings and measurements that tasks and decisions come from. Kept after the task is done. |
+| `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
+| `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
+| `.agents/rules/` | Coding agents: the Inventor behaviours and repository rules, one topic per file |
+
+<details>
+<summary><b>Which coding agents read <code>AGENTS.md</code></b></summary>
+
+`AGENTS.md` sits at the repository root, where each agent that supports it looks.
+
+| Agent | Reads the root `AGENTS.md` |
+| --- | --- |
+| Claude Code | Yes, from v2.1.277, when no `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists in the working folder or above it. Not in a session with telemetry disabled, on a third-party provider (ex. Amazon Bedrock), or in the first session after an upgrade. |
+| GitHub Copilot in Visual Studio Code | Yes, through the setting `chat.useAgentsMdFile`. |
+| GitHub Copilot in Visual Studio | No. It reads `.github/copilot-instructions.md`, which this repository does not have. |
+
+The name `.agents/` has no special meaning to any tool. It is only a neutral folder that keeps the agent rules apart
+from `Docs/`, which is written for people. No agent reads `.agents/` by itself: `AGENTS.md` lists each rule with its
+trigger, and an agent opens a rule only when a task matches it. So the rules cost no context until they are needed.
+
+</details>

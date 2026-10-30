@@ -95,13 +95,13 @@ internal static partial class InventorTool
 	/// </summary>
 	/// <remarks>
 	/// 	Without it, a health or session call waits on the dialog like every other call.
-	/// 	With no connection yet, the call itself connects, and its watchdog finds the dialog, so no connection is made here.
-	/// 	That keeps the answer for a closed Inventor to one connection timeout.
+	/// 	With no connection yet, no connection is made here: an Inventor that is starting is examined through the process
+	/// 	list, and the call itself connects. That keeps the answer for a closed Inventor to one connection timeout.
 	/// </remarks>
 	private static async Task<object> UnlessBlockedAsync(BridgeClient bridge, Func<Task<object>> work, CancellationToken cancellationToken)
 	{
 		BlockState? state = bridge.InventorProcessId is null
-			? null
+			? await bridge.GetStartingBlockStateAsync(cancellationToken).ConfigureAwait(false)
 			: (await ReadBlockStateAsync(bridge, cancellationToken).ConfigureAwait(false)).State;
 
 		// With no state, the work runs, and its own call reports why the bridge cannot be reached.
