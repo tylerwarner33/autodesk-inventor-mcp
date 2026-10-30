@@ -51,7 +51,8 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 | `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
 | `.agents/rules/` | Coding agents: the Inventor behaviours and repository rules, one topic per file |
 
-### Which coding agents read `AGENTS.md`
+<details>
+<summary><b>Which coding agents read <code>AGENTS.md</code></b></summary>
 
 `AGENTS.md` sits at the repository root, where each agent that supports it looks.
 
@@ -64,6 +65,8 @@ Changing it costs an Inventor restart, while the tool surface changes constantly
 The name `.agents/` has no special meaning to any tool. It is only a neutral folder that keeps the agent rules apart
 from `Docs/`, which is written for people. No agent reads `.agents/` by itself: `AGENTS.md` lists each rule with its
 trigger, and an agent opens a rule only when a task matches it. So the rules cost no context until they are needed.
+
+</details>
 
 ## Projects
 
@@ -163,7 +166,12 @@ The local feed differs per user, and the four clients differ in how they name a 
 
 In the examples, replace `<you>` with your Windows user name.
 
-### Claude Code
+### Set up one client
+
+Open the section of the client that you use. Each section has the entry for both setups.
+
+<details>
+<summary><b>Claude Code</b></summary>
 
 Add the server at user scope from any terminal. It is then available in every folder.
 
@@ -188,7 +196,10 @@ claude mcp add-json autodesk-inventor-mcp-server -s user '{"type":"stdio","comma
 	"Conflicting scopes".
 - An entry that still runs `bin\Debug\InventorMcp.Server.exe` locks the build output. Replace it.
 
-### Claude Desktop
+</details>
+
+<details>
+<summary><b>Claude Desktop</b></summary>
 
 Open Settings, Developer, Edit Config. That opens the correct file, also for a Microsoft Store installation, which
 keeps it in a different folder. Add the entry to `mcpServers`.
@@ -243,7 +254,10 @@ keeps it in a different folder. Add the entry to `mcpServers`.
 	once it calls Inventor. See "More than one client".
 - A failed start is logged in `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log`.
 
-### Visual Studio
+</details>
+
+<details>
+<summary><b>Visual Studio</b></summary>
 
 Needs Visual Studio 2022 17.14 or later, or Visual Studio 2026, with Copilot Chat in **Agent** mode.
 Ask mode does not call tools.
@@ -304,7 +318,10 @@ if it does not exist. Keep any servers already in it.
 - If the tools picker shows no MCP servers, check the organisation policy "MCP servers in Copilot" first.
 - The log is in `%TEMP%\VSGitHubCopilotLogs\`. A failed start there quotes the server's stderr.
 
-### Visual Studio Code
+</details>
+
+<details>
+<summary><b>Visual Studio Code</b></summary>
 
 Needs GitHub Copilot Chat in **Agent** mode. Ask mode does not call tools.
 
@@ -369,6 +386,8 @@ It is then available in every folder and workspace.
 - If `chat.mcp.discovery.enabled` includes `claude-desktop`, Visual Studio Code also lists the server from the
 	Claude Desktop configuration, and each copy starts its own server.
 
+</details>
+
 ### More than one client
 
 Each client starts its own server, and Claude Desktop starts two. A server opens a pipe connection on its first
@@ -432,7 +451,8 @@ and names the release. Two Inventor processes of the same release still compete 
 
 A Claude session that started before an upgrade keeps its old server, with the old pipe name, until you restart it.
 
-### Debugging the add-in
+<details>
+<summary><b>Debugging the add-in</b> (for developers of the add-in)</summary>
 
 The add-in project sets `StartProgram` to Inventor, so pressing F5 on it launches Inventor with the debugger attached.
 Deploy the manifest once first, otherwise Inventor has nothing to load.
@@ -443,6 +463,8 @@ because Inventor's assembly load context is not collectible, so the build still 
 
 This is the reason the add-in stays thin.
 Every line in it costs a CAD restart to change, while the server's tools can be changed freely.
+
+</details>
 
 ### Bundle deployment
 
@@ -457,7 +479,8 @@ independent. Run it once per release: each adds its own manifest and `Contents` 
 only the manifest gated to its own version.
 Use one form or the other, not both, or Inventor loads the add-in twice.
 
-### Assembly isolation
+<details>
+<summary><b>Assembly isolation</b> (for developers of the add-in)</summary>
 
 The manifest sets `UseInventorAssemblyContext` to `0`, which loads the add-in in its own `AssemblyLoadContext`.
 The element names whether to use *Inventor's* context, so `0` is the isolated mode.
@@ -469,7 +492,12 @@ There, the manifest names `InventorMcp.AddIn.Loader`, which loads the add-in fro
 The `Autodesk.Inventor.Interop` reference must stay `Private=false` for this to work.
 The interop has to resolve from Inventor itself, while the add-in's own packages resolve from its output folder.
 
+</details>
+
 ## Tools
+
+<details>
+<summary><b>All tools</b> (the list and what each does)</summary>
 
 | Tool | Purpose |
 | --- | --- |
@@ -508,6 +536,8 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | `inventor_auto_balloon` | Replace the balloons of one assembly view: one per part, sides chosen per part or limited, in one Undo step |
 | `inventor_dialogs` | The modal dialogs that block Inventor, with their text and buttons. Works while Inventor is blocked. |
 | `inventor_dialog_click` | Click one visible button of a blocking dialog. Marked destructive, so a client can ask first. |
+
+</details>
 
 ## Executing code
 
@@ -613,7 +643,10 @@ Two environment variables on the server still work, and apply after both files:
 `INVENTORMCP_AUTOCLOSE_DIALOGS=false` makes every dialog `"Ask"`, and `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true` makes
 `migration` `"OK"`.
 
-**How a dialog matches an entry.** A dialog gets the button of an entry only when all of these match the example that
+<details>
+<summary><b>How a dialog matches an entry</b></summary>
+
+A dialog gets the button of an entry only when all of these match the example that
 was read. Otherwise it stays open, whatever the settings say:
 
 - The title (ex. `Security Alert`, or the pattern `Error on line N in rule: ...`), and the window class: `#32770` for a
@@ -631,6 +664,8 @@ To add a dialog type, read a real example first, then add it to `Services/Dialog
 `Docs/Architecture.md`, "How the server finds, reads and clicks a dialog", has the method, and
 `Docs/Research/Blocking-Dialog-Detection.md` has the examples that were read.
 
+</details>
+
 ## Logs
 
 | Path | Contents |
@@ -645,12 +680,20 @@ To add a dialog type, read a real example first, then add it to `Services/Dialog
 Each Inventor release has its own folder, ex. `%LOCALAPPDATA%\InventorMcp\2025`, because two releases can run at the
 same time. The server logs stay at the top, because one server can talk to different releases during its life.
 
+The logs are always on. Telemetry (below) does not replace or change them. The only change: with telemetry on, each
+line of `server-<date>.log` that is written during a tool call ends with the trace ID.
+
 ## Telemetry (optional)
 
-The server can export traces and metrics over OpenTelemetry, ex. the time and the failures of each tool, the main
-thread time of a snippet, and the connections to each Inventor release. It is off by default. Set
-`OTEL_EXPORTER_OTLP_ENDPOINT` in the `env` of a client entry to turn it on. No snippet, argument, result, path or dialog
-text is sent.
+Telemetry is a diagnostics feature for a developer or an admin who wants to measure the server over time, ex. the time
+and the failures of each tool, the main thread time of a snippet, and the connections to each Inventor release.
+**You do not need it to use the tools, and it is off by default.** With no setting, no data leaves the process.
 
-`Docs/Telemetry.md` tells how to turn it on, what is sent, and how to start a local Collector, Prometheus, Tempo
-and Grafana with the configs and the dashboard in `Tools/Telemetry`.
+- The server only **sends** data, over OTLP, to the address in `OTEL_EXPORTER_OTLP_ENDPOINT`. It stores nothing. With no
+	address, or with nothing that listens at it, the data is lost.
+- To see and keep the data, run a backend. The repository has one in `Tools/Telemetry`: a Collector, Prometheus,
+	Tempo and Grafana, with a dashboard. Docker is optional.
+- No snippet, argument, result, path or dialog text is sent.
+
+To turn it on, add `"OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317"` to the `env` of the client entry and
+reconnect. `Docs/Telemetry.md` has every variable, what is sent, and how to start the stack.

@@ -1,11 +1,56 @@
 # Telemetry
 
 The server can export traces and metrics over OpenTelemetry (OTLP). It is **off by default**: with no setting, no
-telemetry package does work and no data leaves the process. The file log (`%LOCALAPPDATA%\InventorMcp\server-<date>.log`)
-always exists, with or without telemetry.
+telemetry package does work and no data leaves the process.
 
 The decisions are in `Docs/Architecture.md`, "Telemetry is optional, and goes through a Collector". The measurements
 are in `Docs/Research/OpenTelemetry-Findings.md`.
+
+## What it is for
+
+Telemetry is an **opt-in diagnostics feature** that ships in every build. It answers questions about how the server
+behaves over time (ex. how long a tool takes, and how often it fails). It is not needed to use the tools.
+
+| You are | Telemetry | What to do |
+| --- | --- | --- |
+| A user who runs the tools | Not needed | Do nothing. It stays off. |
+| Someone who finds a problem in one session | Not needed | Read the logs. See "Telemetry and the logs". |
+| A developer or admin who measures the server over days or across many users | Useful | Set an endpoint, and run a viewer. See "Turn it on and off". |
+
+**The server only sends data. It stores nothing.** Each server is a short-lived process with no port, and it keeps no
+copy of what it sends. With an endpoint set and nothing that listens at it, the data is lost. To see it or to keep it,
+a program must receive it. That program is a *backend*:
+
+| Backend | What you get | Kept |
+| --- | --- | --- |
+| None | Nothing | No |
+| An OTLP viewer, ex. the Aspire dashboard | A live look at traces and metrics | Often in memory only |
+| The stack in `Tools/Telemetry` (Collector, Prometheus, Tempo, Grafana) | The "Inventor MCP" dashboard, and a trace for each call | 90 days, on disk |
+
+In the stack, Prometheus keeps the metrics, Tempo keeps the traces, and Grafana shows both. Docker is optional: Step A
+runs the same programs as plain Windows executables, and Step B runs them in containers.
+
+```mermaid
+graph LR
+    Server["MCP server<br/>(one for each client)"] -->|"OTLP push"| Collector
+    Collector -->|"traces"| Tempo
+    Collector -->|"metrics (OTLP)"| Prometheus
+    Tempo --> Grafana
+    Prometheus --> Grafana
+```
+
+## Telemetry and the logs
+
+Telemetry does not replace the logs, and it does not change them. Every log file in `README.md`, "Logs", is written
+with or without telemetry. Telemetry has one effect on the logs: with it on, each line of `server-<date>.log` that is
+written during a tool call ends with the trace ID, so a line leads to its trace in Tempo.
+
+| | Logs | Telemetry |
+| --- | --- | --- |
+| State | Always on | Off until you set an endpoint |
+| Answers | What happened in one session, in detail (ex. the code of a snippet, a dialog text) | How the server behaves in all sessions (ex. the p95 duration of each tool) |
+| Contents | Can hold paths, code and dialog text | Fixed tags only. See "What is sent". |
+| Stays | On this machine | Goes to the endpoint you set |
 
 ## What it answers
 
@@ -20,13 +65,19 @@ are in `Docs/Research/OpenTelemetry-Findings.md`.
 
 ## Turn it on and off
 
-| Variable | Effect |
-| --- | --- |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Set: telemetry is on, and this is the address. Not set or empty: telemetry is off. |
-| `OTEL_SDK_DISABLED` | `true` turns telemetry off, also with an endpoint. |
-| `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` (the default) or `http/protobuf`. |
-| `OTEL_EXPORTER_OTLP_TIMEOUT` | Milliseconds for one export. The server sets 500 when it is not set, so the process ends within 2 s when no Collector runs. |
-| `OTEL_METRIC_EXPORT_INTERVAL` | Milliseconds between metric exports. The server sets 10000 when it is not set. |
+These are the standard OpenTelemetry variables. Set them in the `env` of the server's entry in the MCP client. Only the
+endpoint is needed.
+
+| Variable | Needed | Default | What it does |
+| --- | --- | --- | --- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Yes | Not set | The address that receives the data (ex. `http://127.0.0.1:4317`). **It is the on switch**: not set or empty, telemetry is off. |
+| `OTEL_SDK_DISABLED` | No | Not set | `true` turns telemetry off, also with an endpoint. Use it to turn telemetry off and keep the endpoint in the entry. |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | No | `grpc` | `grpc` (port 4317 of the Collector) or `http/protobuf` (port 4318). Use the port that fits the protocol. |
+| `OTEL_EXPORTER_OTLP_TIMEOUT` | No | 500 ms, set by the server | The time one export can take. The SDK's own default is 10 s, and with no backend the server then took 6 to 15 s to end. With 500, it ends within 2 s. |
+| `OTEL_METRIC_EXPORT_INTERVAL` | No | 10000 ms, set by the server | The time between metric exports. The SDK's own default is 60 s. A client can end the server with no warning, and the data since the last export is lost, so the server uses less. |
+| `OTEL_RESOURCE_ATTRIBUTES` | No | Not set | Adds your own resource attributes (ex. a team name). The Collector removes them. A viewer with no Collector keeps them. |
+
+The server reads the variables when it starts, so reconnect the client after a change.
 
 Add the endpoint to the `env` of the server's entry in each MCP client, after the values in `README.md`, "Connecting a
 client". Then reconnect the client (in Claude Code, `/mcp` and Reconnect).
