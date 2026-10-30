@@ -18,7 +18,7 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 - The MCP library `ModelContextProtocol` is version 2.3.0 (was 2.0.0). ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
 - With telemetry on, each line of the server log ends with the trace ID of its tool call. ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
 - A snippet result no longer holds the compiler warnings CS1701 and CS1702, which Inventor 2026 gave in each result. ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
-- `Docs/Telemetry.md` and the README say who telemetry is for, that the server only sends data, what each `OTEL_*` variable does, and that the logs do not change. The README sections for each client, the add-in internals, the tool list and the dialog matching rules are collapsed. ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
+- `Docs/Telemetry.md` and the README say who telemetry is for, that the server only sends data, what each `OTEL_*` variable does, and that the logs do not change. The README has a table of contents and a quick start, follows the order of use (get started, use it, diagnose it, contribute), and collapses the sections for each client, the add-in internals, the tool list and the dialog rules. ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
 - The skills name two traps of `PartFeature.Delete` and of feature names, and say to create the first document of a session in its own call. ([PR #22](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/22))
 
 ### Fixed

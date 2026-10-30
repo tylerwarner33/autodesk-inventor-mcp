@@ -12,7 +12,7 @@ Related documents:
 
 - `Docs/Architecture.md`, "The server watches for dialogs from outside Inventor". It has the design that came from
 	this document.
-- `README.md`, "Writes and dialogs" and "Dialog settings", for the user.
+- `README.md`, "Dialog settings", for the user.
 - `Docs/Research/Usage-Findings-And-Knowledge-Delivery.md` found one earlier block: an iLogic Security Alert after
 	a rule edit through the API.
 - `Docs/Architecture.md`, "Writes suppress Inventor's dialogs". This block happened under `SilentOperation`.
@@ -22,7 +22,7 @@ Related documents:
 
 | Content | Moved to |
 | --- | --- |
-| The watchdog, the check before a send, `blocked-by-dialog`, `inventor_dialogs` and `inventor_dialog_click`, `DialogSettings.json`, password fields | `Docs/Architecture.md`, "The server watches for dialogs from outside Inventor", and `README.md`, "Writes and dialogs" |
+| The watchdog, the check before a send, `blocked-by-dialog`, `inventor_dialogs` and `inventor_dialog_click`, `DialogSettings.json`, password fields | `Docs/Architecture.md`, "The server watches for dialogs from outside Inventor", and `README.md`, "Dialog settings" |
 | "Why the method works", the findings of "Live test results", the Win32 read and the `WM_COMMAND` click of "The migration dialog", the process ID from the pipe, the request ID, the mutex, the 2 s read limit, "Risks and limits" | `Docs/Architecture.md`, "How the server finds, reads and clicks a dialog" |
 | The match rules of each dialog type | `README.md`, "Dialog settings" |
 | iLogic does not show the same error again for 120 minutes. Read `ExternalRuleDirectories` before a rule runs on a copy. | The `ilogic` skill, "Running a rule" |
