@@ -1,0 +1,27 @@
+# Each data source has a fixed uid, which the dashboard JSON refers to.
+# The addresses come from variables, so Docker Compose can use the same file with its service names.
+# Start-TelemetryStack.ps1 sets them to 127.0.0.1.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: inventor-mcp-prometheus
+    type: prometheus
+    access: proxy
+    url: ${INVENTORMCP_PROMETHEUS_URL}
+    isDefault: true
+    jsonData:
+      # A point with an exemplar opens its trace in Tempo.
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: inventor-mcp-tempo
+
+  - name: Tempo
+    uid: inventor-mcp-tempo
+    type: tempo
+    access: proxy
+    url: ${INVENTORMCP_TEMPO_URL}
+    jsonData:
+      serviceMap:
+        datasourceUid: inventor-mcp-prometheus

@@ -1,0 +1,43 @@
+# Tempo 3 in monolithic mode (target all, no Kafka), with local storage.
+# Start it with -config.expand-env=true. Start-TelemetryStack.ps1 sets INVENTORMCP_TELEMETRY_DATA, ex.
+# %LOCALAPPDATA%\InventorMcp\Telemetry.
+
+stream_over_http_enabled: true
+
+server:
+  http_listen_address: 127.0.0.1
+  http_listen_port: 3200
+  grpc_listen_address: 127.0.0.1
+  grpc_listen_port: 9095
+  log_level: warn
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          # Not 4317, which the Collector uses.
+          endpoint: 127.0.0.1:4417
+
+memberlist:
+  bind_addr: ["127.0.0.1"]
+
+live_store:
+  wal:
+    path: ${INVENTORMCP_TELEMETRY_DATA}/tempo/live-store
+
+backend_worker:
+  compaction:
+    # 90 days.
+    block_retention: 2160h
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: ${INVENTORMCP_TELEMETRY_DATA}/tempo/wal
+    local:
+      path: ${INVENTORMCP_TELEMETRY_DATA}/tempo/blocks
+
+usage_report:
+  reporting_enabled: false

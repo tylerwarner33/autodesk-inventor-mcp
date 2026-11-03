@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 
 using InventorMcp.Server.Bridge;
 using InventorMcp.Server.Services;
+using InventorMcp.Server.Telemetry;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -81,6 +82,14 @@ internal static partial class InventorTool
 				_ => raw!
 			};
 
+			if (result is Contracts.Models.ExecutionResult executed && ToolOutcome.Current is { } outcome)
+			{
+				outcome.MainThreadMilliseconds = executed.ElapsedMilliseconds;
+
+				if (executed.Succeeded is false)
+					_ = outcome.Fail(TelemetryTags.OutcomeCodeFailed, TelemetryTags.ExceptionTypeValue(executed.ExceptionType));
+			}
+
 			if (result is Contracts.Models.ExecutionResult { Succeeded: false } failed)
 			{
 				LogCodeFailed(
@@ -96,6 +105,7 @@ internal static partial class InventorTool
 		{
 			// A bridge error is a tool result, so the log records its code and not a stack trace.
 			LogBridgeError(ResultLogger, tool, exception.Code, stopwatch.ElapsedMilliseconds);
+			_ = ToolOutcome.Current?.Fail(TelemetryTags.OutcomeBridgeError, TelemetryTags.BridgeErrorValue(exception.Code));
 
 			return dialogs.Count == 0
 				? new
@@ -116,7 +126,7 @@ internal static partial class InventorTool
 
 	private static Contracts.Models.ExecutionResult Complete(Contracts.Models.ExecutionResult execution, long wallClockMilliseconds, bool warnOnLongExecution)
 	{
-		Contracts.Models.ExecutionResult timed = execution with { WallClockMilliseconds = wallClockMilliseconds };
+		Contracts.Models.ExecutionResult timed = DiagnosticHints.WithoutVersionWarnings(execution) with { WallClockMilliseconds = wallClockMilliseconds };
 
 		return warnOnLongExecution && execution.ElapsedMilliseconds > _longExecutionWarningThreshold.TotalMilliseconds
 			? timed with { Output = [.. execution.Output, LongExecutionWarning(execution.ElapsedMilliseconds)] }

@@ -1,0 +1,69 @@
+# The OpenTelemetry Collector for the stack started by hand (Docs/Telemetry.md, Step A).
+# It receives OTLP from each server, removes every attribute that is not on the allowlist, and sends the traces to
+# Tempo and the metrics to Prometheus, which keep them on disk.
+# ../docker/otel-collector.yaml is the same file with the service names of Docker Compose.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4317
+      http:
+        endpoint: 127.0.0.1:4318
+
+processors:
+  # The second guard for privacy. The lists are the same as TelemetryTags.Allowed and TelemetryTags.AllowedOnMetrics
+  # in the server, and TelemetryTagsTests fails when they differ.
+  transform/allowlist:
+    error_mode: ignore
+    # One group for each context. A group runs once for each item of its context, so a span statement in the group
+    # of the span events would not run on a span with no event.
+    trace_statements:
+      - statements:
+          - keep_keys(resource.attributes, ["service.name", "service.version", "service.instance.id", "telemetry.sdk.name", "telemetry.sdk.language", "telemetry.sdk.version"])
+      - statements:
+          - keep_keys(span.attributes, ["gen_ai.tool.name", "inventor.outcome", "error.type", "inventor.release", "inventor.release.selection", "inventor.client.name", "inventor.bridge.operation", "inventor.skill.name", "inventor.dialog.type", "inventor.dialog.action", "inventor.health.status", "gen_ai.operation.name", "mcp.method.name", "mcp.protocol.version", "mcp.session.id", "rpc.response.status_code", "network.transport", "jsonrpc.protocol.version", "jsonrpc.request.id"])
+          # The MCP library puts the content of an isError result in the status message.
+          - set(span.status.message, "")
+          # The client writes the tool and the method name of a request, and the MCP library puts them in the span name.
+          # The server sends "other" for a name that it does not have. These check the form again.
+          - set(span.attributes["gen_ai.tool.name"], "other") where span.attributes["gen_ai.tool.name"] != nil and not IsMatch(span.attributes["gen_ai.tool.name"], "^(inventor_[a-z0-9_]+|other)$")
+          - set(span.attributes["mcp.method.name"], "other") where span.attributes["mcp.method.name"] != nil and not IsMatch(span.attributes["mcp.method.name"], "^[a-z]+(/[a-zA-Z_]+)*$")
+          - set(span.name, "other") where not IsMatch(span.name, "^([a-z]+(/[a-zA-Z_]+)*( (inventor_[a-z0-9_]+|other))?|bridge [a-z.]+)$")
+      - statements:
+          # An exception event holds exception.message and exception.stacktrace, which can hold a path.
+          - keep_keys(spanevent.attributes, [])
+    metric_statements:
+      - statements:
+          - keep_keys(resource.attributes, ["service.name", "service.version", "service.instance.id", "telemetry.sdk.name", "telemetry.sdk.language", "telemetry.sdk.version"])
+      - statements:
+          - keep_keys(datapoint.attributes, ["error.type", "gen_ai.operation.name", "gen_ai.tool.name", "inventor.bridge.operation", "inventor.client.name", "inventor.dialog.action", "inventor.dialog.type", "inventor.health.status", "inventor.outcome", "inventor.release", "inventor.release.selection", "inventor.skill.name", "jsonrpc.protocol.version", "mcp.method.name", "mcp.protocol.version", "network.transport", "rpc.response.status_code"])
+          - set(datapoint.attributes["gen_ai.tool.name"], "other") where datapoint.attributes["gen_ai.tool.name"] != nil and not IsMatch(datapoint.attributes["gen_ai.tool.name"], "^(inventor_[a-z0-9_]+|other)$")
+          - set(datapoint.attributes["mcp.method.name"], "other") where datapoint.attributes["mcp.method.name"] != nil and not IsMatch(datapoint.attributes["mcp.method.name"], "^[a-z]+(/[a-zA-Z_]+)*$")
+  batch: {}
+
+exporters:
+  otlp_grpc/tempo:
+    endpoint: 127.0.0.1:4417
+    tls:
+      insecure: true
+  # Prometheus takes OTLP, which has the start time of each counter. Prometheus then writes a 0 at that time, so
+  # increase() counts the first call of a new server process. A scrape has no start time, and lost most calls.
+  # See Docs/Research/OpenTelemetry-Findings.md, "Counts of short server processes".
+  otlp_http/prometheus:
+    endpoint: http://127.0.0.1:9090/api/v1/otlp
+
+service:
+  # The Collector's own metrics use port 8888 by default, which another program can hold.
+  telemetry:
+    metrics:
+      level: none
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [transform/allowlist, batch]
+      exporters: [otlp_grpc/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [transform/allowlist, batch]
+      exporters: [otlp_http/prometheus]

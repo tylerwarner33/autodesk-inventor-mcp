@@ -54,6 +54,9 @@ The decisions and the measurements are in `Docs/Architecture.md`, "The build enf
 Inventor. It builds the solution in Release, runs the `Unit` tests, and builds the add-in for each supported release.
 The runner has no interactive desktop, so the `Desktop` tests run only on a developer machine.
 
+`.github/workflows/telemetry-stack.yml` runs `Tools/Telemetry/docker/Test-TelemetryStack.ps1` with Docker on a Linux
+runner, only when a file that can break the telemetry stack changes. See `Docs/Telemetry.md`, "Test the stack".
+
 ## Tests
 
 ```

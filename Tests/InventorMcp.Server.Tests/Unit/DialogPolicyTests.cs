@@ -219,6 +219,27 @@ public sealed class DialogPolicyTests
 		Assert.Equal("messageBox", DialogPolicy.Classify(new DialogSnapshot(0x1234, "Security Alert", "#32770", "Win32", "A certificate expired.", [Button("OK")])));
 
 	[Fact]
+	public void VaultLogInIsClassified() =>
+		Assert.Equal(DialogPolicy.VaultLogInType, DialogPolicy.Classify(VaultLogIn()));
+
+	[Fact]
+	public void VaultLogInStaysOpen() =>
+		Assert.Null(DialogPolicy.ButtonToClick(VaultLogIn(), _defaults));
+
+	[Fact]
+	public void VaultLogInCannotBeSetToAButton()
+	{
+		DialogSettings settings = WithUserFile("""{ "vaultLogIn": "Open" }""");
+
+		Assert.Null(DialogPolicy.ButtonToClick(VaultLogIn(), settings));
+		_ = Assert.Single(settings.Problems);
+	}
+
+	[Fact]
+	public void LogInWithoutAVaultFieldIsNotVault() =>
+		Assert.Null(DialogPolicy.Classify(new DialogSnapshot(0x1234, "Log In", "WindowsForms10.Window.8.app.0.ffc8c_r3_ad1", "WinForm", "User Name:", [Button("OK")])));
+
+	[Fact]
 	public void SecurityAlertStaysOpenWhenAutoCloseIsOff() =>
 		Assert.False(ShouldClose(SecurityAlert(Button("Don't run the rule"), Button("Run the rule")), autoCloseEnabled: false));
 
@@ -328,4 +349,15 @@ public sealed class DialogPolicyTests
 	private static DialogOption Option(string name, bool selected) => new(name, "radio button", selected);
 
 	private static DialogButton Button(string name, bool visible = true, bool enabled = true) => new(name, visible, enabled);
+
+	/// <summary>
+	/// 	The text and the buttons as read on Inventor 2026, with no user or server name.
+	/// </summary>
+	private static DialogSnapshot VaultLogIn() => new(
+		0x1234,
+		"Log In",
+		"WindowsForms10.Window.8.app.0.ffc8c_r3_ad1",
+		"WinForm",
+		"User Name:\r\n---\r\nPassword:\r\n---\r\nServer:\r\n---\r\nVault:\r\n---\r\n[password field]\r\n---\r\nAuthentication:",
+		[Button("Open"), Button("<<"), Button("Help"), Button("Cancel")]);
 }

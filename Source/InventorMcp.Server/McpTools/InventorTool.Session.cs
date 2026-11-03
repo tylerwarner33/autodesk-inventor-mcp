@@ -105,8 +105,10 @@ internal static partial class InventorTool
 		release it chose, and which releases run now. Change the release with inventor_use_release.
 
 		To wait for an Inventor that is still starting, set waitSeconds: the server polls the bridge for you, and never
-		starts Inventor. Do not write your own wait loop in a shell (ex. a loop that lists named pipes or Inventor
-		processes). Git Bash cannot list named pipes, and a pipe name alone does not prove that Inventor is ready.
+		starts Inventor. The wait stops early with blocked-by-dialog when a dialog holds the start, ex. a Vault sign-in:
+		tell the user, and never answer it for them. Do not write your own wait loop in a shell (ex. a loop that lists
+		named pipes or Inventor processes). Git Bash cannot list named pipes, and a pipe name alone does not prove that
+		Inventor is ready.
 		""")]
 	public static async Task<object> SessionAsync(
 		BridgeClient bridge,
@@ -135,10 +137,11 @@ internal static partial class InventorTool
 	}
 
 	/// <summary>
-	/// 	Polls the bridge until it answers, or until the wait ends.
+	/// 	Polls the bridge until it answers, until a dialog holds the start, or until the wait ends.
 	/// </summary>
 	/// <remarks>
-	/// 	Returns quietly in each case. The call after it reports why the bridge cannot be reached.
+	/// 	Returns quietly in each case. The call after it reports why the bridge cannot be reached, or the dialog.
+	/// 	A dialog at the start needs a person, so a longer wait cannot help.
 	/// 	Never runs longer than the wait, so a client's limit for one call allows for the wait alone.
 	/// </remarks>
 	internal static async Task WaitForAnswerAsync(BridgeClient bridge, TimeSpan wait, IProgress<ProgressNotificationValue> progress, CancellationToken cancellationToken)
@@ -173,6 +176,9 @@ internal static partial class InventorTool
 				// Another release, or a host that is not this user's Inventor. Waiting cannot change that.
 				return;
 			}
+
+			if (await bridge.GetStartingBlockStateAsync(cancellationToken).ConfigureAwait(false) is { Blocked: true, Dialogs.Count: > 0 })
+				return;
 
 			left = wait - stopwatch.Elapsed;
 

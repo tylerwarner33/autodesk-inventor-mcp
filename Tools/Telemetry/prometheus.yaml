@@ -1,0 +1,12 @@
+# Prometheus takes the metrics from the Collector over OTLP (--web.enable-otlp-receiver), and scrapes nothing.
+# Each server is a short stdio process with no port. OTLP gives each counter its start time, and Prometheus writes a 0
+# there (--enable-feature=created-timestamp-zero-ingestion), so the first call of a server process counts.
+# Start-TelemetryStack.ps1 gives the data folder, the retention of 90 days and the features as flags.
+
+global:
+  evaluation_interval: 15s
+
+otlp:
+  # job is service.name, and instance is service.instance.id, so each server process is one series. The version goes
+  # on each metric too, so a panel can compare two versions. target_info has the other resource attributes.
+  promote_resource_attributes: ["service.version"]

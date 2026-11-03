@@ -3,6 +3,7 @@ using System.Globalization;
 using InventorMcp.Server.Bridge;
 using InventorMcp.Server.McpTools;
 using InventorMcp.Server.Services;
+using InventorMcp.Server.Telemetry;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,12 +21,20 @@ string logDirectory = Path.Combine(
 
 _ = Directory.CreateDirectory(logDirectory);
 
+TelemetrySettings telemetry = TelemetrySettings.Read(Environment.GetEnvironmentVariable);
+
+// The default template of the file sink, and the same with the trace ID, which Serilog takes from Activity.Current.
+const string DefaultLineTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}";
+const string TracedLineTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {TraceId}{NewLine}{Exception}";
+
 Log.Logger = new LoggerConfiguration()
 	.MinimumLevel.Information()
 	// Kept by age, not by count: each server process writes its own file, so with many clients a count limit deletes
 	// the files of the same day.
 	.WriteTo.File(
 		Path.Combine(logDirectory, "server-.log"),
+		// With telemetry on, each line inside a span ends with its trace ID, so a line leads to its trace.
+		outputTemplate: telemetry.Enabled ? TracedLineTemplate : DefaultLineTemplate,
 		formatProvider: CultureInfo.InvariantCulture,
 		rollingInterval: RollingInterval.Day,
 		retainedFileCountLimit: null,
@@ -34,6 +43,16 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Logging.ClearProviders();
 _ = builder.Logging.AddSerilog(Log.Logger, dispose: true);
+
+if (telemetry.Enabled)
+{
+	builder.AddServerTelemetry();
+	Log.Information("Telemetry on, endpoint {Endpoint}.", telemetry.Endpoint);
+}
+else
+{
+	Log.Information("Telemetry off.");
+}
 
 // Read one time, at start, so an edit of the user's file has no effect until a person restarts the server.
 // See DialogSettings.Load.
@@ -81,7 +100,11 @@ _ = builder.Services
 
 		try
 		{
-			return await next(context, cancellationToken).ConfigureAwait(false);
+			// The client writes the name. A name that matched no tool is not exported.
+			return await ServerTelemetry.RunToolCallAsync(
+				() => next(context, cancellationToken),
+				context.MatchedPrimitive is null ? null : context.Params?.Name,
+				() => (bridge.ReleaseYear, bridge.ClientName, selection.Source)).ConfigureAwait(false);
 		}
 		finally
 		{
@@ -96,6 +119,9 @@ _ = builder.Services
 IHost host = builder.Build();
 
 InventorTool.ResultLogger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("InventorMcp.Server.ToolResults");
+
+BridgeClient connection = host.Services.GetRequiredService<BridgeClient>();
+ServerTelemetry.ConnectionState = () => (connection.IsConnected, connection.ReleaseYear);
 
 await host.RunAsync();
 

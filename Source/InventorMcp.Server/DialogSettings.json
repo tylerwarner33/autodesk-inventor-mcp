@@ -53,5 +53,10 @@
 	// "Assume that this external rule is safe", and never when the option for all rules in the folder is selected.
 	// "Ask" by default, because "OK" trusts the rule from now on.
 	// Values: "OK", "Ask".
-	"iLogicSecurityAdvisor": "Ask"
+	"iLogicSecurityAdvisor": "Ask",
+
+	// The Vault "Log In" dialog, which can hold Inventor while it starts, before the MCP bridge add-in loads.
+	// It asks for a password, so the server never answers it.
+	// Values: "Ask".
+	"vaultLogIn": "Ask"
 }

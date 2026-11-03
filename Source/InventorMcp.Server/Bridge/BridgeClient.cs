@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -5,6 +7,7 @@ using System.Text.Json;
 
 using InventorMcp.Contracts;
 using InventorMcp.Server.Services;
+using InventorMcp.Server.Telemetry;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32.SafeHandles;
@@ -39,13 +42,22 @@ namespace InventorMcp.Server.Bridge;
 /// 	Gives why the process that hosts the pipe is not this user's Inventor, or null when it is.
 /// 	Null for <see cref="PipeHost.Check(int)"/>.
 /// </param>
+/// <param name="findRunning">
+/// 	Gives the Inventor processes of a release, or of every release for null.
+/// 	Null for <see cref="InventorInstallations.FindRunning(int?)"/>.
+/// </param>
+/// <param name="processRuns">
+/// 	Gives whether the process with an ID still runs. Null for <see cref="ProcessRuns(int)"/>.
+/// </param>
 internal sealed partial class BridgeClient(
 	ILogger<BridgeClient> logger,
 	IBlockingDialogs dialogs,
 	TimeProvider timeProvider,
 	ReleaseSelection selection,
 	Func<DialogSettings>? dialogSettings = null,
-	Func<int, string?>? checkHost = null) : IAsyncDisposable
+	Func<int, string?>? checkHost = null,
+	Func<int?, IReadOnlyList<RunningInventor>>? findRunning = null,
+	Func<int, bool>? processRuns = null) : IAsyncDisposable
 {
 	/// <summary>
 	/// 	The wait before the first dialog check. Most calls return before it.
@@ -75,6 +87,8 @@ internal sealed partial class BridgeClient(
 	private readonly ReleaseSelection _selection = selection;
 	private readonly Func<DialogSettings> _dialogSettings = dialogSettings ?? LoadOnce();
 	private readonly Func<int, string?> _checkHost = checkHost ?? PipeHost.Check;
+	private readonly Func<int?, IReadOnlyList<RunningInventor>> _findRunning = findRunning ?? InventorInstallations.FindRunning;
+	private readonly Func<int, bool> _processRuns = processRuns ?? ProcessRuns;
 	private readonly SemaphoreSlim _gate = new(1, 1);
 
 	/// <summary>
@@ -97,6 +111,21 @@ internal sealed partial class BridgeClient(
 	/// 	It comes from the pipe and not from a bridge call, because a bridge call waits on a blocking dialog too.
 	/// </remarks>
 	public int? InventorProcessId { get; private set; }
+
+	/// <summary>
+	/// 	True when the pipe is connected, for the gauge <c>inventor.bridge.connected</c>.
+	/// </summary>
+	internal bool IsConnected => HasLiveConnection;
+
+	/// <summary>
+	/// 	True when the pipe is connected and the Inventor that hosts it still runs.
+	/// </summary>
+	/// <remarks>
+	/// 	A client pipe stays connected after its host process ended, until a read or a write fails. Without the process
+	/// 	check, inventor_start took the pipe of an Inventor that had closed as the bridge of the new one, and the dialog
+	/// 	tools examined the old process. See <c>Docs/Research/Blocking-Dialog-Detection.md</c>, "The Vault "Log In" dialog".
+	/// </remarks>
+	private bool HasLiveConnection => _pipe is { IsConnected: true } && InventorProcessId is int processId && _processRuns(processId);
 
 	/// <summary>
 	/// 	The MCP client that this server serves, ex. "claude-code 2.1.282", or null before its first tool call.
@@ -164,7 +193,14 @@ internal sealed partial class BridgeClient(
 		if (payload is ExecuteRequest { ClientName: null } execute && ClientName is not null)
 			payload = execute with { ClientName = ClientName };
 
+		long waitStarted = Stopwatch.GetTimestamp();
 		await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+		ServerTelemetry.RecordQueueWait(Stopwatch.GetElapsedTime(waitStarted), ReleaseYear);
+
+		using Activity? span = ServerTelemetry.StartBridgeCall(operation);
+		long started = Stopwatch.GetTimestamp();
+		string outcome = TelemetryTags.OutcomeException;
+		string? errorType = null;
 
 		try
 		{
@@ -178,6 +214,7 @@ internal sealed partial class BridgeClient(
 			catch (IOException exception)
 			{
 				LogConnectionDropped(exception);
+				_ = span?.AddEvent(new ActivityEvent("reconnect"));
 
 				await CloseAsync().ConfigureAwait(false);
 
@@ -187,10 +224,27 @@ internal sealed partial class BridgeClient(
 			if (result is Contracts.Models.SessionInfo session)
 				ReleaseYear = session.ReleaseYear;
 
+			outcome = TelemetryTags.OutcomeOk;
+
 			return result;
+		}
+		catch (InventorBridgeException exception)
+		{
+			outcome = TelemetryTags.OutcomeBridgeError;
+			errorType = TelemetryTags.BridgeErrorValue(exception.Code);
+
+			throw;
+		}
+		catch (Exception exception)
+		{
+			errorType = TelemetryTags.ExceptionTypeValue(exception.GetType().FullName);
+
+			throw;
 		}
 		finally
 		{
+			ServerTelemetry.RecordBridgeCall(span, operation, outcome, errorType, Stopwatch.GetElapsedTime(started), ReleaseYear);
+
 			_ = _gate.Release();
 		}
 	}
@@ -238,18 +292,45 @@ internal sealed partial class BridgeClient(
 	/// 	Cancels the connection attempt.
 	/// </param>
 	/// <returns>
-	/// 	The block state, or null when no Inventor hosts the bridge.
+	/// 	The block state, or null when no Inventor hosts the bridge and none is starting.
 	/// </returns>
 	public async Task<BlockState?> GetBlockStateAsync(CancellationToken cancellationToken)
 	{
-		if ((InventorProcessId is null || _connectedGeneration != _selection.Generation)
+		if ((HasLiveConnection is false || _connectedGeneration != _selection.Generation)
 			&& await TryConnectAsync(cancellationToken).ConfigureAwait(false) is false)
 		{
-			return null;
+			return await GetStartingBlockStateAsync(cancellationToken).ConfigureAwait(false);
 		}
 
 		return InventorProcessId is int processId
 			? await Task.Run(() => _dialogs.Detect(processId), cancellationToken).ConfigureAwait(false)
+			: null;
+	}
+
+	/// <summary>
+	/// 	Examines an Inventor that does not host the bridge yet for a blocking dialog, with no connection attempt.
+	/// </summary>
+	/// <remarks>
+	/// 	A dialog at the start (ex. the Vault "Log In") can come before the add-in loads, so the pipe cannot give the
+	/// 	process. The process then comes from the process list, for the release this session chose. With more than one
+	/// 	candidate, the one that is starting is not known, so none is examined.
+	/// </remarks>
+	/// <param name="cancellationToken">
+	/// 	Cancels the examination.
+	/// </param>
+	/// <returns>
+	/// 	The block state, or null when the bridge is connected, or not exactly one Inventor of the release runs.
+	/// </returns>
+	public async Task<BlockState?> GetStartingBlockStateAsync(CancellationToken cancellationToken)
+	{
+		if (HasLiveConnection)
+			return null;
+
+		int? release = _selection.Chosen;
+		IReadOnlyList<RunningInventor> running = await Task.Run(() => _findRunning(release), cancellationToken).ConfigureAwait(false);
+
+		return running is [RunningInventor only]
+			? await Task.Run(() => _dialogs.Detect(only.ProcessId), cancellationToken).ConfigureAwait(false)
 			: null;
 	}
 
@@ -393,15 +474,15 @@ internal sealed partial class BridgeClient(
 				() => _dialogs.TryClick(processId, dialog, button),
 				cancellationToken).ConfigureAwait(false);
 
-			string action = outcome.Status switch
+			(string action, string telemetryAction) = outcome.Status switch
 			{
 				// The model must know what a click changed, ex. files saved in a format that older releases cannot open.
-				ClickStatus.Clicked => $"closed with {button}{DialogPolicy.ClickConsequence(DialogPolicy.Classify(dialog), button)}",
-				ClickStatus.DialogClosed => "closed by a different server or the user",
-				_ => $"left open: {outcome.Message}"
+				ClickStatus.Clicked => ($"closed with {button}{DialogPolicy.ClickConsequence(DialogPolicy.Classify(dialog), button)}", TelemetryTags.DialogClicked),
+				ClickStatus.DialogClosed => ("closed by a different server or the user", TelemetryTags.DialogClosedElsewhere),
+				_ => ($"left open: {outcome.Message}", TelemetryTags.DialogClickFailed)
 			};
 
-			Report(processId, dialog, action);
+			Report(processId, dialog, action, telemetryAction);
 
 			if (outcome.Status is ClickStatus.Clicked)
 				WriteClickAudit(dialog, button);
@@ -413,12 +494,12 @@ internal sealed partial class BridgeClient(
 			return;
 
 		foreach (DialogSnapshot dialog in needPerson)
-			Report(processId, dialog, "left open for a person");
+			Report(processId, dialog, "left open for a person", TelemetryTags.DialogNeedsPerson);
 
 		throw BlockedByDialog(needPerson[0]);
 	}
 
-	private void Report(int processId, DialogSnapshot dialog, string action)
+	private void Report(int processId, DialogSnapshot dialog, string action, string telemetryAction)
 	{
 		string? type = DialogPolicy.Classify(dialog);
 
@@ -435,6 +516,7 @@ internal sealed partial class BridgeClient(
 			dialog.Text);
 
 		DialogReports.Add(new DialogReport(dialog.Title, type, dialog.Text, dialog.ClickableButtons, action));
+		ServerTelemetry.RecordDialog(type, telemetryAction);
 	}
 
 	private static InventorBridgeException BlockedByDialog(DialogSnapshot dialog)
@@ -475,7 +557,7 @@ internal sealed partial class BridgeClient(
 	private async Task EnsureConnectedAsync(CancellationToken cancellationToken)
 	{
 		// A change of the release makes the open connection stale, even when it still works.
-		if (_pipe is { IsConnected: true } && _connectedGeneration == _selection.Generation)
+		if (HasLiveConnection && _connectedGeneration == _selection.Generation)
 			return;
 
 		await CloseAsync().ConfigureAwait(false);
@@ -575,6 +657,31 @@ internal sealed partial class BridgeClient(
 				: $"{subject} is not hosting the MCP bridge. This session uses that release only, and does not fall back to " +
 					$"another one. Ask the user whether to start it, then call inventor_start with version {releaseYear}. " +
 					"Or call inventor_use_release to use a different release.";
+	}
+
+	/// <summary>
+	/// 	Gives whether the process with the ID still runs.
+	/// </summary>
+	/// <remarks>
+	/// 	A process that cannot be read (ex. no access) counts as running, so the pipe is used as before the check.
+	/// </remarks>
+	internal static bool ProcessRuns(int processId)
+	{
+		try
+		{
+			using Process process = Process.GetProcessById(processId);
+
+			return process.HasExited is false;
+		}
+		catch (ArgumentException)
+		{
+			// No process has the ID.
+			return false;
+		}
+		catch (Win32Exception)
+		{
+			return true;
+		}
 	}
 
 	private async Task CloseAsync()

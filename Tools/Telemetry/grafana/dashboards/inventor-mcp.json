@@ -1,0 +1,763 @@
+{
+	"uid": "inventor-mcp",
+	"title": "Inventor MCP",
+	"description": "The questions of Docs/Telemetry.md, 'Read the dashboard'.",
+	"tags": [
+		"inventor-mcp"
+	],
+	"timezone": "browser",
+	"schemaVersion": 41,
+	"version": 1,
+	"editable": false,
+	"refresh": "30s",
+	"time": {
+		"from": "now-24h",
+		"to": "now"
+	},
+	"panels": [
+		{
+			"type": "row",
+			"title": "1. Time and failures of each tool",
+			"id": 1,
+			"collapsed": false,
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 0
+			},
+			"panels": []
+		},
+		{
+			"type": "timeseries",
+			"title": "Calls by tool",
+			"description": "Tool calls each second, by tool.",
+			"id": 2,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 1
+			},
+			"targets": [
+				{
+					"expr": "sum by (gen_ai_tool_name) (rate(inventor_tool_calls_total{job=\"InventorMcp.Server\"}[$__rate_interval]))",
+					"legendFormat": "{{gen_ai_tool_name}}",
+					"range": true,
+					"instant": false,
+					"exemplar": false,
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "reqps"
+				},
+				"overrides": []
+			},
+			"options": {}
+		},
+		{
+			"type": "timeseries",
+			"title": "Failed calls by tool",
+			"description": "The part of the calls of each tool with an outcome that is not ok: bridge-error, code-failed, tool-error or exception.",
+			"id": 3,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 1
+			},
+			"targets": [
+				{
+					"expr": "sum by (gen_ai_tool_name) (rate(inventor_tool_calls_total{job=\"InventorMcp.Server\", inventor_outcome!=\"ok\"}[$__rate_interval])) / sum by (gen_ai_tool_name) (rate(inventor_tool_calls_total{job=\"InventorMcp.Server\"}[$__rate_interval]))",
+					"legendFormat": "{{gen_ai_tool_name}}",
+					"range": true,
+					"instant": false,
+					"exemplar": false,
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "percentunit"
+				},
+				"overrides": []
+			},
+			"options": {}
+		},
+		{
+			"type": "bargauge",
+			"title": "Failures by outcome and error type",
+			"description": "Failed calls in the time range, by outcome and error.type (a bridge error code, an exception type name, or 'other').",
+			"id": 4,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 9
+			},
+			"targets": [
+				{
+					"expr": "sum by (inventor_outcome, error_type) (increase(inventor_tool_calls_total{job=\"InventorMcp.Server\", inventor_outcome!=\"ok\"}[$__range] anchored))",
+					"legendFormat": "{{inventor_outcome}} {{error_type}}",
+					"range": false,
+					"instant": true,
+					"exemplar": false,
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {},
+				"overrides": []
+			},
+			"options": {
+				"orientation": "horizontal",
+				"displayMode": "basic",
+				"showUnfilled": true
+			}
+		},
+		{
+			"type": "timeseries",
+			"title": "Duration p50 and p95 by tool",
+			"description": "From the request to the result. A point with an exemplar opens its trace in Tempo.",
+			"id": 5,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 9
+			},
+			"targets": [
+				{
+					"expr": "histogram_quantile(0.95, sum by (le, gen_ai_tool_name) (rate(inventor_tool_duration_seconds_bucket{job=\"InventorMcp.Server\"}[$__rate_interval])))",
+					"legendFormat": "p95 {{gen_ai_tool_name}}",
+					"range": true,
+					"instant": false,
+					"exemplar": true,
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				},
+				{
+					"expr": "histogram_quantile(0.5, sum by (le, gen_ai_tool_name) (rate(inventor_tool_duration_seconds_bucket{job=\"InventorMcp.Server\"}[$__rate_interval])))",
+					"legendFormat": "p50 {{gen_ai_tool_name}}",
+					"range": true,
+					"instant": false,
+					"exemplar": false,
+					"refId": "B",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "s"
+				},
+				"overrides": []
+			},
+			"options": {}
+		},
+		{
+			"type": "table",
+			"title": "Calls above 10 s by tool",
+			"description": "Calls in the time range that took more than 10 s, against all calls of the tool. 10 s is the limit in the server instructions.",
+			"id": 6,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 17
+			},
+			"targets": [
+				{
+					"expr": "sum by (gen_ai_tool_name) (increase(inventor_tool_duration_seconds_count{job=\"InventorMcp.Server\"}[$__range] anchored)) - sum by (gen_ai_tool_name) (increase(inventor_tool_duration_seconds_bucket{job=\"InventorMcp.Server\", le=\"10.0\"}[$__range] anchored))",
+					"legendFormat": "",
+					"range": false,
+					"instant": true,
+					"exemplar": false,
+					"format": "table",
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				},
+				{
+					"expr": "sum by (gen_ai_tool_name) (increase(inventor_tool_duration_seconds_count{job=\"InventorMcp.Server\"}[$__range] anchored))",
+					"legendFormat": "",
+					"range": false,
+					"instant": true,
+					"exemplar": false,
+					"format": "table",
+					"refId": "B",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {},
+				"overrides": []
+			},
+			"options": {},
+			"transformations": [
+				{
+					"id": "merge",
+					"options": {}
+				},
+				{
+					"id": "organize",
+					"options": {
+						"excludeByName": {
+							"Time": true
+						},
+						"renameByName": {
+							"gen_ai_tool_name": "Tool",
+							"Value #A": "Above 10 s",
+							"Value #B": "All calls"
+						}
+					}
+				}
+			]
+		},
+		{
+			"type": "table",
+			"title": "Calls by version, client and release",
+			"description": "Calls in the time range, by server version, MCP client and Inventor release. 'none' is a call with no connection.",
+			"id": 7,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 17
+			},
+			"targets": [
+				{
+					"expr": "sum by (service_version, inventor_client_name, inventor_release) (increase(inventor_tool_calls_total{job=\"InventorMcp.Server\"}[$__range] anchored))",
+					"legendFormat": "",
+					"range": false,
+					"instant": true,
+					"exemplar": false,
+					"format": "table",
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {},
+				"overrides": []
+			},
+			"options": {},
+			"transformations": [
+				{
+					"id": "organize",
+					"options": {
+						"excludeByName": {
+							"Time": true
+						},
+						"renameByName": {
+							"service_version": "Version",
+							"inventor_client_name": "Client",
+							"inventor_release": "Release",
+							"Value": "Calls"
+						}
+					}
+				}
+			]
+		},
+		{
+			"type": "row",
+			"title": "2. Main thread and wait of inventor_eval_csharp",
+			"id": 8,
+			"collapsed": false,
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 25
+			},
+			"panels": []
+		},
+		{
+			"type": "timeseries",
+			"title": "inventor_eval_csharp: main thread against the whole call (p95)",
+			"description": "The main thread line is the time the snippet held Inventor's main thread. The gap to the whole call is the wait: behind other calls, to open a document, and the bridge.",
+			"id": 9,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 26
+			},
+			"targets": [
+				{
+					"expr": "histogram_quantile(0.95, sum by (le) (rate(inventor_tool_duration_seconds_bucket{job=\"InventorMcp.Server\", gen_ai_tool_name=\"inventor_eval_csharp\"}[$__rate_interval])))",
+					"legendFormat": "whole call p95",
+					"range": true,
+					"instant": false,
+					"exemplar": true,
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				},
+				{
+					"expr": "histogram_quantile(0.95, sum by (le) (rate(inventor_execution_main_thread_seconds_bucket{job=\"InventorMcp.Server\", gen_ai_tool_name=\"inventor_eval_csharp\"}[$__rate_interval])))",
+					"legendFormat": "main thread p95",
+					"range": true,
+					"instant": false,
+					"exemplar": false,
+					"refId": "B",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "s"
+				},
+				"overrides": []
+			},
+			"options": {}
+		},
+		{
+			"type": "timeseries",
+			"title": "Bridge queue wait (p95)",
+			"description": "The time a call of one server waited for an earlier call of the same server. Calls of other servers wait on Inventor's main thread, which shows in the gap of the panel to the left.",
+			"id": 10,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 26
+			},
+			"targets": [
+				{
+					"expr": "histogram_quantile(0.95, sum by (le, inventor_release) (rate(inventor_bridge_queue_wait_seconds_bucket{job=\"InventorMcp.Server\"}[$__rate_interval])))",
+					"legendFormat": "{{inventor_release}}",
+					"range": true,
+					"instant": false,
+					"exemplar": false,
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "s"
+				},
+				"overrides": []
+			},
+			"options": {}
+		},
+		{
+			"type": "row",
+			"title": "3. Skills",
+			"id": 11,
+			"collapsed": false,
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 34
+			},
+			"panels": []
+		},
+		{
+			"type": "bargauge",
+			"title": "Skill reads",
+			"description": "Reads of each skill in the time range.",
+			"id": 12,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 35
+			},
+			"targets": [
+				{
+					"expr": "sum by (inventor_skill_name) (increase(inventor_skill_reads_total{job=\"InventorMcp.Server\"}[$__range] anchored))",
+					"legendFormat": "{{inventor_skill_name}}",
+					"range": false,
+					"instant": true,
+					"exemplar": false,
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {},
+				"overrides": []
+			},
+			"options": {
+				"orientation": "horizontal",
+				"displayMode": "basic",
+				"showUnfilled": true
+			}
+		},
+		{
+			"type": "table",
+			"title": "Skill reads and snippets, by session",
+			"description": "Each server process is one session (service.instance.id). Sort by the session, then by the start time, to see whether interop was read before the first inventor_eval_csharp.",
+			"id": 13,
+			"datasource": {
+				"type": "tempo",
+				"uid": "inventor-mcp-tempo"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 35
+			},
+			"targets": [
+				{
+					"queryType": "traceql",
+					"query": "{ resource.service.name = \"InventorMcp.Server\" && (span.inventor.skill.name != nil || span.gen_ai.tool.name = \"inventor_eval_csharp\") } | select(resource.service.instance.id, span.inventor.skill.name, span.gen_ai.tool.name)",
+					"limit": 100,
+					"tableType": "traces",
+					"refId": "A",
+					"datasource": {
+						"type": "tempo",
+						"uid": "inventor-mcp-tempo"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {},
+				"overrides": []
+			},
+			"options": {}
+		},
+		{
+			"type": "row",
+			"title": "4. Connections to each release",
+			"id": 14,
+			"collapsed": false,
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 43
+			},
+			"panels": []
+		},
+		{
+			"type": "timeseries",
+			"title": "Connected servers by release",
+			"description": "The servers with a connected pipe, by Inventor release. The add-in admits 16 connections for each release. A server that ended goes away 1 minute after its last export.",
+			"id": 15,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 24,
+				"x": 0,
+				"y": 44
+			},
+			"targets": [
+				{
+					"expr": "sum by (inventor_release) (last_over_time(inventor_bridge_connected{job=\"InventorMcp.Server\", inventor_release!=\"none\"}[1m]))",
+					"legendFormat": "{{inventor_release}}",
+					"range": true,
+					"instant": false,
+					"exemplar": false,
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				},
+				{
+					"expr": "vector(16)",
+					"legendFormat": "limit",
+					"range": true,
+					"instant": false,
+					"exemplar": false,
+					"refId": "B",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "none",
+					"decimals": 0
+				},
+				"overrides": [
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "limit"
+						},
+						"properties": [
+							{
+								"id": "custom.lineStyle",
+								"value": {
+									"fill": "dash",
+									"dash": [
+										10,
+										10
+									]
+								}
+							},
+							{
+								"id": "color",
+								"value": {
+									"mode": "fixed",
+									"fixedColor": "red"
+								}
+							}
+						]
+					}
+				]
+			},
+			"options": {}
+		},
+		{
+			"type": "row",
+			"title": "5. Dialogs",
+			"id": 16,
+			"collapsed": false,
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 52
+			},
+			"panels": []
+		},
+		{
+			"type": "bargauge",
+			"title": "Dialogs by type and action",
+			"description": "Blocking dialogs that the server found while a call waited, in the time range. clicked: the server answered it. needs-person: it stayed open. A dialog that the server failed to click counts as click-failed and then needs-person.",
+			"id": 17,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 53
+			},
+			"targets": [
+				{
+					"expr": "sum by (inventor_dialog_type, inventor_dialog_action) (increase(inventor_dialogs_answered_total{job=\"InventorMcp.Server\"}[$__range] anchored))",
+					"legendFormat": "{{inventor_dialog_type}} {{inventor_dialog_action}}",
+					"range": false,
+					"instant": true,
+					"exemplar": false,
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {},
+				"overrides": []
+			},
+			"options": {
+				"orientation": "horizontal",
+				"displayMode": "basic",
+				"showUnfilled": true
+			}
+		},
+		{
+			"type": "table",
+			"title": "Slow snippets",
+			"description": "Traces of inventor_eval_csharp that took more than 5 s. Open one to see its bridge spans.",
+			"id": 18,
+			"datasource": {
+				"type": "tempo",
+				"uid": "inventor-mcp-tempo"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 53
+			},
+			"targets": [
+				{
+					"queryType": "traceql",
+					"query": "{ resource.service.name = \"InventorMcp.Server\" && span.gen_ai.tool.name = \"inventor_eval_csharp\" && duration > 5s }",
+					"limit": 20,
+					"tableType": "traces",
+					"refId": "A",
+					"datasource": {
+						"type": "tempo",
+						"uid": "inventor-mcp-tempo"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {},
+				"overrides": []
+			},
+			"options": {}
+		},
+		{
+			"type": "row",
+			"title": "6. Model health",
+			"id": 19,
+			"collapsed": false,
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 61
+			},
+			"panels": []
+		},
+		{
+			"type": "bargauge",
+			"title": "Sick features by status",
+			"description": "Sick features that each inventor_health call reported, in the time range, suppressed ones left out. A call that worked can leave a wrong model, ex. a hole that cut nothing gives DriverLost, and its outcome is still ok. The same feature counts again at each read.",
+			"id": 20,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 62
+			},
+			"targets": [
+				{
+					"expr": "sum by (inventor_health_status) (increase(inventor_health_sick_features_total{job=\"InventorMcp.Server\"}[$__range] anchored))",
+					"legendFormat": "{{inventor_health_status}}",
+					"range": false,
+					"instant": true,
+					"exemplar": false,
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {},
+				"overrides": []
+			},
+			"options": {
+				"orientation": "horizontal",
+				"displayMode": "basic",
+				"showUnfilled": true
+			}
+		},
+		{
+			"type": "timeseries",
+			"title": "Sick features by release",
+			"description": "Sick features reported each minute, by Inventor release. A rise after a change of a skill or of the server is a sign of wrong models.",
+			"id": 21,
+			"datasource": {
+				"type": "prometheus",
+				"uid": "inventor-mcp-prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 62
+			},
+			"targets": [
+				{
+					"expr": "sum by (inventor_release) (increase(inventor_health_sick_features_total{job=\"InventorMcp.Server\"}[1m] anchored))",
+					"legendFormat": "{{inventor_release}}",
+					"range": true,
+					"instant": false,
+					"exemplar": false,
+					"refId": "A",
+					"datasource": {
+						"type": "prometheus",
+						"uid": "inventor-mcp-prometheus"
+					}
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "none"
+				},
+				"overrides": []
+			},
+			"options": {}
+		}
+	]
+}

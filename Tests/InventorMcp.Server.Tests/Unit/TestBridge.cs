@@ -170,12 +170,27 @@ internal sealed class TestBridge : IAsyncDisposable
 	/// <param name="checkHost">
 	/// 	The check of the process that hosts the pipe, or null to accept the test process, which is not Inventor.
 	/// </param>
-	public TestBridge(Func<int, string?>? checkHost = null)
+	/// <param name="running">
+	/// 	The Inventor processes that the process list gives, or null for none, so an Inventor on the test machine is
+	/// 	never found.
+	/// </param>
+	/// <param name="processRuns">
+	/// 	Whether the process that hosts the pipe still runs, or null for always, because the host is the test process.
+	/// </param>
+	public TestBridge(Func<int, string?>? checkHost = null, IReadOnlyList<RunningInventor>? running = null, Func<int, bool>? processRuns = null)
 	{
 		Selection = new ReleaseSelection(Server.Prefix, environmentValue: string.Empty);
 		Selection.Choose(2025);
 		// The defaults only, so a user's own settings file does not change the tests.
-		Client = new BridgeClient(NullLogger<BridgeClient>.Instance, Dialogs, Time, Selection, static () => DialogSettings.Defaults, checkHost ?? (static _ => null));
+		Client = new BridgeClient(
+			NullLogger<BridgeClient>.Instance,
+			Dialogs,
+			Time,
+			Selection,
+			static () => DialogSettings.Defaults,
+			checkHost ?? (static _ => null),
+			_ => running ?? [],
+			processRuns ?? (static _ => true));
 	}
 
 	/// <summary>
