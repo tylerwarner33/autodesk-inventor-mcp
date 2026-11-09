@@ -405,7 +405,7 @@ internal static partial class InventorTool
 		}
 		""";
 
-	[McpServerTool(Name = "inventor_drawing_layout")]
+	[McpServerTool(Name = "inventor_drawing_layout", Title = "Measure a drawing sheet", ReadOnly = true, OpenWorld = false)]
 	[Description("""
 		Measures a drawing sheet and reports where its annotations collide: views, balloons, dimension text, parts lists,
 		custom tables and the title block, in inches from the sheet's lower left corner.

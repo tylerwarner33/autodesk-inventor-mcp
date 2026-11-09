@@ -68,7 +68,7 @@ internal static partial class InventorTool
 		return "Resolved from the live camera; the user's view was restored.";
 		""";
 
-	[McpServerTool(Name = "inventor_orientation")]
+	[McpServerTool(Name = "inventor_orientation", Title = "Read the ViewCube orientation", ReadOnly = true, OpenWorld = false)]
 	[Description("""
 		Reports which world direction each ViewCube face points in, for the active document.
 

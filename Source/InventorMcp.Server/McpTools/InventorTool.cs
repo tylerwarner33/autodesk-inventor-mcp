@@ -126,10 +126,10 @@ internal static partial class InventorTool
 
 	private static Contracts.Models.ExecutionResult Complete(Contracts.Models.ExecutionResult execution, long wallClockMilliseconds, bool warnOnLongExecution)
 	{
-		Contracts.Models.ExecutionResult timed = DiagnosticHints.WithoutVersionWarnings(execution) with { WallClockMilliseconds = wallClockMilliseconds };
+		Contracts.Models.ExecutionResult timed = OutputLimit.Apply(DiagnosticHints.WithoutVersionWarnings(execution)) with { WallClockMilliseconds = wallClockMilliseconds };
 
 		return warnOnLongExecution && execution.ElapsedMilliseconds > _longExecutionWarningThreshold.TotalMilliseconds
-			? timed with { Output = [.. execution.Output, LongExecutionWarning(execution.ElapsedMilliseconds)] }
+			? timed with { Output = [.. timed.Output, LongExecutionWarning(execution.ElapsedMilliseconds)] }
 			: timed;
 	}
 

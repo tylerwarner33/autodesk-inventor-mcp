@@ -66,62 +66,36 @@ Log.Information(
 foreach (string problem in dialogSettings.Problems)
 	Log.Warning("Dialog settings: {Problem}", problem);
 
-builder.Services.AddSingleton<IBlockingDialogs>(static _ => new BlockingDialogs());
-builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<ReleaseSelection>();
-builder.Services.AddSingleton(services => new BridgeClient(
-	services.GetRequiredService<ILogger<BridgeClient>>(),
-	services.GetRequiredService<IBlockingDialogs>(),
-	services.GetRequiredService<TimeProvider>(),
-	services.GetRequiredService<ReleaseSelection>(),
-	() => dialogSettings));
-
-// Singleton because it indexes a 12 MB documentation file once and holds the result.
-builder.Services.AddSingleton<ApiReferenceService>();
-
 // One instance for both routes, inventor_skill and the Skills over MCP extension, so the files are read once.
 SkillCatalog skillCatalog = new();
-builder.Services.AddSingleton(skillCatalog);
+_ = builder.Services.AddInventorServices(skillCatalog, () => dialogSettings);
 
-builder.Services.AddSingleton<InventorInstallations>();
+SafetySettings safety = SafetySettings.Read(Environment.GetEnvironmentVariable);
+
+Log.Information(
+	"Tools {Tools}. Confirmation of risky calls {Confirmation}.",
+	safety.ReadOnlyTools ? "read-only" : "all",
+	safety.ConfirmRiskyCalls ? "on" : "off");
+
+if (safety.Problem is not null)
+	Log.Warning("Safety settings: {Problem}", safety.Problem);
 
 // The modelling rules go to every client in the initialize response, not only to agents that read .agents/rules.
 _ = builder.Services
 	.AddMcpServer(static options => options.ServerInstructions = ReadServerInstructions())
 	.WithStdioServerTransport()
-	.WithToolsFromAssembly()
+	.WithInventorTools(safety)
 	// inventor_skill serves the same skills, so the server starts without the extension when the SDK refuses them.
 	.WithInventorSkills(
 		skillCatalog,
 		static exception => Log.Warning(exception, "The Skills over MCP extension is off. inventor_skill still serves the skills."))
-	// The client name goes to the add-in's audit log, so each snippet there shows which client sent it.
-	// The release of each call goes to the server log, because a session can change its release, and the log of the
-	// MCP library does not name the tool.
-	.WithRequestFilters(static filters => filters.AddCallToolFilter(static next => async (context, cancellationToken) =>
-	{
-		BridgeClient bridge = context.Services!.GetRequiredService<BridgeClient>();
-		ReleaseSelection selection = context.Services!.GetRequiredService<ReleaseSelection>();
-
-		if (bridge.ClientName is null && context.Server.ClientInfo is { } client)
-			bridge.ClientName = ExecutionAuditLog.OneLine($"{client.Name} {client.Version}").Trim();
-
-		try
-		{
-			// The client writes the name. A name that matched no tool is not exported.
-			return await ServerTelemetry.RunToolCallAsync(
-				() => next(context, cancellationToken),
-				context.MatchedPrimitive is null ? null : context.Params?.Name,
-				() => (bridge.ReleaseYear, bridge.ClientName, selection.Source)).ConfigureAwait(false);
-		}
-		finally
-		{
-			Log.Information(
-				"Tool {Tool} finished. Release {Release}, selection {Selection}.",
-				context.Params?.Name,
-				bridge.ReleaseYear?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "not connected",
-				selection.Source);
-		}
-	}));
+	.WithInventorCallFilter(
+		safety,
+		static (tool, release, selection) => Log.Information(
+			"Tool {Tool} finished. Release {Release}, selection {Selection}.",
+			tool,
+			release,
+			selection));
 
 IHost host = builder.Build();
 

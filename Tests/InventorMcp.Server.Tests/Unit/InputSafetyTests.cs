@@ -3,11 +3,42 @@ using System.Text.Json;
 using InventorMcp.Server.McpTools;
 using InventorMcp.Server.Services;
 
+using ModelContextProtocol;
+
 namespace InventorMcp.Server.Tests.Unit;
 
 [Trait("Level", "Unit")]
 public sealed class InputSafetyTests
 {
+	private static readonly IProgress<ProgressNotificationValue> _noProgress = new Progress<ProgressNotificationValue>();
+
+	/// <summary>
+	/// 	The script answers this request before it loads Apprentice, so the test needs no Inventor.
+	/// 	It proves that Windows PowerShell gets the script through standard input, and the request file as its parameter.
+	/// </summary>
+	[Fact]
+	public async Task TestCopyRunsItsScriptWithNoScriptFile()
+	{
+		string folder = Path.Combine(Path.GetTempPath(), $"InventorMcp.Tests.{Guid.NewGuid():N}");
+		string source = Path.Combine(folder, "Part.ipt");
+		_ = Directory.CreateDirectory(folder);
+		await File.WriteAllTextAsync(source, string.Empty, TestContext.Current.CancellationToken);
+
+		try
+		{
+			object result = await InventorTool.TestCopyAsync(_noProgress, [source], Path.Combine(folder, "Copy"), cancellationToken: TestContext.Current.CancellationToken);
+			JsonElement json = JsonSerializer.SerializeToElement(result);
+
+			Assert.Equal("invalid-arguments", json.GetProperty("error").GetString());
+			Assert.Contains("give a prefix", json.GetProperty("message").GetString(), StringComparison.Ordinal);
+			Assert.Empty(Directory.GetFiles(Path.GetTempPath(), "InventorMcp.TestCopy.*.ps1"));
+		}
+		finally
+		{
+			Directory.Delete(folder, recursive: true);
+		}
+	}
+
 	[Theory]
 	[InlineData(@"..\..\")]
 	[InlineData(@"sub\TEST_")]
@@ -21,7 +52,7 @@ public sealed class InputSafetyTests
 
 		try
 		{
-			object result = await InventorTool.TestCopyAsync([source], Path.Combine(Path.GetTempPath(), "InventorMcp.Tests.Target"), prefix: prefix, cancellationToken: TestContext.Current.CancellationToken);
+			object result = await InventorTool.TestCopyAsync(_noProgress, [source], Path.Combine(Path.GetTempPath(), "InventorMcp.Tests.Target"), prefix: prefix, cancellationToken: TestContext.Current.CancellationToken);
 			JsonElement json = JsonSerializer.SerializeToElement(result);
 
 			Assert.Equal("invalid-arguments", json.GetProperty("error").GetString());
@@ -41,7 +72,7 @@ public sealed class InputSafetyTests
 
 		try
 		{
-			object result = await InventorTool.TestCopyAsync([source], Path.Combine(Path.GetTempPath(), "InventorMcp.Tests.Target"), sourceFolder: "Designs", cancellationToken: TestContext.Current.CancellationToken);
+			object result = await InventorTool.TestCopyAsync(_noProgress, [source], Path.Combine(Path.GetTempPath(), "InventorMcp.Tests.Target"), sourceFolder: "Designs", cancellationToken: TestContext.Current.CancellationToken);
 
 			Assert.Equal("invalid-arguments", JsonSerializer.SerializeToElement(result).GetProperty("error").GetString());
 		}

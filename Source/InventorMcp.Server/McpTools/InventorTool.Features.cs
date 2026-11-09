@@ -25,7 +25,7 @@ internal static partial class InventorTool
 
 		""";
 
-	[McpServerTool(Name = "inventor_features", ReadOnly = true)]
+	[McpServerTool(Name = "inventor_features", Title = "Read features", ReadOnly = true, OpenWorld = false)]
 	[Description("""
 		Lists the features of a part or an assembly in browser order: the name, type, suppressed flag and health of each,
 		and its parameters with their expressions. For a pattern or a mirror, also the count and spacing expressions,
@@ -159,7 +159,7 @@ internal static partial class InventorTool
 			return json;
 			""", cancellationToken).ConfigureAwait(false));
 
-	[McpServerTool(Name = "inventor_pattern_elements", ReadOnly = true)]
+	[McpServerTool(Name = "inventor_pattern_elements", Title = "Read pattern elements", ReadOnly = true, OpenWorld = false)]
 	[Description("""
 		Lists the elements of one pattern or mirror feature: the index, the suppressed flag, the face count, and the
 		transform of each element as a translation and a rotation matrix. Translations are in the document's length
@@ -217,7 +217,7 @@ internal static partial class InventorTool
 			return json;
 			""", cancellationToken).ConfigureAwait(false));
 
-	[McpServerTool(Name = "inventor_hole_check", ReadOnly = true)]
+	[McpServerTool(Name = "inventor_hole_check", Title = "Check holes", ReadOnly = true, OpenWorld = false)]
 	[Description("""
 		Finds the holes in the solid bodies of a part from the geometry, not from the features, so it also finds a hole
 		made by an extrude cut or a pattern. Groups them by diameter, with the axis direction and a point on the axis
@@ -420,7 +420,7 @@ internal static partial class InventorTool
 
 		""";
 
-	[McpServerTool(Name = "inventor_styles", ReadOnly = true)]
+	[McpServerTool(Name = "inventor_styles", Title = "Read drawing styles", ReadOnly = true, OpenWorld = false)]
 	[Description("""
 		Lists the styles of a drawing: the name, type, location (local, library or both), whether it is up to date with
 		the library and whether it is in use, with the font and size of a text style, the diameter of a balloon style and

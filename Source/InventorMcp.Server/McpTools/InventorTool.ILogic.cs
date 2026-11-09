@@ -60,7 +60,7 @@ internal static partial class InventorTool
 
 		""";
 
-	[McpServerTool(Name = "inventor_ilogic_rules", ReadOnly = true)]
+	[McpServerTool(Name = "inventor_ilogic_rules", Title = "List iLogic rules", ReadOnly = true, OpenWorld = false)]
 	[Description("Lists the iLogic rules of a document: the name, the active flag and the length of each rule. The document can be open, or a file path, which is opened invisibly and closed again.")]
 	public static Task<object> ILogicRulesAsync(
 		BridgeClient bridge,
@@ -78,7 +78,7 @@ internal static partial class InventorTool
 			""", cancellationToken).ConfigureAwait(false));
 
 	// Not ReadOnly: with outputFolder it writes files, and a client can run a read-only tool with no approval.
-	[McpServerTool(Name = "inventor_ilogic_rule_get", Destructive = false)]
+	[McpServerTool(Name = "inventor_ilogic_rule_get", Title = "Read an iLogic rule", ReadOnly = false, Destructive = false, OpenWorld = false)]
 	[Description("Reads the text of one iLogic rule, or writes every rule of a document to files in a folder (one '<rule>.iLogicVb' file each). The document can be open, or a file path. An existing file is never overwritten: nothing is written if one of the files exists.")]
 	public static Task<object> ILogicRuleGetAsync(
 		BridgeClient bridge,
@@ -147,7 +147,7 @@ internal static partial class InventorTool
 		});
 	}
 
-	[McpServerTool(Name = "inventor_ilogic_rule_set", Destructive = true)]
+	[McpServerTool(Name = "inventor_ilogic_rule_set", Title = "Change an iLogic rule", ReadOnly = false, Destructive = true, OpenWorld = false)]
 	[Description("""
 		Changes the text of one iLogic rule at an anchor: the anchor text must occur exactly once in the rule, or nothing
 		changes. Line ends are made the same as the rule's. The old text is written to a backup file first, and the
@@ -254,7 +254,7 @@ internal static partial class InventorTool
 			};
 		});
 
-	[McpServerTool(Name = "inventor_set_parameters", Destructive = true)]
+	[McpServerTool(Name = "inventor_set_parameters", Title = "Set several parameters", ReadOnly = false, Destructive = true, OpenWorld = false)]
 	[Description("""
 		Sets several parameters in one call, then updates the document once. This changes the user's model. A numeric
 		parameter takes an expression (ex. '50 mm'), a text parameter plain text, and a boolean parameter 'true' or

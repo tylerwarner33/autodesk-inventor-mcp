@@ -23,7 +23,7 @@ internal static partial class InventorTool
 
 	private const int MaxSheetImageWidth = 4000;
 
-	[McpServerTool(Name = "inventor_export_sheet_image", ReadOnly = true)]
+	[McpServerTool(Name = "inventor_export_sheet_image", Title = "Export a sheet image", ReadOnly = true, OpenWorld = false)]
 	[Description("""
 		Renders a drawing sheet, or a region of it, as a PNG image and returns it as image content, so you can look at
 		the drawing with no PDF renderer. The region is in inches from the sheet's lower left corner, the same as

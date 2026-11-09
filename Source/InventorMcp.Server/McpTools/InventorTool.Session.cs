@@ -91,7 +91,7 @@ internal static partial class InventorTool
 				.Replace("__MAX__", MaxSessionDocuments.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal),
 			cancellationToken);
 
-	[McpServerTool(Name = "inventor_session")]
+	[McpServerTool(Name = "inventor_session", Title = "Read the Inventor session", ReadOnly = true, OpenWorld = false)]
 	[Description("""
 		Reports whether an Inventor session is reachable, which version it is, and which document is active. Call this
 		first when you are unsure what Inventor is doing. If a modal dialog blocks Inventor, it returns blocked-by-dialog
@@ -189,12 +189,12 @@ internal static partial class InventorTool
 		}
 	}
 
-	[McpServerTool(Name = "inventor_documents")]
+	[McpServerTool(Name = "inventor_documents", Title = "List open documents", ReadOnly = true, OpenWorld = false)]
 	[Description("Lists every document open in the Inventor session, with its full path, type, unsaved state, and whether it needs a rebuild.")]
 	public static Task<object> DocumentsAsync(BridgeClient bridge, CancellationToken cancellationToken) =>
 		SafeAsync(() => bridge.InvokeAsync<IReadOnlyList<Contracts.Models.DocumentInfo>>(BridgeOperations.Documents, null, cancellationToken));
 
-	[McpServerTool(Name = "inventor_assembly_tree")]
+	[McpServerTool(Name = "inventor_assembly_tree", Title = "Read the assembly tree", ReadOnly = true, OpenWorld = false)]
 	[Description("Walks the occurrence tree of an open assembly, reporting suppression, visibility, grounding, and the file each occurrence references. Large assemblies are truncated rather than refused. Use summary for a large assembly: it gives the count at each depth and the unique documents. A tree over the output limit is returned as the summary, with a message.")]
 	public static Task<object> AssemblyTreeAsync(
 		BridgeClient bridge,
@@ -274,7 +274,7 @@ internal static partial class InventorTool
 		};
 	}
 
-	[McpServerTool(Name = "inventor_activity")]
+	[McpServerTool(Name = "inventor_activity", Title = "Read the activity feed", ReadOnly = true, OpenWorld = false)]
 	[Description("Reads the feed of Inventor events recorded since a cursor: documents opened or saved, and every committed transaction with the command name behind it. Use this to see what an automation loop actually did, in order. Pass the nextSequence from the previous call. Reading removes nothing, so other clients see the same events.")]
 	public static Task<object> ActivityAsync(
 		BridgeClient bridge,

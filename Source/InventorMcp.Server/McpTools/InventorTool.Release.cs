@@ -9,7 +9,7 @@ namespace InventorMcp.Server.McpTools;
 
 internal static partial class InventorTool
 {
-	[McpServerTool(Name = "inventor_use_release", Destructive = false, Idempotent = true, OpenWorld = false, ReadOnly = false)]
+	[McpServerTool(Name = "inventor_use_release", Title = "Choose the Inventor release", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
 	[Description("""
 		Sets the Inventor release that this session talks to, ex. 2025. Several releases can run at the same time, each
 		with its own bridge. Every other tool then reaches that release only, and never another one, even when its
