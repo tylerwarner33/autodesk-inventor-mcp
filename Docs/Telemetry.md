@@ -119,7 +119,7 @@ The values are a fixed kind:
 | `error.type` | A bridge error code (ex. `inventor-not-running`), an error code of a tool (ex. `invalid-arguments`), a .NET or Inventor exception type (ex. `System.Runtime.InteropServices.COMException`), `compilation-error`, `tool_error`, or `other` for any other name |
 | `inventor.release` | `2025`, `2026`, `2027`, or `none` with no connection |
 | `inventor.client.name` | The client name and version from `initialize` (ex. `claude-code 2.1.312`), cut to 64 characters |
-| `inventor.skill.name` | A skill name from the catalog, never the argument of the call |
+| `inventor.skill.name` | A skill name from the catalog, never the argument of the call or the URI of the read |
 | `inventor.dialog.type` | A dialog type of the catalog (ex. `iLogicError`), or `none` |
 | `inventor.dialog.action` | `clicked`, `closed-elsewhere`, `click-failed`, `needs-person` |
 | `inventor.health.status` | A health status from the add-in (ex. `DriverLost`, `InError`), or `other` |
@@ -269,7 +269,7 @@ range at the top sets the range of each count.
 | 1 | Calls by version, client and release | Which clients use which release, and how two server versions compare. |
 | 2 | main thread against the whole call | The gap between the two lines is the wait: behind calls of other servers, to open a document, and the bridge. |
 | 2 | Bridge queue wait | The wait behind an earlier call of the same server. |
-| 3 | Skill reads | The total of each skill. |
+| 3 | Skill reads | The total of each skill, through `inventor_skill` and through a `resources/read` of a `SKILL.md` in the Skills over MCP extension. |
 | 3 | Skill reads and snippets, by session | Each `service.instance.id` is one session. Sort by it and by the start time to see whether `interop` came before the first `inventor_eval_csharp`. |
 | 4 | Connected servers by release | Against the dashed line at 16, the connections that the add-in admits for each release. |
 | 5 | Dialogs by type and action | `clicked`: the server answered it. `needs-person`: it stayed open for the user. A failed click counts as `click-failed` and then `needs-person`. |

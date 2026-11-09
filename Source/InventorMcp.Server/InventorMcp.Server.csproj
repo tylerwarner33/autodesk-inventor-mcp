@@ -36,6 +36,7 @@
 		<PackageReference Include="Interop.UIAutomationClient" />
 		<PackageReference Include="Microsoft.Extensions.Hosting" />
 		<PackageReference Include="ModelContextProtocol" />
+		<PackageReference Include="ModelContextProtocol.Extensions.Skills" />
 		<PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
 		<PackageReference Include="OpenTelemetry.Extensions.Hosting" />
 		<PackageReference Include="Serilog.Extensions.Logging" />
@@ -66,8 +67,8 @@
 	</ItemGroup>
 
 	<!--
-		The skills that inventor_skill serves, one folder each, embedded with their path. Services/SkillCatalog.cs reads
-		them. The path in the name lets the Skills over MCP extension serve the same files later.
+		The skills that inventor_skill and the Skills over MCP extension serve, one folder each, embedded with their path.
+		Services/SkillCatalog.cs reads them, and the path in the name gives each file its path in the skill.
 	-->
 	<ItemGroup>
 		<EmbeddedResource Include="Skills\**\*" LogicalName="InventorMcp.Server.Skills/%(RecursiveDir)%(Filename)%(Extension)" />

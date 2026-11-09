@@ -78,7 +78,10 @@ builder.Services.AddSingleton(services => new BridgeClient(
 
 // Singleton because it indexes a 12 MB documentation file once and holds the result.
 builder.Services.AddSingleton<ApiReferenceService>();
-builder.Services.AddSingleton<SkillCatalog>();
+
+// One instance for both routes, inventor_skill and the Skills over MCP extension, so the files are read once.
+SkillCatalog skillCatalog = new();
+builder.Services.AddSingleton(skillCatalog);
 
 builder.Services.AddSingleton<InventorInstallations>();
 
@@ -87,6 +90,10 @@ _ = builder.Services
 	.AddMcpServer(static options => options.ServerInstructions = ReadServerInstructions())
 	.WithStdioServerTransport()
 	.WithToolsFromAssembly()
+	// inventor_skill serves the same skills, so the server starts without the extension when the SDK refuses them.
+	.WithInventorSkills(
+		skillCatalog,
+		static exception => Log.Warning(exception, "The Skills over MCP extension is off. inventor_skill still serves the skills."))
 	// The client name goes to the add-in's audit log, so each snippet there shows which client sent it.
 	// The release of each call goes to the server log, because a session can change its release, and the log of the
 	// MCP library does not name the tool.

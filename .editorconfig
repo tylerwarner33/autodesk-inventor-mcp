@@ -377,6 +377,12 @@ dotnet_diagnostic.CA1725.severity = none
 dotnet_diagnostic.RCS1168.severity = none
 dotnet_diagnostic.S927.severity = none
 
+# The Skills over MCP extension is experimental in the C# SDK. inventor_skill serves the same skills if the API changes,
+# and the server starts without the extension if the SDK refuses a skill.
+# Only this file uses the extension, so a change of the API changes one file.
+[Source/InventorMcp.Server/Services/SkillCatalog.cs]
+dotnet_diagnostic.MCPEXP005.severity = none
+
 [Tests/**/*.cs]
 
 # xUnit names a collection definition '...Collection', and finds it by its class, which must not be static
@@ -385,3 +391,7 @@ dotnet_diagnostic.S1118.severity = none
 
 # A comparer on an assertion or a test dictionary adds noise and no safety
 dotnet_diagnostic.MA0002.severity = none
+
+# The test of the Skills over MCP extension uses its experimental client API.
+[Tests/InventorMcp.Server.Tests/Unit/SkillExtensionTests.cs]
+dotnet_diagnostic.MCPEXP005.severity = none
