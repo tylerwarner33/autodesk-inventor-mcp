@@ -1,53 +1,54 @@
 # Skills Over MCP Plan
 
 Created: 2026-10-05
+Updated: 2026-11-09
 
-Status: **open, waiting for the C# SDK.** The skills are written and served through `inventor_skill`, and the
-delivery decisions are in `Docs/Architecture.md`, "Longer knowledge travels as skills, and a tool description names its
-skill". One item is left: serve the skills through the Skills over MCP extension when the C# SDK releases it.
-The evidence is in `Docs/Research/Usage-Findings-And-Knowledge-Delivery.md`, sections R2 to R4.
+Status: **the extension is served (version 0.3.0). Two items stay open:** a check by hand in the clients, and the
+removal of `inventor_skill` when the clients support the extension.
 
-## Decisions
+The decisions and the design are in `Docs/Architecture.md`, "Longer knowledge travels as skills, and a tool
+description names its skill". The SDK facts and the check over stdio are in
+`Docs/Research/Usage-Findings-And-Knowledge-Delivery.md`, "Why it cannot be the only path yet".
 
-These come from the deleted plan. Phase 1 recorded them in `Docs/Architecture.md`.
+## What is done
 
-1. **Put a trap for one tool in the description of that tool.** Claude Code loads an MCP tool schema only when the
-	tool is needed, so a tool description uses context only when the tool is used. `ServerInstructions.md` uses context
-	in every session. So the `Parameter.Value` cast and "calls run one at a time" are in tool descriptions or in the
-	`interop` skill, not in the instructions. The descriptions of `inventor_eval_csharp`, `inventor_ilogic_rule_set`,
-	`inventor_test_copy`, `inventor_run_plugin` and `inventor_drawing_layout` name their skill.
-2. **Serve the skills from the server.** They are in `Source/InventorMcp.Server/Skills/<name>/SKILL.md`, embedded with
-	a `LogicalName` that keeps the path, and `inventor_skill` serves them until the C# SDK and the clients support the
-	extension. `McpServerSkill.Create` computes the manifest from bytes, so the embedded files also work with the
-	extension later.
-3. **The skills own the Inventor API facts.** `.agents/rules/inventor-interop.md` and `inventor-modeling.md` keep only
-	the facts about this repository (ex. the add-in load context) and point to the skills for the rest. So there are
-	no two copies that drift apart.
-4. **Tell the model when to read a skill.** `ServerInstructions.md` has one line that names the skills and tells a
-	model to read `interop` before its first snippet. A list of the skills alone did not make a client read one (see
-	`Docs/Research/Usage-Findings-And-Knowledge-Delivery.md`, "Checks of the skill delivery").
+- `ModelContextProtocol` 2.4.0 and `ModelContextProtocol.Extensions.Skills` 2.4.0.
+- `SkillCatalog` keeps the bytes of each embedded file. `CreatePackages()` builds one `McpServerSkillPackage` per
+	skill at `skill://inventor/<name>/SKILL.md`. `WithInventorSkills(catalog)` registers them and counts each read of a
+	`SKILL.md` in `inventor.skill.reads`.
+- `MCPEXP005` is suppressed in `.editorconfig` for `Services/SkillCatalog.cs` and its test file only.
+- `SkillExtensionTests` reads every skill through the SDK client, which verifies each digest and size, and compares
+	the text with `inventor_skill`.
+- A check over stdio of the built server: the extension and `resources` are declared, `skills/list` gives 11 skills,
+	`resources/read` gives `text/markdown`, and `inventor_skill` still works. The process answers `initialize` in about
+	0.4 s. That time was not compared with a build without the packages.
 
-## Phases
+## Open items
 
-### Phase 1 - Record the decisions
+### Check in the clients
 
-- [x] Add a section to `Docs/Architecture.md` for decision 1: tool descriptions against server instructions, and the
-	context cost of each.
-- [x] Add a section to `Docs/Architecture.md` for decisions 2 to 4: how the skills are delivered, and why the
-	`interop` skill is named in the instructions.
-- [x] Point `Source/InventorMcp.Server/McpTools/InventorTool.Skills.cs` at the new section, not at this document.
+- [ ] Run MCP Inspector against the server, with its skill verification
+	(https://github.com/modelcontextprotocol/inspector/blob/main/clients/cli/README.md#skill-verification---verify).
+- [ ] Connect Claude Code and Claude Desktop. Check that the server starts, that `inventor_skill` works, and record if
+	the client shows the skills through the extension. The client matrix can lag the products.
+- [ ] Record the results in `Docs/Research/Usage-Findings-And-Knowledge-Delivery.md`, "Checks of the skill
+	delivery".
 
-### Phase 2 - Skills over MCP
+### Remove the fallback
 
-Start when `ModelContextProtocol.Extensions.Skills` (csharp-sdk#1864, or the pull request that replaces it) has a
-release.
+Start when the clients that the team uses (Claude Code, Claude Desktop, Visual Studio, Visual Studio Code with
+Copilot) support the Skills extension on the
+[client matrix](https://modelcontextprotocol.io/extensions/client-matrix), or in a check by hand.
 
-- [ ] Serve the same folder with the extension, through `McpServerSkill.Create` over the embedded files, or
-	`WithSkillsFromDirectory`.
-- [ ] Keep `inventor_skill` until the clients that the team uses are on the client matrix. Then remove it, and
-	remove its line from `ServerInstructions.md`.
+- [ ] Remove `inventor_skill` (`McpTools/InventorTool.Skills.cs`) and the tests that call it.
+- [ ] Replace its line in `ServerInstructions.md` with a line that tells a model to read the `interop` skill before the
+	first snippet. The instruction is still necessary, because a list of skills alone did not make a client read one.
+- [ ] Change the tool descriptions that name `inventor_skill`, so they name the skill only.
+- [ ] Remove the text API of `SkillCatalog` (`Read`) if nothing else uses it.
+- [ ] Check the SDK for a stable (not experimental) Skills API, and remove the `MCPEXP005` sections from
+	`.editorconfig` when it exists.
 
 ## When the plan is done
 
-- Record what the client check of Phase 2 changes in the delivery decisions in `Docs/Architecture.md`.
+- Record what the client checks change in the delivery decisions in `Docs/Architecture.md`.
 - Delete this document.

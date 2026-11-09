@@ -238,10 +238,19 @@ the instructions. The descriptions of `inventor_eval_csharp`, `inventor_ilogic_r
 `inventor_run_plugin` and `inventor_drawing_layout` name their skill.
 
 The skills are embedded resources with a `LogicalName` that keeps the path, so they travel in the tool package with no
-step to install for each client. `inventor_skill` serves them, because every client supports tools. The Skills over
-MCP extension (`io.modelcontextprotocol/skills`) is the standard route, but no client of this server supports it yet,
-and the C# SDK has no release with it. `McpServerSkill.Create` computes its manifest from bytes, so the same embedded
-files can serve the extension later. `Docs/Tasks/Skills-Over-Mcp-Plan.md` holds that step.
+step to install for each client. Two routes serve the same bytes, which `SkillCatalog` reads once:
+
+- `inventor_skill`, because every client supports tools.
+- The Skills over MCP extension (`io.modelcontextprotocol/skills`), through `ModelContextProtocol.Extensions.Skills`
+	from version 2.4.0 of the C# SDK. Each skill is at `skill://inventor/<name>/SKILL.md`. The prefix keeps the names
+	apart from the skills of other servers. `McpServerSkillPackage.Create` builds each package from the embedded bytes
+	and computes the SHA-256 manifest from them. The directory loaders of the SDK do not apply, because the server runs
+	as a .NET tool and the skill folder is not on disk.
+
+The extension API is experimental (`MCPEXP005`), so only `Services/SkillCatalog.cs` uses it, and `.editorconfig`
+suppresses the diagnostic for that file only. A read of a `SKILL.md` through either route counts in
+`inventor.skill.reads`. `inventor_skill` stays because no client of this server supports the extension on the client
+matrix of 2026-11-09. `Docs/Tasks/Skills-Over-Mcp-Plan.md` holds the step that removes it.
 
 The skills own the Inventor API facts. `.agents/rules/inventor-interop.md` and `inventor-modeling.md` keep only the
 facts about this repository and point to the skills, so no two copies drift apart.

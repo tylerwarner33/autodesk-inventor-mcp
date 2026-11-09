@@ -9,8 +9,8 @@ using ModelContextProtocol.Server;
 namespace InventorMcp.Server.McpTools;
 
 /// <remarks>
-/// 	Serves the embedded skills to every client through a tool, until the clients support the Skills over MCP
-/// 	extension.
+/// 	Serves the embedded skills to every client through a tool.
+/// 	The Skills over MCP extension serves the same bytes, but the clients of this server do not support it yet.
 /// 	See <c>Docs/Architecture.md</c>, "Longer knowledge travels as skills, and a tool description names its skill".
 /// </remarks>
 internal static partial class InventorTool

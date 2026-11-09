@@ -6,6 +6,15 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.3.0] - 2026-11-09
+
+### Added
+- The server serves its skills through the Skills over MCP extension (`io.modelcontextprotocol/skills`), at `skill://inventor/<name>/SKILL.md`, with the same text as `inventor_skill`. A client that supports the extension can list the skills and read them as resources. `inventor_skill` stays for the clients that do not support it yet.
+
+### Changed
+- The MCP library `ModelContextProtocol` is version 2.4.0 (was 2.3.0), with `ModelContextProtocol.Extensions.Skills` 2.4.0.
+- A read of a skill through the extension counts in the skill reads of the telemetry, as a read through `inventor_skill` does.
+
 ## [0.2.0] - 2026-10-29
 
 ### Added

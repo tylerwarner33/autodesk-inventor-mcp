@@ -460,8 +460,19 @@ The extension also replaces two ideas that came up before it was found: MCP prom
 	[client matrix](https://modelcontextprotocol.io/extensions/client-matrix) lists no Skills support for
 	Claude Desktop, Claude (web) or Visual Studio Code with GitHub Copilot. Claude Code and Visual Studio are not
 	listed. The only support is partial: ChatGPT (a static import), fast-agent and MCP Inspector (verification).
-	A community fork of Visual Studio Code has a prototype.
-- **The C# SDK has no release with it.** [csharp-sdk#1864](https://github.com/modelcontextprotocol/csharp-sdk/pull/1864)
+	A community fork of Visual Studio Code has a prototype. On 2026-11-09 the matrix still has an empty Skills cell
+	for Claude Code, Claude Desktop, Claude (web) and Visual Studio Code with GitHub Copilot, and does not list
+	Visual Studio.
+- **The C# SDK has it since v2.4.0 (2026-11-07).** The package `ModelContextProtocol.Extensions.Skills` is
+	experimental (`MCPEXP005`). The API that shipped is from csharp-sdk#1993, not from #1864:
+	`McpServerSkillPackage.Create(files, options)` builds a skill from bytes, `WithSkillPackages` registers it, and
+	`WithSkillFromDirectory` and `WithSkillsFromSubdirectories` read from disk. `McpServerSkill.Create` only wraps a
+	listing entry. The server uses it from version 0.3.0. A check by hand on 2026-11-09 over stdio: the server
+	declares the extension and `resources`, `skills/list` gives the 11 skills with SHA-256 manifests, and
+	`resources/read` gives each `SKILL.md`. The SDK does not accept the protocol version `2026-07-28` through the
+	`initialize` handshake (it gives error -32022 with `2025-11-25` as the newest), so a client that uses
+	`initialize` negotiates `2025-11-25` and still gets the skills. The text before v2.4.0 follows.
+- **Before v2.4.0, the C# SDK had no release with it.** [csharp-sdk#1864](https://github.com/modelcontextprotocol/csharp-sdk/pull/1864)
 	adds a separate package, `ModelContextProtocol.Extensions.Skills`, beside `Extensions.Apps` and
 	`Extensions.Tasks`. It has `WithSkillsFromDirectory(path)`, which serves every skill folder under a path, and
 	`McpServerSkill.CreateFromDirectory` and `McpServerSkill.Create`, which compute the manifest from the bytes they
