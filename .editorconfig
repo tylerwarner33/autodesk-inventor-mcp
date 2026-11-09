@@ -377,7 +377,8 @@ dotnet_diagnostic.CA1725.severity = none
 dotnet_diagnostic.RCS1168.severity = none
 dotnet_diagnostic.S927.severity = none
 
-# The Skills over MCP extension is experimental in the C# SDK. inventor_skill serves the same skills if the API changes.
+# The Skills over MCP extension is experimental in the C# SDK. inventor_skill serves the same skills if the API changes,
+# and the server starts without the extension if the SDK refuses a skill.
 # Only this file uses the extension, so a change of the API changes one file.
 [Source/InventorMcp.Server/Services/SkillCatalog.cs]
 dotnet_diagnostic.MCPEXP005.severity = none

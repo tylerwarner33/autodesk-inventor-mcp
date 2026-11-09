@@ -22,13 +22,15 @@ description names its skill". The SDK facts and the check over stdio are in
 - A check over stdio of the built server: the extension and `resources` are declared, `skills/list` gives 11 skills,
 	`resources/read` gives `text/markdown`, and `inventor_skill` still works. The process answers `initialize` in about
 	0.4 s. That time was not compared with a build without the packages.
+- MCP Inspector 2.14.0 with its skill verification: 11 skills and 11 files verified, with no conformance error. The
+	result is in `Docs/Research/Usage-Findings-And-Knowledge-Delivery.md`, "Checks of the skill delivery".
+- If the SDK refuses a skill, the server starts without the extension and logs a warning. A test compares the name
+	and the description that the SDK reads with those of the catalog.
 
 ## Open items
 
 ### Check in the clients
 
-- [ ] Run MCP Inspector against the server, with its skill verification
-	(https://github.com/modelcontextprotocol/inspector/blob/main/clients/cli/README.md#skill-verification---verify).
 - [ ] Connect Claude Code and Claude Desktop. Check that the server starts, that `inventor_skill` works, and record if
 	the client shows the skills through the extension. The client matrix can lag the products.
 - [ ] Record the results in `Docs/Research/Usage-Findings-And-Knowledge-Delivery.md`, "Checks of the skill

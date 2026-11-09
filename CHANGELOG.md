@@ -14,6 +14,7 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 ### Changed
 - The MCP library `ModelContextProtocol` is version 2.4.0 (was 2.3.0), with `ModelContextProtocol.Extensions.Skills` 2.4.0. ([PR #23](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/23))
 - A read of a skill through the extension counts in the skill reads of the telemetry, as a read through `inventor_skill` does. ([PR #23](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/23))
+- If the MCP library refuses a skill, the server starts without the extension, writes a warning in the server log, and keeps all its tools. `inventor_skill` still serves the skills. ([PR #23](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/23))
 
 ## [0.2.0] - 2026-10-29
 

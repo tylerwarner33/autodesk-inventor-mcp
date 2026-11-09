@@ -90,7 +90,10 @@ _ = builder.Services
 	.AddMcpServer(static options => options.ServerInstructions = ReadServerInstructions())
 	.WithStdioServerTransport()
 	.WithToolsFromAssembly()
-	.WithInventorSkills(skillCatalog)
+	// inventor_skill serves the same skills, so the server starts without the extension when the SDK refuses them.
+	.WithInventorSkills(
+		skillCatalog,
+		static exception => Log.Warning(exception, "The Skills over MCP extension is off. inventor_skill still serves the skills."))
 	// The client name goes to the add-in's audit log, so each snippet there shows which client sent it.
 	// The release of each call goes to the server log, because a session can change its release, and the log of the
 	// MCP library does not name the tool.

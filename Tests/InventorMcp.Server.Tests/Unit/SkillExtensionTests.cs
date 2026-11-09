@@ -1,4 +1,5 @@
 using System.IO.Pipelines;
+using System.Text;
 
 using InventorMcp.Server.McpTools;
 using InventorMcp.Server.Services;
@@ -35,6 +36,47 @@ public sealed class SkillExtensionTests
 			_embedded.Skills.Select(static skill => SkillCatalog.SkillUri(skill.Name)),
 			packages.Select(static package => package.Skill.Id));
 		Assert.All(packages, static package => Assert.NotEmpty(package.Resources));
+	}
+
+	[Fact]
+	public void TheSdkReadsTheSameNameAndDescriptionAsTheCatalog()
+	{
+		// Two readers read the same frontmatter: the catalog for inventor_skill, and the SDK for skills/list.
+		IReadOnlyList<McpServerSkillPackage> packages = _embedded.CreatePackages();
+
+		Assert.Equal(
+			_embedded.Skills.Select(static skill => $"{skill.Name}: {skill.Description}"),
+			packages.Select(static package => $"{package.Skill.ProtocolSkill?.Name}: {package.Skill.ProtocolSkill?.Description}"));
+	}
+
+	[Fact]
+	public void ASkillFileWithAByteOrderMarkIsRefusedWithItsName()
+	{
+		byte[] content = [.. Encoding.UTF8.Preamble, .. Encoding.UTF8.GetBytes("---\nname: sample\ndescription: A sample skill.\n---\n\nBody")];
+
+		InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+			() => new SkillCatalog(new Dictionary<string, byte[]> { ["sample/SKILL.md"] = content }));
+
+		Assert.Contains("sample/SKILL.md", exception.Message, StringComparison.Ordinal);
+		Assert.Contains("byte order mark", exception.Message, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public async Task ServerStartsWithoutTheExtensionWhenTheSdkRefusesASkill()
+	{
+		// The catalog reads this frontmatter as text. The YAML reader of the SDK refuses the quote that does not end.
+		SkillCatalog catalog = new(new Dictionary<string, string>
+		{
+			["sample/SKILL.md"] = "---\nname: sample\ndescription: \"A quote that does not end.\n---\n\nBody"
+		});
+
+		List<Exception> failures = [];
+
+		await using SkillServer server = await SkillServer.StartAsync(catalog, failures.Add);
+
+		_ = Assert.Single(failures);
+		Assert.False(server.Client.ServerCapabilities.SupportsSkills());
+		Assert.NotNull(InventorTool.Skill(catalog, "read", "sample", file: null).GetType().GetProperty("text"));
 	}
 
 	[Fact]
@@ -117,7 +159,7 @@ public sealed class SkillExtensionTests
 	{
 		public McpClient Client { get; } = client;
 
-		public static async Task<SkillServer> StartAsync(SkillCatalog catalog)
+		public static async Task<SkillServer> StartAsync(SkillCatalog catalog, Action<Exception>? onUnavailable = null)
 		{
 			Pipe toServer = new();
 			Pipe toClient = new();
@@ -128,7 +170,7 @@ public sealed class SkillExtensionTests
 			_ = builder.Services.AddMcpServer()
 				.WithStreamServerTransport(toServer.Reader.AsStream(), toClient.Writer.AsStream())
 				// The same as Program.cs.
-				.WithInventorSkills(catalog);
+				.WithInventorSkills(catalog, onUnavailable);
 
 			IHost host = builder.Build();
 			await host.StartAsync(TestContext.Current.CancellationToken);

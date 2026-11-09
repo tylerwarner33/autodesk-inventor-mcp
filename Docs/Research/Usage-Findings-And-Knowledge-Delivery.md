@@ -520,6 +520,20 @@ The same day, by the user, with the same task on a master part (read only, rules
 	and it compared the unit text to "Boolean" and "Text". After a restart of the server connection, Visual Studio
 	asked to trust the server again and listed the added tools as the change.
 
+On 2026-11-09, MCP Inspector 2.14.0 (`npx @modelcontextprotocol/inspector --cli`) against the Debug build of the
+server, version 0.3.0, with Inventor closed:
+
+- `--method skills/list --verify --require-digests`: exit code 0, "Verified 11 skills and 11 files: no conformance
+	errors." Each skill had no conformance finding and no frontmatter finding, and its `SKILL.md` had the status
+	`verified` (size and SHA-256 digest).
+- `--method initialize`: protocol version `2025-11-25`, the capabilities `logging`, `resources` and `tools`, and
+	the extension `io.modelcontextprotocol/skills`.
+- `--method resources/list`: the 11 `SKILL.md` files, each with its name, its description and `text/markdown`. So a
+	client with resource support shows the skills also when it does not support the extension.
+- `--method tools/list --strict`: 0 errors and 62 warnings across 29 tools. Each warning is a `type` that is an
+	array (ex. `["string","null"]`), which the SDK writes for an optional parameter with the default `null`. It is
+	legal JSON Schema, but a client that maps the schema to a dialect with one `type` can refuse it.
+
 ## Where the results go
 
 This document stays in `Docs/Research/` as the evidence for the plan. It is not deleted with the plan.

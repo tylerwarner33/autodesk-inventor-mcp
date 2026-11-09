@@ -71,6 +71,7 @@ internal sealed class SkillCatalog
 	/// </param>
 	/// <exception cref="InvalidOperationException">
 	/// 	A skill has no <c>SKILL.md</c>, no frontmatter, or a <c>name</c> that is not its folder name.
+	/// 	Or a <c>SKILL.md</c> starts with a byte order mark.
 	/// </exception>
 	public SkillCatalog(IReadOnlyDictionary<string, byte[]> files)
 	{
@@ -101,6 +102,10 @@ internal sealed class SkillCatalog
 		{
 			if (skillFiles.TryGetValue(SkillFile, out byte[]? skillContent) is false)
 				throw new InvalidOperationException($"The skill folder '{folder}' has no {SkillFile}.");
+
+			// The bytes go to the client as they are, and a byte order mark before the first --- hides the frontmatter.
+			if (skillContent.AsSpan().StartsWith(Encoding.UTF8.Preamble))
+				throw new InvalidOperationException($"'{folder}/{SkillFile}' starts with a byte order mark. Save it as UTF-8 without one.");
 
 			Dictionary<string, string> frontmatter = ReadFrontmatter(Encoding.UTF8.GetString(skillContent))
 				?? throw new InvalidOperationException($"'{folder}/{SkillFile}' has no frontmatter.");
@@ -242,15 +247,39 @@ internal static class SkillCatalogRegistration
 	/// <param name="builder">
 	/// 	The MCP server builder.
 	/// </param>
+	/// <remarks>
+	/// 	The extension is experimental, and <c>inventor_skill</c> serves the same skills.
+	/// 	So when the SDK does not accept the skills, the server starts without the extension and keeps its tools.
+	/// </remarks>
 	/// <param name="catalog">
 	/// 	The catalog that the server also gives to <c>inventor_skill</c>.
+	/// </param>
+	/// <param name="onUnavailable">
+	/// 	Called with the failure when the SDK does not accept the skills.
 	/// </param>
 	/// <returns>
 	/// 	The same builder.
 	/// </returns>
-	public static IMcpServerBuilder WithInventorSkills(this IMcpServerBuilder builder, SkillCatalog catalog) =>
-		builder
-			.WithSkillPackages(catalog.CreatePackages())
+	public static IMcpServerBuilder WithInventorSkills(
+		this IMcpServerBuilder builder,
+		SkillCatalog catalog,
+		Action<Exception>? onUnavailable = null)
+	{
+		IReadOnlyList<McpServerSkillPackage> packages;
+
+		try
+		{
+			packages = catalog.CreatePackages();
+		}
+		catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NotSupportedException)
+		{
+			onUnavailable?.Invoke(exception);
+
+			return builder;
+		}
+
+		return builder
+			.WithSkillPackages(packages)
 			.WithRequestFilters(filters => filters.AddReadResourceFilter(next => async (context, cancellationToken) =>
 			{
 				ReadResourceResult result = await next(context, cancellationToken).ConfigureAwait(false);
@@ -261,6 +290,7 @@ internal static class SkillCatalogRegistration
 
 				return result;
 			}));
+	}
 }
 
 /// <summary>
