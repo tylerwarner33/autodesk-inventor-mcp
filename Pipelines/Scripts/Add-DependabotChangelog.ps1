@@ -10,7 +10,8 @@
 	A Dependabot update adds only Changed and Security entries, so the new version
 	is always the next patch version after the newest version of BaseRef. An
 	update that fixes a security alert goes in Security, each other update in
-	Changed.
+	Changed. For a grouped update, fetch-metadata gives no old versions, so the
+	script reads them from the diff of the MSBuild files.
 
 	If the newest section in CHANGELOG.md is already newer than BaseRef, the
 	script changes nothing. A second run on the same branch is then safe.
@@ -77,6 +78,19 @@ if ($headVersion -lt $baseVersion) {
 $dependencies = @($DependenciesJson | ConvertFrom-Json)
 if ($dependencies.Count -eq 0) { throw 'The pull request has no updated dependency.' }
 
+# For a grouped update, fetch-metadata gives no old versions. Read them from the removed lines of the MSBuild files
+# in the diff from the merge base (ex. '-<PackageVersion Include="xunit.v3" Version="4.0.2" />').
+$oldVersions = @{}
+if (@($dependencies | Where-Object { $_.packageEcosystem -eq 'nuget' -and -not $_.prevVersion }).Count -gt 0) {
+	$diff = & git -C $SourcesDirectory diff -U0 "$BaseRef...HEAD" -- '*.props' '*.targets' '*.csproj'
+	if ($LASTEXITCODE -ne 0) { throw "Cannot read the diff from '$BaseRef'." }
+	foreach ($line in $diff) {
+		if ($line -notmatch '^-[^-]' -or $line -notmatch '\bInclude="([^"]+)"' ) { continue }
+		$name = $Matches[1]
+		if ($line -match '\bVersion="([^"]+)"' -and -not $oldVersions.ContainsKey($name)) { $oldVersions[$name] = $Matches[1] }
+	}
+}
+
 $changed = New-Object System.Collections.Generic.List[string]
 $security = New-Object System.Collections.Generic.List[string]
 $link = "([PR #$($PullRequestUrl.Split('/')[-1])]($PullRequestUrl))"
@@ -87,7 +101,8 @@ foreach ($dependency in $dependencies | Sort-Object dependencyName -Unique) {
 		default          { 'the dependency' }
 	}
 	$entry = "- Update $kind ``$($dependency.dependencyName)``"
-	if ($dependency.prevVersion -and $dependency.newVersion) { $entry += " from $($dependency.prevVersion) to $($dependency.newVersion)" }
+	$prevVersion = if ($dependency.prevVersion) { $dependency.prevVersion } else { $oldVersions[$dependency.dependencyName] }
+	if ($prevVersion -and $dependency.newVersion) { $entry += " from $prevVersion to $($dependency.newVersion)" }
 	elseif ($dependency.newVersion) { $entry += " to $($dependency.newVersion)" }
 
 	if ($dependency.ghsaId) {
