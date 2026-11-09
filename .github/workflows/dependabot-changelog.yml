@@ -1,0 +1,106 @@
+# Adds the CHANGELOG.md section and the version in Directory.Build.props to each Dependabot pull request, so that the
+# Changelog workflow passes with no commit from a person. See .agents/rules/changelog.md, "Dependabot pull requests".
+#
+# The commit is made with a token of the changelog GitHub App, not with GITHUB_TOKEN: GitHub starts no workflow for a
+# push made with GITHUB_TOKEN, and the required checks would then never run on the new commit. The commit is made
+# through the GraphQL API, so GitHub signs it.
+name: Dependabot changelog
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changelog:
+    name: Add the changelog section
+    # Only a pull request that Dependabot opened, on a push that Dependabot made. The commit of the App has another actor,
+    # so it does not start this job again, and a push from a person to the branch does not get the App token.
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Depth 0, so origin/master is there to compute the next version. No code from the branch runs, other than the
+      # 2 scripts below, and Dependabot changes only package versions.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The secrets are Dependabot secrets: a workflow that Dependabot starts cannot read Actions secrets.
+      - name: Create the App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.CHANGELOG_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.CHANGELOG_BOT_PRIVATE_KEY }}
+
+      # alert-lookup gives the GHSA ID of an update that fixes a security alert. It needs the App permission
+      # "Dependabot alerts: Read-only".
+      - name: Read the Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          alert-lookup: true
+
+      - name: Add the section and the version
+        id: add
+        shell: pwsh
+        env:
+          BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+          DEPENDENCIES_JSON: ${{ steps.metadata.outputs.updated-dependencies-json }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          ./Pipelines/Scripts/Add-DependabotChangelog.ps1 -SourcesDirectory $env:GITHUB_WORKSPACE -BaseRef $env:BASE_REF `
+            -DependenciesJson $env:DEPENDENCIES_JSON -PullRequestUrl $env:PR_URL
+
+      # The same check as the Changelog workflow, so a wrong section fails here, before the commit.
+      - name: Check the changelog
+        if: steps.add.outputs.changed == 'true'
+        shell: pwsh
+        env:
+          BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+        run: ./Pipelines/Scripts/Test-Changelog.ps1 -SourcesDirectory $env:GITHUB_WORKSPACE -BaseRef $env:BASE_REF
+
+      # Commits only CHANGELOG.md and Directory.Build.props. expectedHeadOid makes the commit fail if the branch
+      # changed after the checkout.
+      - name: Commit to the pull request branch
+        if: steps.add.outputs.changed == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $allowed = @('CHANGELOG.md', 'Directory.Build.props')
+          $changedFiles = @(git diff --name-only)
+          $other = @($changedFiles | Where-Object { $_ -notin $allowed })
+          if ($other.Count -gt 0) { throw "The script changed other files: $($other -join ', ')" }
+
+          $version = ([xml](Get-Content Directory.Build.props -Raw)).SelectSingleNode('//Version').InnerText
+          $additions = @($changedFiles | ForEach-Object {
+            @{ path = $_; contents = [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $env:GITHUB_WORKSPACE $_))) }
+          })
+          $body = @{
+            query = 'mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid url } } }'
+            variables = @{ input = @{
+              branch = @{ repositoryNameWithOwner = $env:REPOSITORY; branchName = $env:BRANCH }
+              expectedHeadOid = $env:HEAD_SHA
+              message = @{ headline = "Add version $version to the changelog" }
+              fileChanges = @{ additions = $additions }
+            } }
+          } | ConvertTo-Json -Depth 10
+
+          $result = $body | gh api graphql --input - | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'The commit failed.' }
+          Write-Host "Committed $($result.data.createCommitOnBranch.commit.url)"

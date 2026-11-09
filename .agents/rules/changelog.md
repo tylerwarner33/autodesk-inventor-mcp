@@ -77,6 +77,31 @@ To run the check locally, in PowerShell 7, after `git fetch`:
 ./Pipelines/Scripts/Test-Changelog.ps1 -SourcesDirectory . -BaseRef origin/master
 ```
 
+## Dependabot pull requests
+
+Each Dependabot pull request also adds a version, because it changes the packages that the server and the add-in ship.
+The `Dependabot changelog` workflow (`.github/workflows/dependabot-changelog.yml`) does it, so you do not edit the
+branch:
+
+1. It reads the updated packages with `dependabot/fetch-metadata`.
+2. `Pipelines/Scripts/Add-DependabotChangelog.ps1` adds the next patch version on top of the newest version on
+	`master`, with one entry for each package. An update that fixes a security alert goes in `Security`, each other
+	update in `Changed`. The script then sets the same version in `Directory.Build.props`.
+3. It commits the 2 files to the Dependabot branch through the GraphQL API, with a token of a GitHub App. GitHub signs
+	the commit, and the commit starts the required checks again. A push with `GITHUB_TOKEN` would start no checks.
+
+The `Changelog` check fails on the first commit of Dependabot, and passes on the commit of the App some seconds later.
+
+| Setting | Value |
+|---|---|
+| GitHub App permissions | `Contents: Read and write` and `Dependabot alerts: Read-only`. No `Workflows` permission. No webhook. |
+| Installation | Only this repository. |
+| Dependabot secrets | `CHANGELOG_BOT_CLIENT_ID` (the Client ID of the App) and `CHANGELOG_BOT_PRIVATE_KEY` (the full `.pem` text). A workflow that Dependabot starts cannot read Actions secrets. |
+
+When another pull request merges first, the version of the Dependabot pull request is no longer the next one, and
+Dependabot does not rebase a branch that has a commit from another account. Comment `@dependabot recreate` on the pull
+request. Dependabot then makes the branch again, and the workflow adds a new section.
+
 ## One changelog
 
 `CHANGELOG.md` at the repository root is the only changelog. Do not add a changelog to a project folder.

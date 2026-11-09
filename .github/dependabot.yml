@@ -1,6 +1,6 @@
 # One pull request each week for each ecosystem, so the updates are few and easy to review.
-# Each pull request still needs a version in CHANGELOG.md and Directory.Build.props before it can merge: the
-# Changelog workflow fails on it until a person adds them. See .agents/rules/changelog.md.
+# The Dependabot changelog workflow adds the version to CHANGELOG.md and Directory.Build.props of each pull request.
+# See .agents/rules/changelog.md, "Dependabot pull requests".
 version: 2
 
 updates:
