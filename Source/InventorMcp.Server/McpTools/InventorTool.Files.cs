@@ -7,6 +7,7 @@ using System.Text.Json;
 using InventorMcp.Server.Bridge;
 using InventorMcp.Server.Services;
 
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
 namespace InventorMcp.Server.McpTools;
@@ -18,7 +19,7 @@ namespace InventorMcp.Server.McpTools;
 /// </remarks>
 internal static partial class InventorTool
 {
-	[McpServerTool(Name = "inventor_close_documents", Destructive = true)]
+	[McpServerTool(Name = "inventor_close_documents", Title = "Close documents", ReadOnly = false, Destructive = true, OpenWorld = false)]
 	[Description("""
 		Closes the open documents under a folder, with no save: drawings first, then presentations, assemblies and parts,
 		the same order as inventor_run_plugin. A document outside the folder is never closed.
@@ -96,7 +97,7 @@ internal static partial class InventorTool
 	private static readonly string[] _defaultFileProperties =
 		["Part Number", "Description", "Revision Number", "Stock Number", "Title", "Project", "Designer", "Vendor", "Material"];
 
-	[McpServerTool(Name = "inventor_file_info", ReadOnly = true)]
+	[McpServerTool(Name = "inventor_file_info", Title = "Read file information", ReadOnly = true, OpenWorld = false)]
 	[Description("""
 		Reads facts about many files in one call: the release that saved each one, its model state names, work point
 		and iMate names, and iProperties for each model state (the common Design Tracking and Summary properties, and
@@ -235,7 +236,7 @@ internal static partial class InventorTool
 	/// </summary>
 	private static readonly TimeSpan _testCopyTimeout = TimeSpan.FromMinutes(10);
 
-	[McpServerTool(Name = "inventor_test_copy", Destructive = true)]
+	[McpServerTool(Name = "inventor_test_copy", Title = "Make a test copy of a design", ReadOnly = false, Destructive = true, OpenWorld = false)]
 	[Description("""
 		Copies a document tree to a new folder for a test, so a test never changes the masters. Every file of the tree
 		under the source folder (also in folders below it, and also suppressed components) is copied, the read-only
@@ -250,6 +251,7 @@ internal static partial class InventorTool
 		'safe-template-edit' skill (inventor_skill).
 		""")]
 	public static Task<object> TestCopyAsync(
+		IProgress<ProgressNotificationValue> progress,
 		[Description("Full paths of the top files, ex. the top assembly and its drawing.")] string[] sources,
 		[Description("The full path of the target folder.")] string target,
 		[Description("The folder to copy from. Default: the folder of the first source.")] string? sourceFolder = null,
@@ -272,15 +274,16 @@ internal static partial class InventorTool
 
 			string folder = sourceFolder ?? Path.GetDirectoryName(sources[0])!;
 			string requestFile = Path.Combine(Path.GetTempPath(), $"InventorMcp.TestCopy.{Guid.NewGuid():N}.json");
-			string scriptFile = Path.ChangeExtension(requestFile, ".ps1");
 
 			try
 			{
 				await File.WriteAllTextAsync(requestFile, JsonSerializer.Serialize(new { sources, target, sourceFolder = folder, prefix }), cancellationToken).ConfigureAwait(false);
-				// Encoding.UTF8 writes a BOM. Windows PowerShell needs it to read the script as UTF-8.
-				await File.WriteAllTextAsync(scriptFile, ReadEmbeddedText("InventorMcp.Server.Scripts.Copy-DesignTree.ps1"), Encoding.UTF8, cancellationToken).ConfigureAwait(false);
 
-				(int exitCode, string output, string error) = await RunPowerShellAsync(scriptFile, requestFile, cancellationToken).ConfigureAwait(false);
+				(int exitCode, string output, string error) = await RunPowerShellAsync(
+					ReadEmbeddedText("InventorMcp.Server.Scripts.Copy-DesignTree.ps1"),
+					requestFile,
+					progress,
+					cancellationToken).ConfigureAwait(false);
 				string? json = output.Split('\n').Select(static line => line.Trim()).LastOrDefault(static line => line.StartsWith('{'));
 
 				if (json is null)
@@ -293,23 +296,47 @@ internal static partial class InventorTool
 			finally
 			{
 				File.Delete(requestFile);
-				File.Delete(scriptFile);
 			}
 		});
 
-	private static async Task<(int ExitCode, string Output, string Error)> RunPowerShellAsync(string scriptFile, string requestFile, CancellationToken cancellationToken)
+	/// <summary>
+	/// 	How often a test copy reports that it still runs.
+	/// </summary>
+	private static readonly TimeSpan _testCopyProgressInterval = TimeSpan.FromSeconds(5);
+
+	/// <summary>
+	/// 	Runs a script in a child Windows PowerShell process.
+	/// </summary>
+	/// <remarks>
+	/// 	The script goes to the process through standard input, not through a file.
+	/// 	So no other process can change the script between the write and the run, and no script file stays in the
+	/// 	temporary folder.
+	/// </remarks>
+	private static async Task<(int ExitCode, string Output, string Error)> RunPowerShellAsync(
+		string script,
+		string requestFile,
+		IProgress<ProgressNotificationValue> progress,
+		CancellationToken cancellationToken)
 	{
 		// Windows PowerShell, not pwsh: it is on every Windows machine, and Apprentice is a 64-bit in-process COM server.
 		ProcessStartInfo start = new(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"))
 		{
+			RedirectStandardInput = true,
 			RedirectStandardOutput = true,
 			RedirectStandardError = true,
 			UseShellExecute = false,
 			CreateNoWindow = true,
+			StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
 			StandardOutputEncoding = Encoding.UTF8
 		};
 
-		foreach (string argument in (string[])["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptFile, "-RequestFile", requestFile])
+		// The command reads all of standard input as UTF-8 and runs it as the script, with the request file as its
+		// parameter. The path is the server's own, and a quote in it is doubled for the single quoted text.
+		string command =
+			"[Console]::InputEncoding = [System.Text.Encoding]::UTF8; " +
+			$"& ([scriptblock]::Create([Console]::In.ReadToEnd())) -RequestFile '{requestFile.Replace("'", "''", StringComparison.Ordinal)}'";
+
+		foreach (string argument in (string[])["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", command])
 			start.ArgumentList.Add(argument);
 
 		using Process process = Process.Start(start) ?? throw new InvalidOperationException("Windows PowerShell did not start.");
@@ -321,7 +348,24 @@ internal static partial class InventorTool
 
 		try
 		{
-			await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+			await process.StandardInput.WriteAsync(script.AsMemory(), timeout.Token).ConfigureAwait(false);
+			process.StandardInput.Close();
+
+			Stopwatch stopwatch = Stopwatch.StartNew();
+			Task exited = process.WaitForExitAsync(timeout.Token);
+
+			// A copy of a large tree takes minutes, and a client can stop a call that reports nothing.
+			while (await Task.WhenAny(exited, Task.Delay(_testCopyProgressInterval, timeout.Token)).ConfigureAwait(false) != exited)
+			{
+				progress.Report(new ProgressNotificationValue
+				{
+					Progress = (float)stopwatch.Elapsed.TotalSeconds,
+					Total = (float)_testCopyTimeout.TotalSeconds,
+					Message = "Copying the document tree with Inventor Apprentice."
+				});
+			}
+
+			await exited.ConfigureAwait(false);
 		}
 		catch (OperationCanceledException)
 		{

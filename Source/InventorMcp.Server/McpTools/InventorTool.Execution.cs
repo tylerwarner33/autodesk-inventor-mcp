@@ -11,7 +11,7 @@ namespace InventorMcp.Server.McpTools;
 
 internal static partial class InventorTool
 {
-	[McpServerTool(Name = "inventor_eval_csharp")]
+	[McpServerTool(Name = "inventor_eval_csharp", Title = "Run a C# snippet in Inventor", ReadOnly = false, Destructive = true, OpenWorld = true)]
 	[Description("""
 		Runs a C# snippet inside the Inventor process against the live API. This is the general purpose tool: it reaches
 		every member of the Inventor API, so use it for anything the other tools do not cover, such as creating sketches,
@@ -184,7 +184,7 @@ internal static partial class InventorTool
 			: new { result, rulesSuppressed = true, warning = restoreProblem };
 	}
 
-	[McpServerTool(Name = "inventor_run_ilogic")]
+	[McpServerTool(Name = "inventor_run_ilogic", Title = "Run iLogic code", ReadOnly = false, Destructive = true, OpenWorld = true)]
 	[Description("""
 		Runs an iLogic rule body, written in VB.NET, against a document. The rule is added temporarily, run, and removed,
 		so nothing is left behind in the document.
@@ -230,7 +230,7 @@ internal static partial class InventorTool
 			""", cancellationToken).ConfigureAwait(false));
 	}
 
-	[McpServerTool(Name = "inventor_api_lookup")]
+	[McpServerTool(Name = "inventor_api_lookup", Title = "Search the Inventor API reference", ReadOnly = true, OpenWorld = false)]
 	[Description("""
 		Searches Autodesk's own documentation for the Inventor API: types, methods, properties, events and fields, with
 		their summaries. Use it before writing a snippet for inventor_eval_csharp, to confirm a member exists and what it

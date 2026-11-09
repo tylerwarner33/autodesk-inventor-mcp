@@ -525,7 +525,7 @@ internal static partial class InventorTool
 		}
 		""";
 
-	[McpServerTool(Name = "inventor_auto_balloon", Destructive = true)]
+	[McpServerTool(Name = "inventor_auto_balloon", Title = "Place balloons on a drawing view", ReadOnly = false, Destructive = true, OpenWorld = false)]
 	[Description("""
 		Balloons the parts that one assembly view shows. It first deletes every balloon of that view, also a balloon added
 		by hand. Balloons of other views stay.

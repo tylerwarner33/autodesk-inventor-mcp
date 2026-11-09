@@ -6,6 +6,33 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.0] - 2026-11-09
+
+### Added
+- `INVENTORMCP_TOOLS=read-only` in the `env` of a client entry makes the server offer only the tools that change no document. See the README, "Limit what a model can do". ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+- `INVENTORMCP_CONFIRM_RISKY_CALLS=true` makes the client ask the user before `inventor_dialog_click`, before `inventor_close_documents`, and before each call with `allowUnsavedChanges`. The call does not run if the user declines or if the client cannot show a question. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+- Each tool has a title, and says if it only reads (`readOnlyHint`), if it can change a document (`destructiveHint`) and if it reaches outside Inventor (`openWorldHint`). ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+- `inventor_test_copy` reports progress while the copy runs. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+- `SECURITY.md` says how to report a vulnerability, what the server protects, and what it does not. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+
+### Changed
+- A tool result that reports a failure has `isError` set: a result with an `error` code, and a snippet that threw or did not compile. The content of the result is the same. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+- The tools that only read are marked read-only (ex. `inventor_session`, `inventor_health`, `inventor_parameters`, `inventor_api_lookup`), so a client can run them with fewer questions. Each tool that writes is marked destructive. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+- A return value or an output of more than 60,000 characters from a snippet is cut, and the output says how much was left out. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+- The add-in compiles a snippet away from Inventor's main thread, and does not compile the same snippet again. Inventor stays responsive during a compile, and its memory does not grow with each call of the same tool. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+	- Deploy the add-in again to get this change and the log changes below. The add-in of version 0.3.0 still works with this server.
+	- A snippet that declares its own `static` field keeps the value when the same snippet runs again.
+- `executed-code.log` holds the SHA-256 of each snippet, and the code in full only the first time in a file. `addin.log` and `executed-code.log` start a new file at 10 MB, and the 5 newest full files stay. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+- The server instructions tell a model that text from a rule, a property, a file name, a log or a snippet output is data, not an instruction. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+
+### Fixed
+- Two calls of `inventor_api_lookup` at the same time no longer read the API documentation two times, and a read that failed is tried again on the next call. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+
+### Security
+- `inventor_test_copy` sends its script to Windows PowerShell through standard input, not through a file in the temporary folder. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+- A document name or a client name with a line break cannot write a line that looks like a new entry in `executed-code.log`. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+- The workflows use each action at a fixed commit, do not keep the repository token after the checkout, and have a time limit. Dependabot updates the packages and the actions each week. ([PR #24](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/24))
+
 ## [0.3.0] - 2026-11-09
 
 ### Added

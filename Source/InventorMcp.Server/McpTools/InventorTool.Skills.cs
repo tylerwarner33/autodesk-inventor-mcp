@@ -15,7 +15,7 @@ namespace InventorMcp.Server.McpTools;
 /// </remarks>
 internal static partial class InventorTool
 {
-	[McpServerTool(Name = "inventor_skill", ReadOnly = true, Idempotent = true)]
+	[McpServerTool(Name = "inventor_skill", Title = "Read the server guides", ReadOnly = true, Idempotent = true, OpenWorld = false)]
 	[Description("""
 		Lists or reads the guides for this server, in the Agent Skills format. Each skill is short and covers one topic
 		or one workflow, ex. the API traps for snippets, iLogic, drawings, projects and files, or a safe template edit.

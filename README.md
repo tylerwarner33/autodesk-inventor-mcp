@@ -34,6 +34,7 @@ graph LR
 	- [Inventor must be running](#inventor-must-be-running)
 	- [Tools](#tools)
 	- [Executing code](#executing-code)
+	- [Limit what a model can do](#limit-what-a-model-can-do)
 	- [Units and parameter kinds](#units-and-parameter-kinds)
 	- [Dialog settings](#dialog-settings)
 - **Diagnose it**
@@ -527,16 +528,40 @@ It reads the vendored documentation file, so it needs no Inventor session.
 <details>
 <summary><b>Safeguards</b> (arbitrary execution inside a CAD process is bounded)</summary>
 
-- Every snippet is appended to `%LOCALAPPDATA%\InventorMcp\executed-code.log`, with a timestamp and the target document.
+- Every snippet is appended to `%LOCALAPPDATA%\InventorMcp\<year>\executed-code.log` before it runs, with a timestamp, the
+	target document, the client and the SHA-256 of the code. The code is written in full the first time, and a later
+	entry of the same code has only its SHA-256, so the server's own snippets do not hide the snippets of a model.
 - Execution is refused when the document has unsaved changes, unless `allowUnsavedChanges` is passed.
 	Unsaved work cannot be recovered if a snippet damages it.
 - Roslyn loads on first use only, so a read-only session never pays for it inside Inventor's process.
+- A snippet is compiled on the thread of the bridge, not on Inventor's main thread, and the add-in keeps the 64
+	compiled snippets that were used most recently. So Inventor stays responsive during a compile, and a tool that
+	sends the same snippet again does not compile it again.
 - Execution runs inside a `SilentOperationScope`, so a dialog cannot stall the dispatcher.
+- A return value or an output of more than 60,000 characters is cut, and the result says so.
 
 A snippet that throws is reported as a result, with its exception type and message, rather than failing the call.
-Compiler errors come back as diagnostics.
+Compiler errors come back as diagnostics. Each result that reports a failure has `isError` set, so a client can show
+and count it.
 
 </details>
+
+### Limit what a model can do
+
+Each tool tells the client what it can change: a tool that only reads has `readOnlyHint`, and a tool that writes has
+`destructiveHint`. A client uses these hints to decide when to ask you. Two environment variables in the `env` of
+the MCP entry add limits that a model cannot change, because the server reads them one time, at start:
+
+| Variable | Value | Effect |
+| --- | --- | --- |
+| `INVENTORMCP_TOOLS` | `read-only` | The server offers only the tools that change no document, and `inventor_start` and `inventor_use_release`. There is no `inventor_eval_csharp`, `inventor_run_ilogic`, `inventor_run_plugin`, `inventor_dialog_click` and no tool that sets a value. The default is `all`. |
+| `INVENTORMCP_CONFIRM_RISKY_CALLS` | `true` | The client asks you before `inventor_dialog_click`, before `inventor_close_documents`, and before each call with `allowUnsavedChanges`. If you decline, or if the client cannot show a question, the call does not run. The default is `false`. |
+
+A value that the server does not know selects the stricter setting, and the server log has a warning.
+
+The read-only tool set is a limit on what a model can ask for. It is not a sandbox: a read-only tool still runs the
+server's own snippet in Inventor, and the server still answers the dialogs that the dialog settings permit.
+`SECURITY.md` says what the server protects, and what it does not.
 
 ### Units and parameter kinds
 
@@ -669,6 +694,9 @@ same time. The server logs stay at the top, because one server can talk to diffe
 
 The logs are always on. Telemetry (next section) does not replace or change them. The only change: with telemetry on,
 each line of `server-<date>.log` that is written during a tool call ends with the trace ID.
+
+`addin.log` and `executed-code.log` start a new file at 10 MB. The full file becomes `addin.1.log` or
+`executed-code.1.log`, and the 5 newest full files stay. The server deletes its own logs after 14 days.
 
 ### Telemetry (optional)
 

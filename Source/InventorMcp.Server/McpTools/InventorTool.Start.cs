@@ -39,7 +39,7 @@ internal static partial class InventorTool
 	/// </summary>
 	private static readonly TimeSpan _startPollInterval = TimeSpan.FromSeconds(2);
 
-	[McpServerTool(Name = "inventor_start", Destructive = false, Idempotent = true, OpenWorld = false, ReadOnly = false)]
+	[McpServerTool(Name = "inventor_start", Title = "Start Inventor", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
 	[Description("""
 		Starts one Autodesk Inventor release when its bridge is not running, and waits for the bridge add-in to load.
 		Several releases can run at the same time, each with its own bridge. This session then uses the release it

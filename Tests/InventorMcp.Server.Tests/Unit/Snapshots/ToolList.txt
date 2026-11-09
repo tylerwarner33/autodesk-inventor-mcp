@@ -1,0 +1,35 @@
+inventor_activity | Read the activity feed | readOnly=true destructive=- idempotent=- openWorld=false | sinceSequence, maxEntries
+inventor_api_lookup | Search the Inventor API reference | readOnly=true destructive=- idempotent=- openWorld=false | query*, kind, maxResults, inventorRelease
+inventor_assembly_tree | Read the assembly tree | readOnly=true destructive=- idempotent=- openWorld=false | documentName, maxDepth, maxNodes, summary
+inventor_auto_balloon | Place balloons on a drawing view | readOnly=false destructive=true idempotent=- openWorld=false | viewName*, drawingPath, sheetName, sides, balloonStyle, spacingInches, offsetInches, oneBalloonPerItem
+inventor_close_documents | Close documents | readOnly=false destructive=true idempotent=- openWorld=false | under*, allowUnsavedChanges
+inventor_dialog_click | Click a dialog button | readOnly=false destructive=true idempotent=- openWorld=false | handle*, title*, button*
+inventor_dialogs | Read blocking dialogs | readOnly=true destructive=- idempotent=- openWorld=false | 
+inventor_documents | List open documents | readOnly=true destructive=- idempotent=- openWorld=false | 
+inventor_drawing_layout | Measure a drawing sheet | readOnly=true destructive=- idempotent=- openWorld=false | drawingPath, balloonDiameterInches, includeDetails, clearanceInches, sheetName, curveCheckSeconds
+inventor_eval_csharp | Run a C# snippet in Inventor | readOnly=false destructive=true idempotent=- openWorld=true | code*, documentName, allowUnsavedChanges, suppressRules
+inventor_evaluate_expression | Evaluate an expression | readOnly=true destructive=- idempotent=- openWorld=false | expression*, units, documentName
+inventor_export_sheet_image | Export a sheet image | readOnly=true destructive=- idempotent=- openWorld=false | documentName, sheetName, region, widthPixels
+inventor_features | Read features | readOnly=true destructive=- idempotent=- openWorld=false | documentName, includeParameters
+inventor_file_info | Read file information | readOnly=true destructive=- idempotent=- openWorld=false | paths*, offset, limit, propertyNames
+inventor_health | Read document health | readOnly=true destructive=- idempotent=- openWorld=false | documentName, includeSuppressed
+inventor_hole_check | Check holes | readOnly=true destructive=- idempotent=- openWorld=false | documentName, maxPositions
+inventor_ilogic_rule_get | Read an iLogic rule | readOnly=false destructive=false idempotent=- openWorld=false | documentName, ruleName, outputFolder
+inventor_ilogic_rule_set | Change an iLogic rule | readOnly=false destructive=true idempotent=- openWorld=false | ruleName*, text*, anchor, mode, documentName, createIfMissing, save
+inventor_ilogic_rules | List iLogic rules | readOnly=true destructive=- idempotent=- openWorld=false | documentName
+inventor_orientation | Read the ViewCube orientation | readOnly=true destructive=- idempotent=- openWorld=false | documentName
+inventor_parameters | Read parameters | readOnly=true destructive=- idempotent=- openWorld=false | documentName, nameFilter
+inventor_pattern_elements | Read pattern elements | readOnly=true destructive=- idempotent=- openWorld=false | featureName*, documentName
+inventor_properties | Read iProperties | readOnly=true destructive=- idempotent=- openWorld=false | documentName, setName
+inventor_run_ilogic | Run iLogic code | readOnly=false destructive=true idempotent=- openWorld=true | code, documentName, allowUnsavedChanges, ruleName
+inventor_run_plugin | Run a plugin build | readOnly=false destructive=true idempotent=- openWorld=true | buildOutputDirectory*, assemblyFileName*, typeName*, methodName*, arguments, shadowFiles, closeDocumentsUnder, keepDocumentsOpen, logFilePath, logTailLines, warningMarkers, errorMarkers, logPattern, logMatchLines
+inventor_session | Read the Inventor session | readOnly=true destructive=- idempotent=- openWorld=false | waitSeconds
+inventor_set_parameter | Set a parameter | readOnly=false destructive=true idempotent=- openWorld=false | name*, expression*, documentName, suppressRules
+inventor_set_parameters | Set several parameters | readOnly=false destructive=true idempotent=- openWorld=false | parameters*, documentName, suppressRules, runRuleAfter, createIfMissing, allowUnsavedChanges
+inventor_set_property | Set an iProperty | readOnly=false destructive=true idempotent=- openWorld=false | setName*, name*, value*, documentName
+inventor_skill | Read the server guides | readOnly=true destructive=- idempotent=true openWorld=false | action, name, file
+inventor_start | Start Inventor | readOnly=false destructive=false idempotent=true openWorld=false | version
+inventor_styles | Read drawing styles | readOnly=true destructive=- idempotent=- openWorld=false | documentName, compareWith
+inventor_test_copy | Make a test copy of a design | readOnly=false destructive=true idempotent=- openWorld=false | sources*, target*, sourceFolder, prefix
+inventor_update | Rebuild a document | readOnly=false destructive=true idempotent=- openWorld=false | documentName, full
+inventor_use_release | Choose the Inventor release | readOnly=false destructive=false idempotent=true openWorld=false | version

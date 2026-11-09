@@ -107,7 +107,7 @@ internal sealed partial class InventorOperations(
 		dispatcher.Register(BridgeOperations.EvalCSharp, (payload, token) =>
 		{
 			ExecuteRequest request = ParseRequired<ExecuteRequest>(payload);
-			return operations.OnMainThreadAsync(() => operations.EvaluateCSharp(request), token);
+			return operations.EvaluateCSharpAsync(request, token);
 		});
 
 		dispatcher.Register(BridgeOperations.RunILogic, (payload, token) =>
@@ -122,6 +122,20 @@ internal sealed partial class InventorOperations(
 			ActivityRequest request = ParseOrDefault(payload, new ActivityRequest());
 			return Task.FromResult<object?>(operations._activity.Drain(request.SinceSequence, request.MaxEntries));
 		});
+	}
+
+	/// <summary>
+	/// 	Compiles a snippet away from Inventor's main thread, then runs it there.
+	/// </summary>
+	/// <remarks>
+	/// 	The compile is the slow part of a new snippet, and it uses no Inventor object.
+	/// 	Task.Run, so that the compile never runs on the thread that called the handler.
+	/// </remarks>
+	private async Task<object?> EvaluateCSharpAsync(ExecuteRequest request, CancellationToken cancellationToken)
+	{
+		CompiledScript compiled = await Task.Run(() => _scripts.GetOrCompile(request.Code), cancellationToken).ConfigureAwait(false);
+
+		return await _mainThread.InvokeAsync(() => EvaluateCSharp(request, compiled), cancellationToken).ConfigureAwait(false);
 	}
 
 	private async Task<object?> OnMainThreadAsync<TResult>(Func<TResult> work, CancellationToken cancellationToken) =>

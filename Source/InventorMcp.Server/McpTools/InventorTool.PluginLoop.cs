@@ -390,7 +390,7 @@ internal static partial class InventorTool
 		return "done";
 		""";
 
-	[McpServerTool(Name = "inventor_run_plugin")]
+	[McpServerTool(Name = "inventor_run_plugin", Title = "Run a plugin build", ReadOnly = false, Destructive = true, OpenWorld = true)]
 	[Description("""
 		Runs a method from a plugin's build output inside the live Inventor session, with no Inventor restart per code
 		change. The build output is copied to a fresh folder and loaded into a new collectible context on every call, so

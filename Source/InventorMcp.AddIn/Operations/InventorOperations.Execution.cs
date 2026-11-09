@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -8,30 +7,24 @@ using InventorMcp.AddIn.Bridge;
 using InventorMcp.Contracts;
 using InventorMcp.Contracts.Models;
 
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
-using Microsoft.CodeAnalysis.Scripting.Hosting;
 
 namespace InventorMcp.AddIn.Operations;
 
 internal sealed partial class InventorOperations
 {
+	private readonly ScriptCache _scripts = new();
+
+	// Used on Inventor's main thread only, as each audit entry is.
+	private readonly SnippetAudit _audit = new();
+
 	/// <summary>
-	/// 	Namespaces every snippet gets without asking.
+	/// 	Runs a snippet that the bridge thread compiled.
 	/// </summary>
-	private static readonly string[] _scriptImports =
-	[
-		"System",
-		"System.Collections.Generic",
-		"System.Linq",
-		"Inventor"
-	];
-
-	// Roslyn is loaded on first use only. A read-only session never pays for it inside Inventor's process.
-	private static ScriptOptions? _scriptOptions;
-
-	private ExecutionResult EvaluateCSharp(ExecuteRequest request)
+	/// <remarks>
+	/// 	The audit entry is written also for a snippet that did not compile, so the trail holds every snippet.
+	/// </remarks>
+	private ExecutionResult EvaluateCSharp(ExecuteRequest request, CompiledScript compiled)
 	{
 		// A snippet may need no document at all, ex. one that runs a plugin which opens its own.
 		// A named document that cannot be found is still an error.
@@ -45,7 +38,7 @@ internal sealed partial class InventorOperations
 		WriteAuditEntry("csharp", document, request.Code, request.ClientName);
 
 		HashSet<string> openBefore = OpenDocumentKeys();
-		ExecutionResult result = RunScript(request, document);
+		ExecutionResult result = RunScript(compiled, document);
 
 		if (result.Succeeded is false && result.ExceptionType != "CompilationError" && result.ExceptionType != nameof(CompilationErrorException))
 		{
@@ -81,64 +74,35 @@ internal sealed partial class InventorOperations
 		return keys;
 	}
 
-	private ExecutionResult RunScript(ExecuteRequest request, Document? document)
+	private ExecutionResult RunScript(CompiledScript compiled, Document? document)
 	{
 		InventorScriptGlobals globals = new() { Application = _inventor, Document = document };
 		Stopwatch stopwatch = Stopwatch.StartNew();
 
+		if (compiled.Runner is null)
+		{
+			return new ExecutionResult(
+				false, null, null, globals.Output, compiled.Diagnostics,
+				compiled.FailureType, compiled.FailureMessage, stopwatch.ElapsedMilliseconds);
+		}
+
 		try
 		{
-			// Roslyn's scripting host owns its own assembly loader and, left alone, loads a second copy of this
-			// add-in from the same path into its own context. The globals object then fails to cast, because the
-			// two InventorScriptGlobals types have different identities.
-			// Registering the already loaded assemblies makes Roslyn reuse them instead, but only as a fallback:
-			// Roslyn asks the default context first, so this add-in must never be loaded there.
-			// EnterContextualReflection does not help here: the scripting host does not consult it.
-			using InteractiveAssemblyLoader assemblyLoader = new();
-			assemblyLoader.RegisterDependency(typeof(InventorScriptGlobals).Assembly);
-			assemblyLoader.RegisterDependency(typeof(Application).Assembly);
-
 			using (SilentOperationScope.Enter(_inventor))
 			{
-				Script<object> script = CSharpScript.Create<object>(
-					request.Code,
-					GetScriptOptions(),
-					typeof(InventorScriptGlobals),
-					assemblyLoader);
-
-				ImmutableArray<Diagnostic> diagnostics = script.Compile();
-
-				List<string> messages = [.. diagnostics
-					.Where(static diagnostic => diagnostic.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning)
-					.Select(static diagnostic => diagnostic.ToString())];
-
-				if (diagnostics.Any(static diagnostic => diagnostic.Severity is DiagnosticSeverity.Error))
-				{
-					return new ExecutionResult(
-						false, null, null, globals.Output, messages, "CompilationError",
-						"The snippet did not compile.", stopwatch.ElapsedMilliseconds);
-				}
-
 				// The snippet body is synchronous, so the returned task completes inline and this cannot deadlock.
-				ScriptState<object> state = script.RunAsync(globals).GetAwaiter().GetResult();
+				object? returnValue = compiled.Runner(globals).GetAwaiter().GetResult();
 
 				return new ExecutionResult(
 					true,
-					ReturnValueText.Format(state.ReturnValue),
-					state.ReturnValue?.GetType().FullName,
+					ReturnValueText.Format(returnValue),
+					returnValue?.GetType().FullName,
 					globals.Output,
-					messages,
+					compiled.Diagnostics,
 					null,
 					null,
 					stopwatch.ElapsedMilliseconds);
 			}
-		}
-		catch (CompilationErrorException exception)
-		{
-			return new ExecutionResult(
-				false, null, null, globals.Output,
-				[.. exception.Diagnostics.Select(static diagnostic => diagnostic.ToString())],
-				nameof(CompilationErrorException), exception.Message, stopwatch.ElapsedMilliseconds);
 		}
 		catch (Exception exception)
 		{
@@ -229,16 +193,6 @@ internal sealed partial class InventorOperations
 		}
 	}
 
-	private static ScriptOptions GetScriptOptions()
-	{
-		// Built once. Resolving metadata references is slow and the set never changes.
-		return _scriptOptions ??= ScriptOptions.Default
-			.AddReferences(
-				typeof(Application).Assembly,
-				typeof(InventorScriptGlobals).Assembly)
-			.AddImports(_scriptImports);
-	}
-
 	/// <summary>
 	/// 	Refuses to run code against a document holding unsaved changes.
 	/// </summary>
@@ -275,28 +229,21 @@ internal sealed partial class InventorOperations
 	/// 	The document the snippet targeted, or null when none was open.
 	/// </param>
 	/// <param name="code">
-	/// 	The snippet, recorded in full.
+	/// 	The snippet. The entry holds it in full the first time, and its SHA-256 each time.
 	/// </param>
 	/// <param name="clientName">
 	/// 	The MCP client that sent it, or null.
 	/// </param>
-	private static void WriteAuditEntry(string language, Document? document, string code, string? clientName)
+	private void WriteAuditEntry(string language, Document? document, string code, string? clientName)
 	{
-		// Fully qualified: Inventor declares its own Environment, File and Path types, which shadow the BCL ones.
-		string newLine = System.Environment.NewLine;
-
 		// Written before the run, so the log holds the snippet even when the run takes Inventor down.
-		AppendAudit(
-			$"{new string('=', 80)}{newLine}" +
-			$"{DateTimeOffset.UtcNow:O}  {language}  document='{document?.DisplayName ?? "(none)"}'  client='{clientName ?? "(unknown)"}'{newLine}" +
-			$"{new string('-', 80)}{newLine}" +
-			$"{code}{newLine}");
+		AppendAudit(_audit.Entry(language, document?.DisplayName, code, clientName, DateTimeOffset.UtcNow));
 	}
 
 	/// <summary>
 	/// 	Appends the outcome of the snippet that the last entry recorded.
 	/// </summary>
-	private static void WriteAuditResult(ExecutionResult result)
+	private void WriteAuditResult(ExecutionResult result)
 	{
 		string outcome = result.Succeeded ? "succeeded" : $"failed  {result.ExceptionType}: {result.ExceptionMessage}";
 		string leftOpen = result.DocumentsLeftOpen is { Count: > 0 } documents ? $"  left open: {string.Join(", ", documents)}" : string.Empty;
@@ -304,12 +251,15 @@ internal sealed partial class InventorOperations
 		AppendAudit($"{new string('-', 80)}{System.Environment.NewLine}{DateTimeOffset.UtcNow:O}  result  {outcome}  {result.ElapsedMilliseconds} ms{leftOpen}{System.Environment.NewLine}");
 	}
 
-	private static void AppendAudit(string text)
+	private void AppendAudit(string text)
 	{
 		try
 		{
 			_ = Directory.CreateDirectory(BridgeLog.ReleaseDirectory);
-			System.IO.File.AppendAllText(BridgeLog.AuditLogPath, text);
+
+			// A new file must hold the full code of each snippet again, so it can be read without the files before it.
+			if (RollingFile.Append(BridgeLog.AuditLogPath, text))
+				_audit.Forget();
 		}
 		catch (Exception exception)
 		{

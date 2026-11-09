@@ -15,7 +15,7 @@ namespace InventorMcp.Server.McpTools;
 /// </remarks>
 internal static partial class InventorTool
 {
-	[McpServerTool(Name = "inventor_parameters")]
+	[McpServerTool(Name = "inventor_parameters", Title = "Read parameters", ReadOnly = true, OpenWorld = false)]
 	[Description("Reads the parameters of an open part or assembly. Each parameter reports its kind, expression, display value, and internal value. Inventor stores lengths in centimetres and angles in radians, so always read internalValue with its units in mind. A text or boolean parameter has no internal value.")]
 	public static Task<object> ParametersAsync(
 		BridgeClient bridge,
@@ -27,7 +27,7 @@ internal static partial class InventorTool
 			new ParametersRequest(documentName, nameFilter),
 			cancellationToken));
 
-	[McpServerTool(Name = "inventor_set_parameter")]
+	[McpServerTool(Name = "inventor_set_parameter", Title = "Set a parameter", ReadOnly = false, Destructive = true, OpenWorld = false)]
 	[Description("Sets one parameter and rebuilds the document. This changes the user's model. The accessor used depends on the parameter's kind: a numeric parameter takes an expression such as '50 mm', a text parameter takes plain text, and a boolean parameter takes 'true' or 'false'. Check the kind with inventor_parameters first, and check a numeric expression with inventor_evaluate_expression.")]
 	public static Task<object> SetParameterAsync(
 		BridgeClient bridge,
@@ -47,7 +47,7 @@ internal static partial class InventorTool
 				new SetParameterRequest(name, expression, documentName),
 				cancellationToken));
 
-	[McpServerTool(Name = "inventor_evaluate_expression")]
+	[McpServerTool(Name = "inventor_evaluate_expression", Title = "Evaluate an expression", ReadOnly = true, OpenWorld = false)]
 	[Description("Asks Inventor what an expression evaluates to, without writing it anywhere. Reports validity, the internal value, the display value, and which parameters the expression reads. Use this to check an expression before calling inventor_set_parameter.")]
 	public static Task<object> EvaluateExpressionAsync(
 		BridgeClient bridge,
@@ -60,7 +60,7 @@ internal static partial class InventorTool
 			new EvaluateExpressionRequest(expression, units, documentName),
 			cancellationToken));
 
-	[McpServerTool(Name = "inventor_properties")]
+	[McpServerTool(Name = "inventor_properties", Title = "Read iProperties", ReadOnly = true, OpenWorld = false)]
 	[Description("Reads the iProperties of an open document, optionally limited to one property set such as 'Design Tracking Properties'.")]
 	public static Task<object> PropertiesAsync(
 		BridgeClient bridge,
@@ -72,7 +72,7 @@ internal static partial class InventorTool
 			new PropertiesRequest(documentName, setName),
 			cancellationToken));
 
-	[McpServerTool(Name = "inventor_set_property")]
+	[McpServerTool(Name = "inventor_set_property", Title = "Set an iProperty", ReadOnly = false, Destructive = true, OpenWorld = false)]
 	[Description("Sets one iProperty value. This changes the user's document.")]
 	public static Task<object> SetPropertyAsync(
 		BridgeClient bridge,
@@ -86,7 +86,7 @@ internal static partial class InventorTool
 			new SetPropertyRequest(setName, name, value, documentName),
 			cancellationToken));
 
-	[McpServerTool(Name = "inventor_health")]
+	[McpServerTool(Name = "inventor_health", Title = "Read document health", ReadOnly = true, OpenWorld = false)]
 	[Description("Reports whether a document needs a rebuild, which features are sick and why, and what the Inventor error manager is holding. Use this to debug automation that is producing bad geometry. If a modal dialog blocks Inventor, it returns blocked-by-dialog at once, with the dialog.")]
 	public static Task<object> HealthAsync(
 		BridgeClient bridge,
@@ -164,7 +164,7 @@ internal static partial class InventorTool
 		};
 	}
 
-	[McpServerTool(Name = "inventor_update")]
+	[McpServerTool(Name = "inventor_update", Title = "Rebuild a document", ReadOnly = false, Destructive = true, OpenWorld = false)]
 	[Description("Rebuilds a document. This changes the user's model and can take a long time on a large assembly.")]
 	public static Task<object> UpdateAsync(
 		BridgeClient bridge,

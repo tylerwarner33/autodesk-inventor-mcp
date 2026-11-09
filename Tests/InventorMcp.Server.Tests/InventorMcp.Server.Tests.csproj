@@ -25,6 +25,13 @@
 	<ItemGroup>
 		<Compile Include="..\..\Source\InventorMcp.AddIn\Bridge\LogThrottle.cs" Link="AddIn\LogThrottle.cs" />
 		<Compile Include="..\..\Source\InventorMcp.AddIn\Operations\ReturnValueText.cs" Link="AddIn\ReturnValueText.cs" />
+		<Compile Include="..\..\Source\InventorMcp.AddIn\Operations\SnippetAudit.cs" Link="AddIn\SnippetAudit.cs" />
+		<Compile Include="..\..\Source\InventorMcp.AddIn\RollingFile.cs" Link="AddIn\RollingFile.cs" />
+	</ItemGroup>
+
+	<!-- The tool list that ToolPipelineTests compares with the server. -->
+	<ItemGroup>
+		<None Include="Unit\Snapshots\ToolList.txt" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
 	<ItemGroup>

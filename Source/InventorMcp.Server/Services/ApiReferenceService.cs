@@ -21,7 +21,8 @@ namespace InventorMcp.Server.Services;
 internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> logger)
 {
 	private readonly ILogger<ApiReferenceService> _logger = logger;
-	private readonly ConcurrentDictionary<int, List<ApiMember>> _indexes = new();
+	// Lazy, because GetOrAdd can run its factory two times at the same time, and one index reads a 12 MB file.
+	private readonly ConcurrentDictionary<int, Lazy<List<ApiMember>>> _indexes = new();
 
 	/// <summary>
 	/// 	Finds documented API members matching a query.
@@ -206,7 +207,15 @@ internal sealed partial class ApiReferenceService(ILogger<ApiReferenceService> l
 
 	private List<ApiMember> EnsureIndex(int releaseYear)
 	{
-		return _indexes.GetOrAdd(releaseYear, BuildIndex);
+		List<ApiMember> members = _indexes
+			.GetOrAdd(releaseYear, year => new Lazy<List<ApiMember>>(() => BuildIndex(year), LazyThreadSafetyMode.ExecutionAndPublication))
+			.Value;
+
+		// An empty index is a file that is missing or that did not parse. It is not kept, so a later call reads again.
+		if (members.Count == 0)
+			_ = _indexes.TryRemove(releaseYear, out _);
+
+		return members;
 	}
 
 	private List<ApiMember> BuildIndex(int releaseYear)

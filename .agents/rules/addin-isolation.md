@@ -29,6 +29,9 @@ Consequences:
 - Roslyn scripting needs `InteractiveAssemblyLoader.RegisterDependency` for the globals and interop assemblies.
 	Without it Roslyn loads a second copy of the add-in into its own context and the globals object fails to cast.
 	`EnterContextualReflection` does not help, because the scripting host does not consult it.
+- `ScriptCache` holds one `InteractiveAssemblyLoader` for the life of the add-in, because a compiled snippet in the
+	cache needs its loader. It compiles on the thread of the bridge, and only the run is on Inventor's main thread.
+	Test a change to it in a live session of each release (`Level=Live`), with a rule run first.
 - **`RegisterDependency` is only a fallback.** Roslyn's load context asks the default context first and reaches
 	registered dependencies only when that fails. So the add-in must **never** be loaded into the default context,
 	or scripts bind to that copy and the globals cast fails. This was measured on Inventor 2025.

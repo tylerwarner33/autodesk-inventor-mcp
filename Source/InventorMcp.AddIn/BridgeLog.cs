@@ -58,7 +58,7 @@ internal static class BridgeLog
 			{
 				_ = Directory.CreateDirectory(ReleaseDirectory);
 
-				File.AppendAllText(
+				_ = RollingFile.Append(
 					Path.Combine(ReleaseDirectory, "addin.log"),
 					$"{DateTimeOffset.UtcNow:O}  {message}{Environment.NewLine}");
 			}
