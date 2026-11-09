@@ -282,6 +282,12 @@ A few tools are canned snippets the server composes and sends through the same e
 point for a job worth repeating, and cost no add-in rebuild. Their argument values reach the snippet only as C#
 literals built by `CSharpLiteral`, never as pasted text, because a composed snippet is compiled inside Inventor.
 
+Because most tools are snippets, the compile is on the path of almost every call. `ScriptCache` in the add-in
+compiles a snippet on the thread of the bridge, so Inventor's main thread does only the run, and keeps the 64
+compiled snippets that were used most recently, by their text. A compiled script is an assembly that Inventor cannot
+unload, so without the cache each call of the same tool added one. A snippet with other argument values is other
+text, and compiles again. A compiled snippet that runs again keeps the values of its own `static` fields.
+
 ### Script helpers travel with the snippet
 
 The helpers for `inventor_eval_csharp` (documents, iLogic, units, user parameters, a time guard) are in
@@ -670,9 +676,27 @@ Results report both the internal value and the display form, so a caller never h
 
 Code execution inside a CAD process is the most dangerous capability here, and it is bounded:
 
-- Every snippet is appended to an audit log with a timestamp and the target document.
+- Every snippet is appended to an audit log before it runs, with a timestamp, the target document, the client and the
+	SHA-256 of the code. The add-in writes the code in full the first time in each file, and only the SHA-256 after
+	that. The add-in decides this from the code that it runs, so a caller cannot hide code from the log.
+- The audit log and `addin.log` start a new file at 10 MB, and the 5 newest full files stay.
 - Execution is refused on a document with unsaved changes unless explicitly overridden.
 - Roslyn loads on first use only, so a read-only session never pays for it inside Inventor's process.
+- Each tool has a title and the hints `readOnlyHint`, `destructiveHint` and `openWorldHint`. Without a hint, the MCP
+	specification reads a tool as destructive and open to the world, so a client asks more than necessary for a read,
+	and cannot tell a read from a write. `ToolPipelineTests` compares the tool list with a snapshot, because a name, a
+	hint or a parameter is the public API of the server.
+- A result that reports a failure has `isError`. The tools still return a failure as a normal payload with a code and
+	a message, so a model can read it. `ToolPipeline.MarkFailure` sets the flag in one place, for a top level `error`
+	and for code that did not succeed.
+- `INVENTORMCP_TOOLS=read-only` removes each tool that has no `readOnlyHint`, apart from the two that select and start
+	a session. `INVENTORMCP_CONFIRM_RISKY_CALLS=true` asks the user, through elicitation, before a call that removes
+	the guard for unsaved changes, answers a dialog or closes documents. The question shows the tool name and fixed
+	text only, never an argument. Both are read one time at start, and a value that is not known selects the stricter
+	setting. They are a limit on the model, not a sandbox.
+- The text of an execution result is cut at 60,000 characters for the return value and for the output, in the server.
+- `inventor_test_copy` sends its script to Windows PowerShell through standard input, so no script file exists that
+	another process can change before it runs.
 
 A snippet that throws is reported as a result rather than failing the call, and compiler errors come back as
 diagnostics with line and column, before anything reaches the model.

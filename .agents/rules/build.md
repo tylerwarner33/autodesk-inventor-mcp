@@ -59,6 +59,11 @@ runner, only when a file that can break the telemetry stack changes. See `Docs/T
 
 ## Tests
 
+`ToolPipelineTests.ToolListIsTheSameAsTheSnapshot` fails when a tool name, title, hint or parameter changes. If the
+change is intended, copy `ToolList.actual.txt` from the test output folder over
+`Tests/InventorMcp.Server.Tests/Unit/Snapshots/ToolList.txt`. Give each new tool a `Title`, and `ReadOnly`,
+`Destructive` and `OpenWorld` values: `ReadOnly = true` only when the tool changes no document and writes no file.
+
 ```
 dotnet test InventorMcp.slnx
 dotnet test InventorMcp.slnx --filter-not-trait Level=Desktop
@@ -121,7 +126,7 @@ because Inventor's assembly load context is not collectible, so the build still 
 | --- | --- |
 | `%LOCALAPPDATA%\InventorMcp\<year>\addin.log` | Add-in lifecycle and handler failures of that release |
 | `%LOCALAPPDATA%\InventorMcp\<year>\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
-| `%LOCALAPPDATA%\InventorMcp\<year>\executed-code.log` | Every snippet run through the execution tools, and each dialog the server clicked |
+| `%LOCALAPPDATA%\InventorMcp\<year>\executed-code.log` | Every snippet run through the execution tools, and each dialog the server clicked. An entry has the SHA-256 of its code, and the code in full only the first time in the file. `addin.log` and this log start a new file at 10 MB (`executed-code.1.log` is the newest full file). |
 | `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity, one file for each server process. Each tool call has a line with the release it used. |
 | `%LOCALAPPDATA%\InventorMcp\addin.log`, `executed-code.log` | From before the folder for each release, or written before the release was known |
 | `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log` | Claude Desktop: a server that failed to start |
