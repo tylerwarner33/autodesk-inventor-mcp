@@ -9,7 +9,7 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 ## [0.4.2] - 2026-11-09
 
 ### Fixed
-- The changelog entry of a grouped Dependabot update gives the old version of each package, not only the new one.
+- The changelog entry of a grouped Dependabot update gives the old version of each package, not only the new one. ([PR #28](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/28))
 
 ## [0.4.1] - 2026-11-09
 
