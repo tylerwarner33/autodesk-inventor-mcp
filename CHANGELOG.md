@@ -9,7 +9,7 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 ## [0.4.1] - 2026-11-09
 
 ### Changed
-- Each Dependabot pull request gets its version in `CHANGELOG.md` and `Directory.Build.props` from a workflow, with one entry for each updated package. See `.agents/rules/changelog.md`, "Dependabot pull requests".
+- Each Dependabot pull request gets its version in `CHANGELOG.md` and `Directory.Build.props` from a workflow, with one entry for each updated package. See `.agents/rules/changelog.md`, "Dependabot pull requests". ([PR #27](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/27))
 
 ## [0.4.0] - 2026-11-09
 
