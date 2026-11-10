@@ -43,7 +43,9 @@ public sealed class WaitForAnswerTests
 		Stopwatch stopwatch = Stopwatch.StartNew();
 		await InventorTool.WaitForAnswerAsync(client, TimeSpan.FromSeconds(1), _noProgress, TestContext.Current.CancellationToken);
 
-		Assert.InRange(stopwatch.Elapsed, TimeSpan.FromSeconds(0.9), TimeSpan.FromSeconds(1.6));
+		// The defect is a wait that runs on to the 3 s connect timeout. The upper limit stays below it, with time for a
+		// slow CI runner.
+		Assert.InRange(stopwatch.Elapsed, TimeSpan.FromSeconds(0.9), TimeSpan.FromSeconds(2.5));
 		Assert.Null(client.InventorProcessId);
 	}
 
