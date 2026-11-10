@@ -6,6 +6,14 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.4] - 2026-11-10
+
+### Changed
+- Update the NuGet package `Meziantou.Analyzer` from 3.0.307 to 3.0.322. ([PR #26](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/26))
+- Update the NuGet package `Microsoft.Extensions.Hosting` from 10.0.9 to 10.0.14. ([PR #26](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/26))
+- Update the NuGet package `Microsoft.Extensions.TimeProvider.Testing` from 10.10.0 to 10.11.0. ([PR #26](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/26))
+- Update the NuGet package `xunit.v3` from 4.0.2 to 4.0.3. ([PR #26](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/26))
+
 ## [0.4.3] - 2026-11-09
 
 ### Fixed
