@@ -1,4 +1,6 @@
 # One pull request each week for each ecosystem, so the updates are few and easy to review.
+# Each pull request has the label "dependencies" and the label of its ecosystem. A `labels` setting replaces the default
+# labels, so the ecosystem label is named here. Dependabot ignores a label that does not exist in the repository.
 # The Dependabot changelog workflow adds the version to CHANGELOG.md and Directory.Build.props of each pull request.
 # See .agents/rules/changelog.md, "Dependabot pull requests".
 version: 2
@@ -9,6 +11,7 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
+    labels: [dependencies, ".NET"]
     groups:
       nuget:
         patterns: ["*"]
@@ -26,6 +29,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    labels: [dependencies, github_actions]
     groups:
       actions:
         patterns: ["*"]

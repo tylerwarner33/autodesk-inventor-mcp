@@ -6,6 +6,11 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.5] - 2026-11-10
+
+### Changed
+- Each Dependabot pull request has the label `dependencies` and the label of its ecosystem (`.NET` or `github_actions`), as before. The labels are now set in `.github/dependabot.yml`.
+
 ## [0.4.4] - 2026-11-10
 
 ### Changed
