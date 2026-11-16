@@ -458,6 +458,8 @@ and names the release. Two Inventor processes of the same release still compete 
 | --- | --- |
 | `release-required` | More than one release runs, and this session has not chosen one. Call `inventor_use_release`. |
 | `bridge-outdated` | An Inventor hosts an add-in from before protocol version 2, which uses the old pipe name. Close Inventor, redeploy the add-in for each release, and start it again. |
+| `bridge-connections-in-use` | The bridge of the release exists, but every one of its 16 connections is in use. Close an MCP client that is not in use. Waiting does not help. |
+| `untrusted-bridge-host` | The pipe belongs to a different Windows user, or its process is not this user's Inventor. The server did not use it. |
 
 A Claude session that started before an upgrade keeps its old server, with the old pipe name, until you restart it.
 
