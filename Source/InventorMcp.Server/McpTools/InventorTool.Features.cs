@@ -445,10 +445,10 @@ internal static partial class InventorTool
 			if (result.TryGetProperty("first", out JsonElement firstText) is false)
 				return (object)result;
 
-			JsonElement first = JsonDocument.Parse(firstText.GetString()!).RootElement.Clone();
+			JsonElement first = JsonElement.Parse(firstText.GetString()!);
 
 			return result.GetProperty("second").GetString() is string secondText
-				? StyleDiff.Compare(first, JsonDocument.Parse(secondText).RootElement.Clone())
+				? StyleDiff.Compare(first, JsonElement.Parse(secondText))
 				: first;
 		});
 }

@@ -421,7 +421,7 @@ internal static partial class InventorTool
 			cancellationToken).ConfigureAwait(false);
 
 		if (result.Succeeded && result.ReturnValue is string json)
-			return JsonDocument.Parse(json).RootElement.Clone();
+			return JsonElement.Parse(json);
 
 		return JsonSerializer.SerializeToElement(new
 		{

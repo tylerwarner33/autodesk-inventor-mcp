@@ -20,6 +20,13 @@ updates:
       # See .agents/rules/telemetry.md, "A library update".
       - dependency-name: ModelContextProtocol*
 
+  # Updates the SDK version in global.json. A new SDK brings new analyzer rules, and each one is a build error, so a
+  # new SDK must come as a pull request. See Docs/Architecture.md, "The build enforces the code rules".
+  - package-ecosystem: dotnet-sdk
+    directory: /
+    schedule:
+      interval: weekly
+
   # Keeps the commit of each action in the workflows up to date. The actions are pinned to a commit, not to a tag,
   # because a tag can move to other code.
   - package-ecosystem: github-actions

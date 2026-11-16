@@ -18,10 +18,10 @@ public sealed class DialogSettingsTests
 	[Fact]
 	public void EmbeddedDefaultsNameEveryDialogType()
 	{
-		HashSet<string> named = [.. System.Text.Json.JsonDocument.Parse(
+		HashSet<string> named = [.. System.Text.Json.JsonElement.Parse(
 			_defaultText,
 			new System.Text.Json.JsonDocumentOptions { CommentHandling = System.Text.Json.JsonCommentHandling.Skip })
-			.RootElement.EnumerateObject().Select(entry => entry.Name)];
+			.EnumerateObject().Select(entry => entry.Name)];
 
 		Assert.Equal([.. DialogPolicy.Choices.Keys.Order()], [.. named.Order()]);
 	}
