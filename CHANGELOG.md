@@ -6,6 +6,11 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.8] - 2026-11-16
+
+### Changed
+- Update the dependency `dotnet-sdk` from 10.0.400 to 10.0.404. ([PR #34](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/34))
+
 ## [0.4.7] - 2026-11-16
 
 ### Changed
