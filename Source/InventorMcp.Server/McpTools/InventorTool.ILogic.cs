@@ -262,7 +262,7 @@ internal static partial class InventorTool
 
 		With suppressRules, iLogic rules do not run for each change: the rules are turned off for the batch and turned
 		back on in a finally block, even when a write fails. runRuleAfter then runs one rule once. RulesEnabled is a
-		setting of the whole Inventor session, not of one document.
+		setting of the whole Inventor session, not of one document. One Undo step in Inventor reverts the call.
 		""")]
 	public static Task<object> SetParametersAsync(
 		BridgeClient bridge,
@@ -286,7 +286,7 @@ internal static partial class InventorTool
 	/// <summary>
 	/// 	Composes the snippet of <see cref="SetParameters"/>, also used by <c>inventor_set_parameter</c> with suppressRules.
 	/// </summary>
-	private static string ComposeSetParametersSnippet(
+	internal static string ComposeSetParametersSnippet(
 		IReadOnlyDictionary<string, string> parameters,
 		string? documentName,
 		bool suppressRules,
@@ -319,7 +319,37 @@ internal static partial class InventorTool
 			dynamic? automation = {{(suppressRules || runRuleAfter is not null ? "ILogicAutomation()" : "null")}};
 			bool? rulesWereEnabled = null;
 			List<object> results = new();
+			string? ruleError = null;
+			string? ruleAfter = {{CSharpLiteral.String(runRuleAfter)}};
+			long writeMilliseconds = 0;
 			System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+			// The same facts that inventor_parameters gives for a parameter, read after the write.
+			object Describe(Parameter parameter, bool created)
+			{
+				string units = parameter.get_Units();
+				UnitsTypeEnum kind = document.UnitsOfMeasure.GetTypeFromString(units);
+				string valueKind = kind == UnitsTypeEnum.kTextUnits ? "Text" : kind == UnitsTypeEnum.kBooleanUnits ? "Boolean" : "Numeric";
+				string expression = (parameter.Expression ?? string.Empty).Trim();
+				double? internalValue = null;
+				string displayValue = expression;
+				if (valueKind == "Text")
+				{
+					expression = expression.Trim('"').Trim();
+					displayValue = expression;
+				}
+				else if (valueKind == "Numeric")
+				{
+					try
+					{
+						internalValue = parameter._Value;
+						displayValue = document.UnitsOfMeasure.GetStringFromValue(internalValue.Value, units);
+					}
+					catch (Exception) { valueKind = "Unknown"; }
+				}
+
+				return new { name = parameter.Name, ok = true, created, valueKind, expression, internalValue, displayValue, units };
+			}
 
 			if ({{(suppressRules ? "true" : "false")}})
 			{
@@ -329,46 +359,79 @@ internal static partial class InventorTool
 
 			try
 			{
-				foreach ((string name, string value) in writes)
+				// One Undo step for the call. A failed entry is recorded and the batch goes on, so one Undo reverts what was
+				// written. An exception outside the loop (ex. from Update) aborts the step, and the document goes back.
+				InTransaction(document, "MCP: Set Parameters", () =>
 				{
-					try
+					foreach ((string name, string value) in writes)
 					{
-						Parameter? parameter = null;
-						foreach (Parameter candidate in all)
+						try
 						{
-							if (candidate.Name == name) { parameter = candidate; break; }
-						}
-
-						if (parameter is null)
-						{
-							if (!{{(createIfMissing ? "true" : "false")}})
+							Parameter? parameter = null;
+							foreach (Parameter candidate in all)
 							{
-								results.Add(new { name, ok = false, error = "No parameter has this name. Pass createIfMissing to add a user parameter." });
+								if (candidate.Name == name) { parameter = candidate; break; }
+							}
+
+							if (parameter is null)
+							{
+								if (!{{(createIfMissing ? "true" : "false")}})
+								{
+									results.Add(new { name, ok = false, code = "not-found", error = "No parameter has this name. Pass createIfMissing to add a user parameter." });
+									continue;
+								}
+
+								UserParameter created = all.UserParameters.AddByExpression(name, value, UnitsTypeEnum.kDefaultDisplayLengthUnits);
+								results.Add(Describe((Parameter)created, created: true));
 								continue;
 							}
 
-							UserParameter created = all.UserParameters.AddByExpression(name, value, UnitsTypeEnum.kDefaultDisplayLengthUnits);
-							results.Add(new { name, ok = true, created = true, expression = created.Expression });
-							continue;
+							string units = parameter.get_Units();
+							UnitsTypeEnum kind = document.UnitsOfMeasure.GetTypeFromString(units);
+							if (kind == UnitsTypeEnum.kTextUnits)
+							{
+								parameter.Value = value;
+							}
+							else if (kind == UnitsTypeEnum.kBooleanUnits)
+							{
+								if (!bool.TryParse(value, out bool flag))
+								{
+									results.Add(new { name, ok = false, code = "invalid-expression", error = $"'{name}' is a boolean parameter, so it needs 'true' or 'false' rather than '{value}'." });
+									continue;
+								}
+
+								parameter.Value = flag;
+							}
+							else
+							{
+								// Ask Inventor to parse the expression first, so a bad one reports itself and not a COM error.
+								if (!document.UnitsOfMeasure.IsExpressionValid(value, units))
+								{
+									results.Add(new { name, ok = false, code = "invalid-expression", error = $"Inventor cannot parse '{value}' as a value in '{units}'. State the units explicitly, ex. '50 mm'." });
+									continue;
+								}
+
+								parameter.Expression = value;
+							}
+
+							results.Add(Describe(parameter, created: false));
 						}
-
-						UnitsTypeEnum kind = document.UnitsOfMeasure.GetTypeFromString(parameter.get_Units());
-						if (kind == UnitsTypeEnum.kTextUnits)
-							parameter.Value = value;
-						else if (kind == UnitsTypeEnum.kBooleanUnits)
-							parameter.Value = bool.Parse(value);
-						else
-							parameter.Expression = value;
-
-						results.Add(new { name, ok = true, created = false, expression = parameter.Expression });
+						catch (Exception exception)
+						{
+							results.Add(new { name, ok = false, code = "set-failed", error = exception.Message });
+						}
 					}
-					catch (Exception exception)
+
+					document.Update();
+					writeMilliseconds = stopwatch.ElapsedMilliseconds;
+
+					// Inside the step, so one Undo reverts what the rule changed too.
+					if (ruleAfter is not null)
 					{
-						results.Add(new { name, ok = false, error = exception.Message });
+						try { automation!.RunRule(document, ruleAfter); document.Update(); }
+						catch (Exception exception) { ruleError = exception.Message; }
 					}
-				}
-
-				document.Update();
+				});
 			}
 			finally
 			{
@@ -376,18 +439,10 @@ internal static partial class InventorTool
 					automation!.RulesEnabled = previous;
 			}
 
-			long writeMilliseconds = stopwatch.ElapsedMilliseconds;
-			string? ruleError = null;
-			string? ruleAfter = {{CSharpLiteral.String(runRuleAfter)}};
-			if (ruleAfter is not null)
-			{
-				try { automation!.RunRule(document, ruleAfter); document.Update(); }
-				catch (Exception exception) { ruleError = exception.Message; }
-			}
-
 			string json = System.Text.Json.JsonSerializer.Serialize(new
 			{
 				document = document.FullFileName.Length > 0 ? document.FullFileName : document.DisplayName,
+				transaction = "MCP: Set Parameters",
 				results,
 				rulesSuppressed = rulesWereEnabled is not null,
 				rulesEnabledNow = automation is null ? (bool?)null : (bool)automation.RulesEnabled,

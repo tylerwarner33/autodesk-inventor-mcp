@@ -55,6 +55,7 @@ internal static partial class InventorTool
 		  SetILogicRuleText(document, name, text) and RunILogicRule(document, name) take any document type.
 		- ToInches, FromInches, ToMillimetres, FromMillimetres (from and to centimetres), ToDegrees, FromDegrees.
 		- TryGetUserParameter(document, name, out UserParameter parameter).
+		- InTransaction(document, name, () => { ... }) runs the action as one Undo step on that document, and aborts the step if the action throws.
 		- StartDeadline(seconds = 8) returns a guard for a loop: if (deadline.Passed) break;
 		""")]
 	public static Task<object> EvaluateCSharpAsync(
