@@ -9,11 +9,11 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 ## [0.4.5] - 2026-11-16
 
 ### Changed
-- The build uses the .NET 10 SDK that `global.json` gives, not the newest SDK on the machine. Dependabot updates the SDK version.
+- The build uses the .NET 10 SDK that `global.json` gives, not the newest SDK on the machine. Dependabot updates the SDK version. ([PR #31](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/31))
 
 ### Fixed
-- The tools that parse the JSON result of a snippet (ex. `inventor_styles`) release the buffer of the parser.
-- The build no longer fails with CA2026 on a machine that has the .NET 11 SDK.
+- The tools that parse the JSON result of a snippet (ex. `inventor_styles`) release the buffer of the parser. ([PR #31](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/31))
+- The build no longer fails with CA2026 on a machine that has the .NET 11 SDK. ([PR #31](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/31))
 
 ## [0.4.4] - 2026-11-10
 
