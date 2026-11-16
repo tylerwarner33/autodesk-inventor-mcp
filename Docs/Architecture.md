@@ -692,7 +692,11 @@ Code execution inside a CAD process is the most dangerous capability here, and i
 	hint or a parameter is the public API of the server.
 - A result that reports a failure has `isError`. The tools still return a failure as a normal payload with a code and
 	a message, so a model can read it. `ToolPipeline.MarkFailure` sets the flag in one place, for a top level `error`
-	and for code that did not succeed.
+	and for code that did not succeed. Four pairs of tool and code answer the question of the tool, so they are not
+	failures: `inventor-not-running` from `inventor_session` and `inventor_dialogs`, and
+	`inventor-starting-or-no-bridge` and `version-required` from `inventor_start`. A batch with some failed items is not
+	a failure either, because a flag on a partial result invites a repeat of the whole batch, and a parameter write is
+	not idempotent. `inventor_set_parameters` adds `error: "no-parameter-set"` only when no item succeeded.
 - `INVENTORMCP_TOOLS=read-only` removes each tool that has no `readOnlyHint`, apart from the two that select and start
 	a session. `INVENTORMCP_CONFIRM_RISKY_CALLS=true` asks the user, through elicitation, before a call that removes
 	the guard for unsaved changes, answers a dialog or closes documents. The question shows the tool name and fixed
