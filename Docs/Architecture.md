@@ -690,6 +690,9 @@ Code execution inside a CAD process is the most dangerous capability here, and i
 	specification reads a tool as destructive and open to the world, so a client asks more than necessary for a read,
 	and cannot tell a read from a write. `ToolPipelineTests` compares the tool list with a snapshot, because a name, a
 	hint or a parameter is the public API of the server.
+	A tool that writes also sets `idempotentHint`, and `EveryToolSaysWhatItCanChange` enforces it. A parameter write is
+	not idempotent, because a write can run iLogic rules again. `inventor_ilogic_rule_get` is not read-only, because
+	`outputFolder` makes it write files, and a client can run a read-only tool with no approval.
 - A result that reports a failure has `isError`. The tools still return a failure as a normal payload with a code and
 	a message, so a model can read it. `ToolPipeline.MarkFailure` sets the flag in one place, for a top level `error`
 	and for code that did not succeed.

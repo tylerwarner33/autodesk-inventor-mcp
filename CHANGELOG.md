@@ -6,6 +6,11 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.8] - 2026-11-16
+
+### Changed
+- Each tool that writes now says if a second call with the same arguments gives the same result (`idempotentHint`). Closing documents, setting an iProperty, rebuilding a document and reading a rule are idempotent. Parameter writes, rule writes, auto balloon, dialog clicks, test copies and the code execution tools are not.
+
 ## [0.4.7] - 2026-11-16
 
 ### Changed
