@@ -6,6 +6,15 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.5] - 2026-11-16
+
+### Changed
+- The build uses the .NET 10 SDK that `global.json` gives, not the newest SDK on the machine. Dependabot updates the SDK version.
+
+### Fixed
+- The tools that parse the JSON result of a snippet (ex. `inventor_styles`) release the buffer of the parser.
+- The build no longer fails with CA2026 on a machine that has the .NET 11 SDK.
+
 ## [0.4.4] - 2026-11-10
 
 ### Changed
