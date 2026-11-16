@@ -19,6 +19,10 @@ updates:
       # The MCP library changes its telemetry and its experimental APIs between versions, so it is updated by hand.
       # See .agents/rules/telemetry.md, "A library update".
       - dependency-name: ModelContextProtocol*
+      # The projects target net10.0, so the Microsoft.Extensions packages stay on version 10 until the target moves.
+      # A version 11 package is for .NET 11. Change this rule when the projects target a newer framework.
+      - dependency-name: Microsoft.Extensions.*
+        update-types: ["version-update:semver-major"]
 
   # Updates the SDK version in global.json. A new SDK brings new analyzer rules, and each one is a build error, so a
   # new SDK must come as a pull request. See Docs/Architecture.md, "The build enforces the code rules".
@@ -26,6 +30,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # The projects target net10.0 and global.json pins the .NET 10 SDK, so a new SDK major version is not wanted.
+      # Change this rule in the same pull request that moves the target framework.
+      - dependency-name: dotnet-sdk
+        update-types: ["version-update:semver-major"]
 
   # Keeps the commit of each action in the workflows up to date. The actions are pinned to a commit, not to a tag,
   # because a tag can move to other code.
