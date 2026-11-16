@@ -698,7 +698,15 @@ Code execution inside a CAD process is the most dangerous capability here, and i
 	the guard for unsaved changes, answers a dialog or closes documents. The question shows the tool name and fixed
 	text only, never an argument. Both are read one time at start, and a value that is not known selects the stricter
 	setting. They are a limit on the model, not a sandbox.
-- The text of an execution result is cut at 60,000 characters for the return value and for the output, in the server.
+- The text of an execution result is cut in the server, at 40,000 characters for the output lines and the return
+	value together, and at 10,000 for a result that failed. The text keeps its start (70 %) and its end (30 %),
+	because a snippet writes its summary last, with one marker line between them. Claude Code moves a text result
+	above 50,000 characters to a file, and keeps only the first and the last 5,000 characters of an error result above
+	about 11,000, so both limits are below those numbers. No number was found for the other clients.
+	The audit log keeps the snippet and one result line, not the output. So the cut text goes to
+	`%LOCALAPPDATA%\InventorMcp\Results` first, and the marker names the file: a second run would repeat a write.
+	The server deletes a file after 14 days, the same age as the server logs. `inventor_assembly_tree` uses the same
+	40,000 characters. The list tools have no paging, because no measured result of them was over a client limit.
 - `inventor_test_copy` sends its script to Windows PowerShell through standard input, so no script file exists that
 	another process can change before it runs.
 

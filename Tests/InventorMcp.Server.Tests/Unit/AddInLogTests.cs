@@ -125,45 +125,4 @@ public sealed class AddInLogTests
 		// Only the first line of the entry is a separator.
 		Assert.Equal(1, entry.Split('\n').Count(line => line.Trim() == separator));
 	}
-
-	[Fact]
-	public void ResultInsideTheLimitIsNotChanged()
-	{
-		ExecutionResult execution = Result("value", ["one", "two"]);
-
-		Assert.Same(execution, OutputLimit.Apply(execution, maxCharacters: 10));
-	}
-
-	[Fact]
-	public void LongReturnValueIsCutAndTheResultSaysSo()
-	{
-		ExecutionResult limited = OutputLimit.Apply(Result(new string('a', 25), ["line"]), maxCharacters: 10);
-
-		Assert.Equal(new string('a', 10), limited.ReturnValue);
-		Assert.Equal("line", limited.Output[0]);
-		Assert.StartsWith("TRUNCATED: the return value had 25 characters", limited.Output[1], StringComparison.Ordinal);
-	}
-
-	[Fact]
-	public void LongOutputIsCutAndTheResultSaysHowMuch()
-	{
-		ExecutionResult limited = OutputLimit.Apply(Result(null, ["12345", "678901234", "x", "y"]), maxCharacters: 10);
-
-		Assert.Equal(["12345", "67890"], limited.Output.Take(2));
-		Assert.StartsWith("TRUNCATED: the output had 16 characters in 4 lines", limited.Output[2], StringComparison.Ordinal);
-		Assert.Contains("(2 lines left out)", limited.Output[2], StringComparison.Ordinal);
-		Assert.Equal(3, limited.Output.Count);
-	}
-
-	[Fact]
-	public void CutNeverSplitsASurrogatePair()
-	{
-		// The tenth character is the first half of a pair.
-		ExecutionResult limited = OutputLimit.Apply(Result(new string('a', 9) + "\U0001F600tail", []), maxCharacters: 10);
-
-		Assert.Equal(new string('a', 9), limited.ReturnValue);
-	}
-
-	private static ExecutionResult Result(string? returnValue, IReadOnlyList<string> output) =>
-		new(true, returnValue, returnValue is null ? null : "System.String", output, [], null, null, 5);
 }
