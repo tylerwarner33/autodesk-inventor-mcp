@@ -6,7 +6,7 @@
 	<ItemGroup>
 		<PackageVersion Include="Interop.UIAutomationClient" Version="10.19041.0" />
 		<PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.14.0" />
-		<PackageVersion Include="Microsoft.Extensions.Hosting" Version="11.0.0" />
+		<PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
 		<PackageVersion Include="ModelContextProtocol" Version="2.4.0" />
 		<PackageVersion Include="ModelContextProtocol.Extensions.Skills" Version="2.4.0" />
 		<PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
@@ -27,7 +27,7 @@
 
 	<!-- Tests only. -->
 	<ItemGroup>
-		<PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="11.0.0" />
+		<PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
 		<PackageVersion Include="xunit.v3" Version="4.0.3" />
 	</ItemGroup>
 </Project>
