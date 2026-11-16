@@ -11,6 +11,7 @@ on:
       - Source/InventorMcp.Server/Telemetry/**
       - Source/InventorMcp.Server/Program.cs
       - Directory.Packages.props
+      - global.json
       - .github/workflows/telemetry-stack.yml
   push:
     branches: [master]

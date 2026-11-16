@@ -60,7 +60,7 @@ public sealed class StyleDiffTests
 	}
 
 	private static JsonElement Compare(string first, string second) =>
-		JsonSerializer.SerializeToElement(StyleDiff.Compare(JsonDocument.Parse(first).RootElement, JsonDocument.Parse(second).RootElement));
+		JsonSerializer.SerializeToElement(StyleDiff.Compare(JsonElement.Parse(first), JsonElement.Parse(second)));
 
 	private static string Styles(string document, string standard, params string[] styles) =>
 		$$"""{"document":"{{document}}","standard":"{{standard}}","styles":[{{string.Join(",", styles)}}]}""";
