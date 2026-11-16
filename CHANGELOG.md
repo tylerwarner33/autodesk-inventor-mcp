@@ -6,6 +6,16 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.5] - 2026-11-16
+
+### Changed
+- Update the NuGet package `Meziantou.Analyzer` from 3.0.322 to 3.0.341. ([PR #30](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/30))
+- Update the NuGet package `Microsoft.Extensions.Hosting` from 10.0.14 to 11.0.0. ([PR #30](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/30))
+- Update the NuGet package `Microsoft.Extensions.TimeProvider.Testing` from 10.11.0 to 11.0.0. ([PR #30](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/30))
+- Update the NuGet package `OpenTelemetry.Exporter.OpenTelemetryProtocol` from 1.20.1 to 1.21.0. ([PR #30](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/30))
+- Update the NuGet package `OpenTelemetry.Extensions.Hosting` from 1.20.1 to 1.21.0. ([PR #30](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/30))
+- Update the NuGet package `SonarAnalyzer.CSharp` from 10.35.0.4138 to 10.36.0.15337. ([PR #30](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/30))
+
 ## [0.4.4] - 2026-11-10
 
 ### Changed
