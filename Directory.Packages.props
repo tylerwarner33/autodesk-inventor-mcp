@@ -9,8 +9,8 @@
 		<PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
 		<PackageVersion Include="ModelContextProtocol" Version="2.4.0" />
 		<PackageVersion Include="ModelContextProtocol.Extensions.Skills" Version="2.4.0" />
-		<PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.1" />
-		<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
+		<PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
+		<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
 		<PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
 		<PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
 	</ItemGroup>
@@ -20,9 +20,9 @@
 		which matters for the add-in loader. xunit.v3 brings xunit.analyzers itself.
 	-->
 	<ItemGroup>
-		<GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.322" />
+		<GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.341" />
 		<GlobalPackageReference Include="Roslynator.Analyzers" Version="5.0.1" />
-		<GlobalPackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" />
+		<GlobalPackageReference Include="SonarAnalyzer.CSharp" Version="10.36.0.15337" />
 	</ItemGroup>
 
 	<!-- Tests only. -->
