@@ -13,7 +13,7 @@ flowchart LR
     inventor["<b>Inventor.exe</b><br/>2025, 2026, 2027"]
 
     client -- stdio --> server
-    server -- "named pipe<br/>InventorMcp.Bridge.#lt;year#gt;" --> addin
+    server -- "named pipe<br/>InventorMcp.Bridge.v3.#lt;year#gt;.#lt;process#gt;" --> addin
     addin -- "COM, main thread" --> inventor
 ```
 
@@ -50,11 +50,30 @@ A loopback TCP port is reachable by every process and every logged on user unles
 
 That matters here because the endpoint can execute arbitrary code inside the CAD process.
 
-The pipe name is fixed for a release (`InventorMcp.Bridge.<year>`, ex. `InventorMcp.Bridge.2026`), so the server
-connects with no discovery step. Inventor 2025, 2026 and 2027 can run at the same time, each with its own pipe.
-A second Inventor of the same release cannot claim its pipe, and logs the conflict rather than competing.
-The add-in reads the release from `Application.SoftwareVersion`, not from a build constant, so a wrong build input
-cannot give a pipe name that does not match the process.
+The pipe name has the protocol version, the release and the process id:
+`InventorMcp.Bridge.v<protocol>.<year>.<process id>`, ex. `InventorMcp.Bridge.v3.2026.12345`. Inventor 2025, 2026 and
+2027 can run at the same time, and so can two Inventor processes of one release: each has its own pipe. The server
+learns the protocol version, the release and the process from the pipe list, with no connect and no first message.
+A first message is not possible anyway, because a dialog at the start of Inventor can block it (see "The server waits
+for Inventor, not the model"). The add-in reads the release from `Application.SoftwareVersion`, not from a build
+constant, so a wrong build input cannot give a pipe name that does not match the process.
+
+Three decisions about the pipe, from `Docs/Research/Task-Analysis.md`, "Bridge pipe options", and probes on
+Windows 11 with .NET 10:
+
+- **A pipe for each process, not one for each release.** Before, two processes of one release served one name: the
+  second process added instances with no error (the ACL gives the user `CreateNewInstance`), a client got the instance
+  that had listened for the longest time, and `GetNamedPipeServerProcessId` gave the first process for both. So the
+  servers were spread over both Inventors in an order that nobody controlled, and the host check and the dialog watch
+  could look at the wrong process. A name with the process id removes the case. The discovery step that this needs was
+  already paid, because the server lists the pipes to find the releases.
+- **`FirstPipeInstance` on the first instance.** It makes the create fail when the name exists, so a program that took
+  the name of a process cannot become its listener. It protects only the call that has it. A different Windows user
+  cannot hold the name, because it has the id of this process.
+- **A deny entry for the `NETWORK` SID (S-1-5-2).** .NET never sets `PIPE_REJECT_REMOTE_CLIENTS`, and
+  `PipeOptions.CurrentUserOnly` cannot be used with an explicit `PipeSecurity`. A network logon has this SID in its
+  token and an interactive logon has not. A client from another computer needs the credentials of the user, so this is
+  a second barrier and not the first.
 
 The add-in serves up to 16 connections (`MaxPipeInstances`), one for each server. Each MCP client starts its own
 server and Claude Desktop starts two, so four clients already made six to seven servers. The ACL admits only the
@@ -95,14 +114,33 @@ Which release a server uses (`ReleaseSelection`), in order:
 
 1. The release the session chose with `inventor_use_release` or `inventor_start`.
 2. `INVENTORMCP_RELEASE` in the `env` of the MCP entry.
-3. The release pipes that exist now. One pipe is used. More than one gives `release-required`.
+3. The release pipes that exist now. One release is used. More than one gives `release-required`.
 
-A chosen release never falls back to another release. An automatic session keeps the release it connected to: if that
-release closes and a different one is then the only pipe, the call returns `release-required` and is not sent, because
-the retry after a dropped pipe could otherwise repeat a write in the other release. Each Claude session has its own server process, so one session
-cannot change the release of another. The release is not a parameter of every tool, because about 50 tools would
-each carry it in every call. Not selected: a pipe for each process ID (it would also allow two Inventors of one
-release, but needs a discovery step), and a broker process (a third process and a new failure point).
+Within a release, one process is used. Two processes of the release give `instance-required` with the process ids,
+and `inventor_use_release` with a `processId` chooses one. `inventor_session` lists the processes.
+
+A chosen release never falls back to another release, and a session never moves to another process unasked. An
+automatic session keeps the release it connected to: if that release closes and a different one is then the only pipe,
+the call returns `release-required` and is not sent. A session also keeps the process it connected to: if that process
+closes and another process of the release runs, the call returns `instance-required` and is not sent. The reason is the
+same in both cases: the retry after a dropped pipe sends the same request again, and it must not repeat a write in
+other documents. After the connect, the process id in the name is compared with `GetNamedPipeServerProcessId`, and a
+different id refuses the pipe with `untrusted-bridge-host`. Each Claude session has its own server process, so one
+session cannot change the release of another. The release is not a parameter of every tool, because about 50 tools
+would each carry it in every call. Not selected: a broker process (a third process and a new failure point).
+
+Only the pipes in the Windows session of the server count, because an Inventor of another session cannot be the one
+that this user means.
+
+A name of another protocol version gives a message and not a connect. A pipe of protocol 2 or 1 (`InventorMcp.Bridge.<year>`
+or `InventorMcp.Bridge`) gives `bridge-outdated`, and a name with a higher version gives `version-mismatch`, which tells
+the user to restart the MCP client so it starts the new server. A session that started before the update keeps its old
+server, which looks for the old name, finds none and reports `inventor-not-running`; a restart of the client corrects it.
+A second pipe with the old name that answers "restart the client" was not selected: more add-in code for a case that
+ends with the next restart.
+
+Changed on 2026-11-16 (protocol version 3): the pipe name has the protocol version and the process id, as described
+above. A new add-in is needed for each release, and Inventor must restart to load it.
 
 Changed on 2026-10-05 (protocol version 2): the pipe was one fixed name, `InventorMcp.Bridge`, so only one Inventor
 on the machine could host the bridge. A new server with an old add-in finds only the old name, and returns
@@ -432,8 +470,9 @@ One bundle holds every release. Each manifest carries `SupportedSoftwareVersionE
 reads all three and loads only its own. `PackageContents.xml` is not needed: Inventor discovers `.addin` manifests
 under `ApplicationPlugins` directly, as Autodesk's own Vault bundles do.
 
-The server does not search for a session. Each release has its own pipe name, and the server connects to the pipe of
-the selected release (see "A named pipe rather than a local HTTP port"). The handshake reports the release year.
+The server does not search for a session. Each Inventor process has its own pipe name, and the server connects to the
+pipe of the selected release and process (see "A named pipe rather than a local HTTP port"). The handshake reports the
+release year.
 
 **Inventor 2023 and 2024 are out of scope.** They run on .NET Framework 4.8, which has no `AssemblyLoadContext`.
 One `AppDomain` binds one version of each assembly name, so iLogic's Roslyn and the execution tools' Roslyn cannot

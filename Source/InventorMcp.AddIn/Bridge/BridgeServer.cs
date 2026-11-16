@@ -46,6 +46,11 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 	private bool _disposed;
 
 	/// <summary>
+	/// 	True after the first instance of the pipe was created, so later instances do not ask for the first.
+	/// </summary>
+	private bool _claimed;
+
+	/// <summary>
 	/// 	The name of the pipe this server listens on.
 	/// </summary>
 	public string PipeName { get; } = pipeName;
@@ -77,6 +82,9 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 
 				NamedPipeServerStream pipe = CreatePipe();
 
+				// Only the first instance claims the name. A later instance joins the name that this process owns.
+				_claimed = true;
+
 				await pipe.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
 
 				connections.Add(Task.Run(() => ServeConnectionAsync(pipe, cancellationToken), CancellationToken.None));
@@ -102,8 +110,9 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 			}
 			catch (UnauthorizedAccessException exception)
 			{
-				// Another Inventor of this release already owns the pipe name. Stop rather than spin.
-				_log($"Could not claim the pipe '{PipeName}'. Another Inventor of the same release is probably hosting the bridge. {exception.Message}");
+				// The name has the id of this process, so another process holds it only when it is not an Inventor of this
+				// user (a different Windows user, or a program that took the name). Stop rather than spin.
+				_log($"Could not claim the pipe '{PipeName}'. The name has the id of this process, so another process holds it and is not this user's Inventor. {exception.Message}");
 				return;
 			}
 		}
@@ -118,12 +127,18 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 
 		security.AddAccessRule(new PipeAccessRule(currentUser, PipeAccessRights.FullControl, AccessControlType.Allow));
 
+		// .NET never sets PIPE_REJECT_REMOTE_CLIENTS. A network logon has the NETWORK SID in its token and an interactive
+		// logon has not, so a deny entry blocks a client from another computer. A remote client also needs the
+		// credentials of this user, so this is a second barrier and not the first.
+		security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.NetworkSid, null), PipeAccessRights.FullControl, AccessControlType.Deny));
+
 		return NamedPipeServerStreamAcl.Create(
 			PipeName,
 			PipeDirection.InOut,
 			MaxPipeInstances,
 			PipeTransmissionMode.Byte,
-			PipeOptions.Asynchronous,
+			// FirstPipeInstance makes the create fail when the name exists. It protects only the call that has it.
+			_claimed ? PipeOptions.Asynchronous : PipeOptions.Asynchronous | PipeOptions.FirstPipeInstance,
 			inBufferSize: 0,
 			outBufferSize: 0,
 			security);

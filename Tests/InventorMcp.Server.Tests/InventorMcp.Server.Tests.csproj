@@ -23,7 +23,9 @@
 		Keep the list to files that reference nothing else of the add-in.
 	-->
 	<ItemGroup>
+		<Compile Include="..\..\Source\InventorMcp.AddIn\Bridge\BridgeServer.cs" Link="AddIn\BridgeServer.cs" />
 		<Compile Include="..\..\Source\InventorMcp.AddIn\Bridge\LogThrottle.cs" Link="AddIn\LogThrottle.cs" />
+		<Compile Include="..\..\Source\InventorMcp.AddIn\Bridge\OperationDispatcher.cs" Link="AddIn\OperationDispatcher.cs" />
 		<Compile Include="..\..\Source\InventorMcp.AddIn\Operations\ReturnValueText.cs" Link="AddIn\ReturnValueText.cs" />
 		<Compile Include="..\..\Source\InventorMcp.AddIn\Operations\SnippetAudit.cs" Link="AddIn\SnippetAudit.cs" />
 		<Compile Include="..\..\Source\InventorMcp.AddIn\RollingFile.cs" Link="AddIn\RollingFile.cs" />

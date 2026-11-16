@@ -67,4 +67,5 @@ public static class BridgeErrorCodes
 	public const string BridgeOutdated = "bridge-outdated";
 	public const string UntrustedHost = "untrusted-bridge-host";
 	public const string ConnectionsInUse = "bridge-connections-in-use";
+	public const string InstanceRequired = "instance-required";
 }

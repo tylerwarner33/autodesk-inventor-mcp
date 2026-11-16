@@ -129,7 +129,7 @@ internal static partial class InventorTool
 				return (object)new
 				{
 					session,
-					release = new { selection = selection.Source, chosen = selection.Chosen, running = selection.RunningReleases() },
+					release = new { selection = selection.Source, chosen = selection.Chosen, chosenProcessId = selection.ChosenProcessId, running = selection.RunningReleases(), instances = selection.RunningInstances().Select(static instance => new { release = instance.ReleaseYear, processId = instance.ProcessId }) },
 					state
 				};
 			}),

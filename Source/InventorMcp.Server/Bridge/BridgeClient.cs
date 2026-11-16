@@ -157,6 +157,15 @@ internal sealed partial class BridgeClient(
 	/// </remarks>
 	private int? _automaticRelease;
 
+	/// <summary>
+	/// 	The Inventor process that this session connected to, so a reconnect goes to this process only.
+	/// </summary>
+	/// <remarks>
+	/// 	The retry after a dropped pipe sends the same request again. With two Inventor processes of one release, a
+	/// 	different process would run that request on other documents. Cleared when the selection changes.
+	/// </remarks>
+	private int? _lockedProcess;
+
 	private NamedPipeClientStream? _pipe;
 	private StreamReader? _reader;
 	private StreamWriter? _writer;
@@ -572,17 +581,21 @@ internal sealed partial class BridgeClient(
 		await CloseAsync().ConfigureAwait(false);
 
 		if (_connectedGeneration != _selection.Generation)
+		{
 			_automaticRelease = null;
+			_lockedProcess = null;
+		}
 
 		_connectedGeneration = _selection.Generation;
 
-		PipeResolution resolution = _selection.Resolve();
+		PipeResolution resolution = _selection.Resolve(_lockedProcess);
 
 		if (resolution.PipeName is not string pipeName)
 		{
+			// A NotRunning resolution with no message means that no pipe exists, so the machine is examined for the cause.
 			throw new InventorBridgeException(
 				resolution.ErrorCode!,
-				resolution.ErrorCode == BridgeErrorCodes.NotRunning ? Diagnose(_automaticRelease, pipeExists: false).Message : resolution.Message!);
+				resolution.Message ?? Diagnose(resolution.ReleaseYear ?? _automaticRelease, pipeExists: false).Message);
 		}
 
 		// The release this session used closed, and a different one is the only pipe now. The documents differ, so a call
@@ -609,7 +622,7 @@ internal sealed partial class BridgeClient(
 			// The same exception means a full pipe or no pipe, so the machine is examined now, after the wait: the pipe can
 			// appear during it. Only a full pipe has its own code. The other causes keep NotRunning, because inventor_start
 			// and inventor_session with waitSeconds poll on it while Inventor loads.
-			bool pipeExists = resolution.ReleaseYear is int pipeRelease && _selection.PipeExists(pipeRelease);
+			bool pipeExists = _selection.PipeExists(pipeName);
 			(string code, string message) = Diagnose(resolution.ReleaseYear, pipeExists);
 
 			LogConnectTimedOut(pipeName, code);
@@ -636,8 +649,11 @@ internal sealed partial class BridgeClient(
 
 		// Every request, and every dialog read and click, goes to this process, so it must be this user's Inventor.
 		// See PipeHost.
+		// The name has the id of the process that created the pipe. A different id means that a program took the name.
 		string? refusal = GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint processId)
-			? _checkHost((int)processId)
+			? resolution.ProcessId is int expected && expected != (int)processId
+				? $"The name of the pipe has the process id {expected}, but the process that hosts it has the id {processId}."
+				: _checkHost((int)processId)
 			: "Windows did not give the process that hosts the pipe.";
 
 		if (refusal is not null)
@@ -656,6 +672,8 @@ internal sealed partial class BridgeClient(
 
 		if (_selection.Chosen is null)
 			_automaticRelease = resolution.ReleaseYear;
+
+		_lockedProcess = (int)processId;
 		_reader = new StreamReader(pipe, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: false, leaveOpen: true);
 		_writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
 		InventorProcessId = (int)processId;

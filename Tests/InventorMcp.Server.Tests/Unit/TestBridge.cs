@@ -32,7 +32,7 @@ internal sealed class TestPipeServer(int? releaseYear = 2025, string? prefix = n
 
 	public string Prefix { get; } = prefix ?? $"InventorMcp.Test.{Guid.NewGuid():N}";
 
-	public string PipeName => releaseYear is int year ? $"{Prefix}.{year}" : Prefix;
+	public string PipeName => releaseYear is int year ? BridgeProtocol.PipeNameFor(year, Environment.ProcessId, Prefix) : Prefix;
 
 	/// <summary>
 	/// 	Creates the pipe now, so that it exists before the client looks for it.

@@ -121,10 +121,10 @@ public sealed class ConnectionDiagnosisTests
 	[Fact]
 	public void AReleaseSelectionTellsIfThePipeExistsFromTheListAlone()
 	{
-		ReleaseSelection selection = new("Prefix", environmentValue: string.Empty, listPipes: static () => ["prefix.2025"]);
+		ReleaseSelection selection = new("Prefix", environmentValue: string.Empty, listPipes: static () => ["prefix.v3.2025.100"]);
 
-		Assert.True(selection.PipeExists(2025));
-		Assert.False(selection.PipeExists(2026));
+		Assert.True(selection.PipeExists("prefix.v3.2025.100"));
+		Assert.False(selection.PipeExists("prefix.v3.2026.100"));
 	}
 
 	[Fact]

@@ -33,10 +33,17 @@ internal static class LiveInventor
 	/// <param name="releaseYear">
 	/// 	The release to use. Null follows <c>INVENTORMCP_RELEASE</c>, and then the one running release.
 	/// </param>
-	public static BridgeClient CreateClient(int? releaseYear = null)
+	/// <param name="processId">
+	/// 	The Inventor process to use, when more than one Inventor of the release runs. Needs a release.
+	/// </param>
+	public static BridgeClient CreateClient(int? releaseYear = null, int? processId = null)
 	{
 		ReleaseSelection selection = new();
-		selection.Choose(releaseYear);
+
+		if (releaseYear is int year && processId is int process)
+			selection.ChooseProcess(year, process);
+		else
+			selection.Choose(releaseYear);
 
 		return new BridgeClient(new TestOutputLogger<BridgeClient>(), new BlockingDialogs(), TimeProvider.System, selection);
 	}

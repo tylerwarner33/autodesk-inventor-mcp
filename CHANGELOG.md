@@ -6,6 +6,21 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [1.0.0] - 2026-11-16
+
+### Breaking
+- The add-in and the server use bridge protocol version 3. Close Inventor, build and deploy the add-in again for each release (see the README), start Inventor, and restart the MCP client. A new add-in with an old server, or an old add-in with a new server, does not connect: the old server reports `inventor-not-running`, and the new server reports `bridge-outdated`.
+- The pipe name is now `InventorMcp.Bridge.v3.<year>.<process id>`, one for each Inventor process, in place of one for each release.
+
+### Added
+- A second Inventor process of the same release now has its own bridge. When two run, a tool returns `instance-required` with the process ids, and `inventor_use_release` takes a `processId` to choose one. `inventor_session` lists the processes. A session keeps its process, and never moves to another one on its own.
+- `version-mismatch` tells the user to restart the MCP client when an add-in is newer than the server.
+
+### Changed
+- The bridge pipe refuses a client from another computer (a deny entry for the `NETWORK` SID), and only the first instance can claim the name.
+- After a connect, the server compares the process id in the pipe name with the process that hosts the pipe. A different id refuses the pipe with `untrusted-bridge-host`.
+- `bridge-outdated` now also covers a pipe of protocol version 2.
+
 ## [0.4.8] - 2026-11-16
 
 ### Changed
