@@ -51,6 +51,16 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 	private bool _claimed;
 
 	/// <summary>
+	/// 	The failed claims of the name so far.
+	/// </summary>
+	private int _claimAttempts;
+
+	/// <summary>
+	/// 	The claims of the name before the server stops, one <see cref="_acceptRetryDelay"/> apart.
+	/// </summary>
+	private const int MaxClaimAttempts = 5;
+
+	/// <summary>
 	/// 	The name of the pipe this server listens on.
 	/// </summary>
 	public string PipeName { get; } = pipeName;
@@ -110,8 +120,26 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 			}
 			catch (UnauthorizedAccessException exception)
 			{
-				// The name has the id of this process, so another process holds it only when it is not an Inventor of this
-				// user (a different Windows user, or a program that took the name). Stop rather than spin.
+				// The name has the id of this process. After an unload and a load of the add-in in this process, a connection
+				// of the old server can still hold the name for a moment, so the claim is tried again a few times.
+				// After that, another process holds it and is not an Inventor of this user (a different Windows user, or a
+				// program that took the name). Stop rather than spin.
+				if (_claimed is false && ++_claimAttempts < MaxClaimAttempts)
+				{
+					_log($"Could not claim the pipe '{PipeName}' (attempt {_claimAttempts} of {MaxClaimAttempts}). Trying again. {exception.Message}");
+
+					try
+					{
+						await Task.Delay(_acceptRetryDelay, cancellationToken).ConfigureAwait(false);
+					}
+					catch (OperationCanceledException)
+					{
+						return;
+					}
+
+					continue;
+				}
+
 				_log($"Could not claim the pipe '{PipeName}'. The name has the id of this process, so another process holds it and is not this user's Inventor. {exception.Message}");
 				return;
 			}

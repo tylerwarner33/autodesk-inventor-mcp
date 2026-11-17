@@ -455,9 +455,10 @@ A chosen release never falls back to another release. If its Inventor is closed,
 and names the release.
 
 Two Inventor processes of one release each have their own bridge. A tool then returns `instance-required` with the
-process ids, and Claude asks you which Inventor to use, then calls `inventor_use_release` with the release and the
-`processId`. A session never moves to another process on its own, because the retry of a write after a dropped
-connection could then change other documents.
+id, the start time and the window title of each process, and Claude asks you which Inventor to use, then calls
+`inventor_use_release` with the release and the `processId`. The retry of a call after a dropped connection never goes
+to another process, because it could then change other documents. After you restart Inventor, the next call uses the
+new process when it is the only one.
 
 | Error | Meaning |
 | --- | --- |

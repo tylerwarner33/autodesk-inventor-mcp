@@ -163,8 +163,15 @@ internal sealed partial class BridgeClient(
 	/// <remarks>
 	/// 	The retry after a dropped pipe sends the same request again. With two Inventor processes of one release, a
 	/// 	different process would run that request on other documents. Cleared when the selection changes.
+	/// 	A new call goes on to the only process that is left (see <see cref="ReleaseSelection.Resolve"/>), so a restart of
+	/// 	Inventor needs no choice.
 	/// </remarks>
 	private int? _lockedProcess;
+
+	/// <summary>
+	/// 	True while the request of a call is sent again after a dropped pipe.
+	/// </summary>
+	private bool _retrying;
 
 	private NamedPipeClientStream? _pipe;
 	private StreamReader? _reader;
@@ -236,7 +243,16 @@ internal sealed partial class BridgeClient(
 
 				await CloseAsync().ConfigureAwait(false);
 
-				result = await SendAsync<TResult>(operation, payload, cancellationToken).ConfigureAwait(false);
+				_retrying = true;
+
+				try
+				{
+					result = await SendAsync<TResult>(operation, payload, cancellationToken).ConfigureAwait(false);
+				}
+				finally
+				{
+					_retrying = false;
+				}
 			}
 
 			if (result is Contracts.Models.SessionInfo session)
@@ -588,7 +604,7 @@ internal sealed partial class BridgeClient(
 
 		_connectedGeneration = _selection.Generation;
 
-		PipeResolution resolution = _selection.Resolve(_lockedProcess);
+		PipeResolution resolution = _selection.Resolve(_lockedProcess, _retrying);
 
 		if (resolution.PipeName is not string pipeName)
 		{
@@ -631,14 +647,16 @@ internal sealed partial class BridgeClient(
 		}
 		catch (UnauthorizedAccessException exception)
 		{
-			// The ACL of the pipe refuses this account at once, ex. the pipe of a different Windows user. A retry cannot help.
+			// The ACL of the pipe refuses this account at once: the pipe of a different Windows user, or a server with a
+			// network logon (ex. started through SSH or WinRM), which the add-in denies. A retry cannot help.
 			await pipe.DisposeAsync().ConfigureAwait(false);
 			LogPipeRefused(pipeName, exception.Message);
 
 			throw new InventorBridgeException(
 				BridgeErrorCodes.UntrustedHost,
-				$"The MCP bridge pipe '{pipeName}' refused this Windows account. The pipe belongs to a different Windows user. " +
-				"Tell the user. Do not retry.");
+				$"The MCP bridge pipe '{pipeName}' refused this Windows account. Either the pipe belongs to a different Windows " +
+				"user, or this server runs with a network logon (ex. through SSH or WinRM), which the add-in refuses. Start the " +
+				"MCP client in the desktop session of the user who runs Inventor. Tell the user. Do not retry.");
 		}
 		catch (OperationCanceledException)
 		{

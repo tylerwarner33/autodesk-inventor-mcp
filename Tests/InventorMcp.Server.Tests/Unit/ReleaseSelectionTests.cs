@@ -15,7 +15,7 @@ public sealed class ReleaseSelectionTests
 	private const string Prefix = "InventorMcp.Test.Selection";
 
 	private static ReleaseSelection Selection(string environmentValue = "", params string[] pipes) =>
-		new(Prefix, environmentValue, () => pipes, static _ => true);
+		new(Prefix, environmentValue, () => pipes, static _ => true, static instance => $"process {instance.ProcessId} (started test)");
 
 	private static string Pipe(int year, int processId = 100) => BridgeProtocol.PipeNameFor(year, processId, Prefix);
 
@@ -122,17 +122,53 @@ public sealed class ReleaseSelectionTests
 	}
 
 	[Fact]
-	public void ASessionKeepsItsProcessAndDoesNotMoveToAnotherOneWhenItIsGone()
+	public void TheRetryOfARequestDoesNotMoveToAnotherProcess()
 	{
 		ReleaseSelection selection = Selection(string.Empty, Pipe(2026, 222));
 
 		// The session used the process 111. Only 222 hosts a bridge now.
-		PipeResolution moved = selection.Resolve(lockedProcessId: 111);
+		PipeResolution moved = selection.Resolve(lockedProcessId: 111, retry: true);
 
 		Assert.Equal(BridgeErrorCodes.InstanceRequired, moved.ErrorCode);
 		Assert.Contains("111", moved.Message, StringComparison.Ordinal);
-		Assert.Contains("222", moved.Message, StringComparison.Ordinal);
+		Assert.Contains("process 222 (started test)", moved.Message, StringComparison.Ordinal);
+		Assert.Equal(Pipe(2026, 222), selection.Resolve(lockedProcessId: 222, retry: true).PipeName);
+	}
+
+	[Fact]
+	public void ANewCallAfterARestartUsesTheOnlyProcessThatIsLeft()
+	{
+		// The user restarted Inventor: the process 111 is gone, and the new process is 222.
+		ReleaseSelection selection = Selection(string.Empty, Pipe(2026, 222));
+
+		selection.Choose(2026);
+		PipeResolution resolution = selection.Resolve(lockedProcessId: 111);
+
+		Assert.Equal(Pipe(2026, 222), resolution.PipeName);
+		Assert.Equal(222, resolution.ProcessId);
+	}
+
+	[Fact]
+	public void ANewCallStaysOnItsProcessAndAsksWhenItIsGoneAndTwoAreLeft()
+	{
+		ReleaseSelection selection = Selection(string.Empty, Pipe(2026, 111), Pipe(2026, 222), Pipe(2026, 333));
+
 		Assert.Equal(Pipe(2026, 222), selection.Resolve(lockedProcessId: 222).PipeName);
+
+		PipeResolution gone = selection.Resolve(lockedProcessId: 444);
+
+		Assert.Equal(BridgeErrorCodes.InstanceRequired, gone.ErrorCode);
+		Assert.Contains("444", gone.Message, StringComparison.Ordinal);
+		Assert.Contains("process 333 (started test)", gone.Message, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void AProcessIsDescribedByItsStartTimeAndItsId()
+	{
+		string description = ReleaseSelection.DescribeProcess(new PipeInstance("pipe", 2026, Environment.ProcessId));
+
+		Assert.StartsWith($"process {Environment.ProcessId} (started ", description, StringComparison.Ordinal);
+		Assert.Equal("process -1", ReleaseSelection.DescribeProcess(new PipeInstance("pipe", 2026, -1)));
 	}
 
 	[Fact]

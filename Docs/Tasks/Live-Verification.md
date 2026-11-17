@@ -38,6 +38,8 @@ run finds in `Docs/Architecture.md`. Delete this document when every item is don
 	`COMException` is a defect. If rejections occur, add a retry in `BridgeClient` first, because that needs no
 	add-in rebuild.
 - [ ] The server's throttle of `All pipe instances are busy`.
+- [x] Two Inventor processes of the same release, both with the add-in.
+	- Each process has its own pipe, and the live tests show it (see `Docs/Research/Bridge-Pipe-Live-Checks.md`).
 - [ ] The `droppedEntries` counter of the activity feed, which needs more than 2000 buffered events.
 - [ ] A non-empty `errors` list from `inventor_health`.
 - [x] The server's warning on an execution result over 10 s.

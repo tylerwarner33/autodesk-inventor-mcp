@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 
@@ -63,6 +64,7 @@ internal sealed class ReleaseSelection
 	private readonly string? _environmentValue;
 	private readonly Func<IReadOnlyCollection<string>> _listPipes;
 	private readonly Func<int, bool> _inSession;
+	private readonly Func<PipeInstance, string> _describe;
 	private int? _chosen;
 	private int? _chosenProcess;
 
@@ -81,16 +83,22 @@ internal sealed class ReleaseSelection
 	/// <param name="inSession">
 	/// 	Tells if a process runs in the Windows session of this server. Null asks Windows. Only a test passes it.
 	/// </param>
+	/// <param name="describe">
+	/// 	Describes a process for the user in an error message. Null asks Windows (<see cref="DescribeProcess"/>). Only a
+	/// 	test passes it.
+	/// </param>
 	public ReleaseSelection(
 		string pipePrefix = BridgeProtocol.PipeNamePrefix,
 		string? environmentValue = null,
 		Func<IReadOnlyCollection<string>>? listPipes = null,
-		Func<int, bool>? inSession = null)
+		Func<int, bool>? inSession = null,
+		Func<PipeInstance, string>? describe = null)
 	{
 		_pipePrefix = pipePrefix;
 		_environmentValue = environmentValue ?? Environment.GetEnvironmentVariable(EnvironmentVariable);
 		_listPipes = listPipes ?? ListSystemPipes;
 		_inSession = inSession ?? ProcessInSession;
+		_describe = describe ?? DescribeProcess;
 	}
 
 	/// <summary>
@@ -185,6 +193,17 @@ internal sealed class ReleaseSelection
 	public IReadOnlyList<int> RunningReleases() => [.. RunningInstances().Select(static instance => instance.ReleaseYear).Distinct()];
 
 	/// <summary>
+	/// 	Describes a process for the user, with its start time and main window title.
+	/// </summary>
+	/// <param name="instance">
+	/// 	The process, from <see cref="RunningInstances"/>.
+	/// </param>
+	/// <returns>
+	/// 	One line of text.
+	/// </returns>
+	public string Describe(PipeInstance instance) => _describe(instance);
+
+	/// <summary>
 	/// 	Tells if a pipe exists now.
 	/// </summary>
 	/// <remarks>
@@ -203,13 +222,17 @@ internal sealed class ReleaseSelection
 	/// 	Picks the pipe to connect to.
 	/// </summary>
 	/// <param name="lockedProcessId">
-	/// 	The process that this session connected to before, or null. A reconnect goes to this process only: the retry
-	/// 	of a write after a dropped pipe must not reach a different Inventor.
+	/// 	The process that this session connected to before, or null. When it still hosts a bridge, the session stays on it.
+	/// </param>
+	/// <param name="retry">
+	/// 	True for the resend of a request after a dropped pipe. It goes to <paramref name="lockedProcessId"/> only, because
+	/// 	a write sent again must not reach a different Inventor. A new call goes on to the one process that is left, ex.
+	/// 	after the user restarted Inventor.
 	/// </param>
 	/// <returns>
 	/// 	The pipe, or the error that tells the model what to do.
 	/// </returns>
-	public PipeResolution Resolve(int? lockedProcessId = null)
+	public PipeResolution Resolve(int? lockedProcessId = null, bool retry = false)
 	{
 		if (_chosen is null && string.IsNullOrWhiteSpace(_environmentValue) is false && EnvironmentRelease is null)
 		{
@@ -261,8 +284,10 @@ internal sealed class ReleaseSelection
 		if (lockedProcessId is int locked && instances.FirstOrDefault(instance => instance.ProcessId == locked) is { } same)
 			return Found(same);
 
-		if (instances.Count == 1 && lockedProcessId is null)
+		if (instances.Count == 1 && (lockedProcessId is null || retry is false))
 			return Found(instances[0]);
+
+		string list = string.Join(", ", instances.Select(_describe));
 
 		return new PipeResolution(
 			null,
@@ -270,12 +295,40 @@ internal sealed class ReleaseSelection
 			BridgeErrorCodes.InstanceRequired,
 			lockedProcessId is int gone
 				? $"The Inventor process {gone}, which this session used, no longer hosts the MCP bridge, and this session does not " +
-					$"move to another Inventor unasked, because the documents differ. Inventor {year} still runs in the process " +
-					$"{string.Join(", ", instances.Select(static instance => instance.ProcessId))}. Ask the user which one to use, then " +
-					$"call inventor_use_release with the release {year} and that processId, or start Inventor {year} again."
-				: $"More than one Inventor {year} hosts the MCP bridge: the processes {string.Join(", ", instances.Select(static instance => instance.ProcessId))}. " +
+					$"send a request again to another Inventor, because the documents differ. Inventor {year} runs in: {list}. " +
+					$"Ask the user which one to use, then call inventor_use_release with the release {year} and that processId, " +
+					"or call the tool again to use the only one that is left."
+				: $"More than one Inventor {year} hosts the MCP bridge: {list}. " +
 					$"Ask the user which one to use, then call inventor_use_release with the release {year} and its processId. " +
 					"Do not call inventor_start.");
+	}
+
+	/// <summary>
+	/// 	Describes one process for the user, who chooses by the window title and the start time and not by the id.
+	/// </summary>
+	/// <param name="instance">
+	/// 	The process.
+	/// </param>
+	/// <returns>
+	/// 	The id, the start time and the main window title, as far as Windows gives them.
+	/// </returns>
+	internal static string DescribeProcess(PipeInstance instance)
+	{
+		try
+		{
+			using Process process = Process.GetProcessById(instance.ProcessId);
+			string started = process.StartTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+			string title = process.MainWindowTitle;
+
+			return string.IsNullOrWhiteSpace(title)
+				? string.Create(CultureInfo.InvariantCulture, $"process {instance.ProcessId} (started {started})")
+				: string.Create(CultureInfo.InvariantCulture, $"process {instance.ProcessId} (started {started}, window '{title}')");
+		}
+		catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or Win32Exception or NotSupportedException)
+		{
+			// The process ended, or this account cannot read it: the id is enough to choose.
+			return string.Create(CultureInfo.InvariantCulture, $"process {instance.ProcessId}");
+		}
 	}
 
 	private static PipeResolution Found(PipeInstance instance) => new(instance.PipeName, instance.ReleaseYear, null, null, instance.ProcessId);
@@ -330,8 +383,9 @@ internal sealed class ReleaseSelection
 		try
 		{
 			using Process process = Process.GetProcessById(processId);
+			using Process current = Process.GetCurrentProcess();
 
-			return process.SessionId == Process.GetCurrentProcess().SessionId;
+			return process.SessionId == current.SessionId;
 		}
 		catch (ArgumentException)
 		{

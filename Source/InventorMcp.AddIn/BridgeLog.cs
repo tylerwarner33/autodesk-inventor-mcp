@@ -33,10 +33,11 @@ internal static class BridgeLog
 	public static string AuditLogPath => Path.Combine(ReleaseDirectory, "executed-code.log");
 
 	/// <summary>
-	/// 	Gives each release its own log folder, so two Inventor processes never append to one file.
+	/// 	Gives each release its own log folder, so the processes of two releases never append to one file.
 	/// </summary>
 	/// <remarks>
-	/// 	The lock in this class covers one process only.
+	/// 	The lock in this class covers one process only. Two processes of one release share the folder, so each line has
+	/// 	the process id, and <see cref="RollingFile.Append"/> tries an append again when the other process has the file open.
 	/// 	Until this runs, lines go to <see cref="LogDirectory"/>, ex. a failure before the release is known.
 	/// </remarks>
 	/// <param name="releaseYear">
@@ -47,6 +48,9 @@ internal static class BridgeLog
 	/// <summary>
 	/// 	Appends one timestamped line to the add-in log.
 	/// </summary>
+	/// <remarks>
+	/// 	Two Inventor processes of one release write to the same file, so each line has the id of its process.
+	/// </remarks>
 	/// <param name="message">
 	/// 	Text to record.
 	/// </param>
@@ -60,7 +64,7 @@ internal static class BridgeLog
 
 				_ = RollingFile.Append(
 					Path.Combine(ReleaseDirectory, "addin.log"),
-					$"{DateTimeOffset.UtcNow:O}  {message}{Environment.NewLine}");
+					string.Create(CultureInfo.InvariantCulture, $"{DateTimeOffset.UtcNow:O}  [{Environment.ProcessId}]  {message}{Environment.NewLine}"));
 			}
 		}
 		catch (IOException)

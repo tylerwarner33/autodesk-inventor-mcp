@@ -69,11 +69,14 @@ Windows 11 with .NET 10:
   already paid, because the server lists the pipes to find the releases.
 - **`FirstPipeInstance` on the first instance.** It makes the create fail when the name exists, so a program that took
   the name of a process cannot become its listener. It protects only the call that has it. A different Windows user
-  cannot hold the name, because it has the id of this process.
+  cannot hold the name, because it has the id of this process. After an unload and a load of the add-in in one
+  process, a connection of the old server can still hold the name, so the claim is tried 5 times, 1 s apart, before
+  the server stops.
 - **A deny entry for the `NETWORK` SID (S-1-5-2).** .NET never sets `PIPE_REJECT_REMOTE_CLIENTS`, and
   `PipeOptions.CurrentUserOnly` cannot be used with an explicit `PipeSecurity`. A network logon has this SID in its
   token and an interactive logon has not. A client from another computer needs the credentials of the user, so this is
-  a second barrier and not the first.
+  a second barrier and not the first. A server on this computer that runs with a network logon (ex. through SSH or
+  WinRM) is refused too, and its message says so.
 
 The add-in serves up to 16 connections (`MaxPipeInstances`), one for each server. Each MCP client starts its own
 server and Claude Desktop starts two, so four clients already made six to seven servers. The ACL admits only the
@@ -116,15 +119,18 @@ Which release a server uses (`ReleaseSelection`), in order:
 2. `INVENTORMCP_RELEASE` in the `env` of the MCP entry.
 3. The release pipes that exist now. One release is used. More than one gives `release-required`.
 
-Within a release, one process is used. Two processes of the release give `instance-required` with the process ids,
-and `inventor_use_release` with a `processId` chooses one. `inventor_session` lists the processes.
+Within a release, one process is used. Two processes of the release give `instance-required` with the id, the start
+time and the main window title of each process, because a user knows an Inventor by its window and not by its id.
+`inventor_use_release` with a `processId` chooses one. `inventor_session` lists the processes.
 
-A chosen release never falls back to another release, and a session never moves to another process unasked. An
-automatic session keeps the release it connected to: if that release closes and a different one is then the only pipe,
-the call returns `release-required` and is not sent. A session also keeps the process it connected to: if that process
-closes and another process of the release runs, the call returns `instance-required` and is not sent. The reason is the
-same in both cases: the retry after a dropped pipe sends the same request again, and it must not repeat a write in
-other documents. After the connect, the process id in the name is compared with `GetNamedPipeServerProcessId`, and a
+A chosen release never falls back to another release. An automatic session keeps the release it connected to: if that
+release closes and a different one is then the only pipe, the call returns `release-required` and is not sent. A
+session also keeps the process it connected to while that process hosts a bridge. When the process is gone, the retry
+after a dropped pipe returns `instance-required` and is not sent, because it sends the same request again, and it must
+not repeat a write in other documents. A new call goes on to the only process of the release that is left, ex. after
+the user restarted Inventor, and asks only when more than one is left. A lock for every call made each restart of
+Inventor a question to the user, with one Inventor to choose. After the connect, the process id in the name is
+compared with `GetNamedPipeServerProcessId`, and a
 different id refuses the pipe with `untrusted-bridge-host`. Each Claude session has its own server process, so one
 session cannot change the release of another. The release is not a parameter of every tool, because about 50 tools
 would each carry it in every call. Not selected: a broker process (a third process and a new failure point).
@@ -140,7 +146,9 @@ A second pipe with the old name that answers "restart the client" was not select
 ends with the next restart.
 
 Changed on 2026-11-16 (protocol version 3): the pipe name has the protocol version and the process id, as described
-above. A new add-in is needed for each release, and Inventor must restart to load it.
+above. A new add-in is needed for each release, and Inventor must restart to load it. Two processes of one release
+share the log folder of the release, so each `addin.log` line has the process id in brackets, and `RollingFile`
+tries an append again (5 times, 20 ms apart) when another process has the file open.
 
 Changed on 2026-10-05 (protocol version 2): the pipe was one fixed name, `InventorMcp.Bridge`, so only one Inventor
 on the machine could host the bridge. A new server with an old add-in finds only the old name, and returns

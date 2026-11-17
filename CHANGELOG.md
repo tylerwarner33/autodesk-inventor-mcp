@@ -13,13 +13,16 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 - The pipe name is now `InventorMcp.Bridge.v3.<year>.<process id>`, one for each Inventor process, in place of one for each release.
 
 ### Added
-- A second Inventor process of the same release now has its own bridge. When two run, a tool returns `instance-required` with the process ids, and `inventor_use_release` takes a `processId` to choose one. `inventor_session` lists the processes. A session keeps its process, and never moves to another one on its own.
+- A second Inventor process of the same release now has its own bridge. When two run, a tool returns `instance-required` with the id, the start time and the window title of each process, and `inventor_use_release` takes a `processId` to choose one. `inventor_session` lists the processes with the same description. A session keeps its process while it runs. The retry of a call after a dropped connection never goes to another process. After a restart of Inventor, the next call uses the new process when it is the only one.
 - `version-mismatch` tells the user to restart the MCP client when an add-in is newer than the server.
 
 ### Changed
 - The bridge pipe refuses a client from another computer (a deny entry for the `NETWORK` SID), and only the first instance can claim the name.
 - After a connect, the server compares the process id in the pipe name with the process that hosts the pipe. A different id refuses the pipe with `untrusted-bridge-host`.
 - `bridge-outdated` now also covers a pipe of protocol version 2.
+- Each line of `addin.log` has the id of its Inventor process, because two processes of one release write to the same file. An append that finds the file open in another process is tried again, so a line is not lost.
+- After an unload and a load of the add-in in one Inventor, the bridge tries to claim its pipe name 5 times before it stops.
+- The `untrusted-bridge-host` message for a refused account also names a server that runs with a network logon (ex. through SSH or WinRM).
 
 ## [0.4.8] - 2026-11-16
 

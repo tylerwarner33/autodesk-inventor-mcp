@@ -23,8 +23,9 @@ internal static partial class InventorTool
 		and else the one release that runs.
 
 		When more than one Inventor of one release runs, each has its own bridge, and a tool returns instance-required
-		with the process ids. Call this with the version and the processId of the Inventor to use. inventor_session lists
-		the processes. The session then reaches that process only.
+		with the id, the start time and the window title of each process. Ask the user which one to use, then call this
+		with the version and its processId. inventor_session lists the processes. The session then reaches that process
+		only.
 		""")]
 	public static async Task<object> UseReleaseAsync(
 		BridgeClient bridge,
@@ -36,7 +37,7 @@ internal static partial class InventorTool
 		if (processId is int process)
 		{
 			if (version is null or 0)
-				return new { error = "invalid-arguments", message = "Give the version together with the processId.", runningInstances = selection.RunningInstances() };
+				return new { error = "invalid-arguments", message = "Give the version together with the processId.", runningInstances = Instances(selection) };
 
 			int releaseOfProcess = version.Value;
 
@@ -46,7 +47,7 @@ internal static partial class InventorTool
 				{
 					error = BridgeErrorCodes.NotFound,
 					message = $"No Inventor {releaseOfProcess} with the process id {process} hosts the MCP bridge. Nothing changed.",
-					runningInstances = selection.RunningInstances()
+					runningInstances = Instances(selection)
 				};
 			}
 
@@ -94,8 +95,20 @@ internal static partial class InventorTool
 			connectedProcessId = bridge.InventorProcessId,
 			bridgeAnswers,
 			runningReleases = selection.RunningReleases(),
-			runningInstances = selection.RunningInstances().Select(static instance => new { release = instance.ReleaseYear, processId = instance.ProcessId }),
+			runningInstances = Instances(selection),
 			problem
 		};
 	}
+
+	/// <summary>
+	/// 	The Inventor processes that host a bridge, in the shape that each tool result uses.
+	/// </summary>
+	/// <param name="selection">
+	/// 	The selection of this session.
+	/// </param>
+	/// <returns>
+	/// 	The release, the process id and a description with the start time and the window title of each process.
+	/// </returns>
+	internal static object[] Instances(ReleaseSelection selection) =>
+		[.. selection.RunningInstances().Select(instance => (object)new { release = instance.ReleaseYear, processId = instance.ProcessId, description = selection.Describe(instance) })];
 }
