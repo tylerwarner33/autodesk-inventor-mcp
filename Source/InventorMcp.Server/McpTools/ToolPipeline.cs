@@ -145,7 +145,8 @@ internal static class ToolPipeline
 	/// 	The limits from the environment.
 	/// </param>
 	/// <param name="finished">
-	/// 	Called after each call with the tool name, the release and how the session chose it, for the server log.
+	/// 	Called after each call with the tool name, the outcome (<c>ok</c>, <c>error</c> or <c>exception</c>), the release
+	/// 	and how the session chose it, for the server log.
 	/// </param>
 	/// <returns>
 	/// 	The same builder.
@@ -153,7 +154,7 @@ internal static class ToolPipeline
 	public static IMcpServerBuilder WithInventorCallFilter(
 		this IMcpServerBuilder builder,
 		SafetySettings settings,
-		Action<string?, string, string>? finished = null) =>
+		Action<string?, string, string, string>? finished = null) =>
 		builder.WithRequestFilters(filters => filters.AddCallToolFilter(next => async (context, cancellationToken) =>
 		{
 			BridgeClient bridge = context.Services!.GetRequiredService<BridgeClient>();
@@ -162,6 +163,8 @@ internal static class ToolPipeline
 			if (bridge.ClientName is null && context.Server.ClientInfo is { } client)
 				bridge.ClientName = ExecutionAuditLog.OneLine($"{client.Name} {client.Version}").Trim();
 
+			// Stays "exception" when the call throws before a result exists.
+			string outcome = "exception";
 			try
 			{
 				// The client writes the name. A name that matched no tool is not exported.
@@ -172,12 +175,15 @@ internal static class ToolPipeline
 					context.MatchedPrimitive is null ? null : context.Params?.Name,
 					() => (bridge.ReleaseYear, bridge.ClientName, selection.Source)).ConfigureAwait(false);
 
-				return MarkFailure(result, context.Params?.Name);
+				CallToolResult marked = MarkFailure(result, context.Params?.Name);
+				outcome = marked.IsError is true ? "error" : "ok";
+				return marked;
 			}
 			finally
 			{
 				finished?.Invoke(
 					context.Params?.Name,
+					outcome,
 					bridge.ReleaseYear?.ToString(CultureInfo.InvariantCulture) ?? "not connected",
 					selection.Source);
 			}

@@ -11,6 +11,7 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 ### Changed
 - A call that only reports that Inventor cannot be reached is no longer marked as an error: `inventor_session` and `inventor_dialogs` with `inventor-not-running`, and `inventor_start` with `inventor-starting-or-no-bridge` or `version-required`. The result tells the model what to do next, and is not a failure of the call.
 - `inventor_set_parameters` now gives the counts `requested`, `succeeded` and `failed`. When no parameter was set, the result has the error `no-parameter-set`. A batch with some successes is not an error.
+- The line of each tool call in the server log now says if the result was an error (`Result ok`, `error` or `exception`).
 
 ## [0.4.7] - 2026-11-16
 
