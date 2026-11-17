@@ -10,6 +10,7 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
 ### Changed
 - Each tool that writes now says if a second call with the same arguments gives the same result (`idempotentHint`). Closing documents, setting an iProperty, rebuilding a document and reading a rule are idempotent. Parameter writes, rule writes, auto balloon, dialog clicks, test copies and the code execution tools are not.
+- `inventor_update` is no longer marked as destructive (`destructiveHint: false`). A rebuild changes no value that the user set.
 
 ## [0.4.7] - 2026-11-16
 

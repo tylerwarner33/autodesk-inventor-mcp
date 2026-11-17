@@ -31,5 +31,5 @@ inventor_skill | Read the server guides | readOnly=true destructive=- idempotent
 inventor_start | Start Inventor | readOnly=false destructive=false idempotent=true openWorld=false | version
 inventor_styles | Read drawing styles | readOnly=true destructive=- idempotent=- openWorld=false | documentName, compareWith
 inventor_test_copy | Make a test copy of a design | readOnly=false destructive=true idempotent=false openWorld=false | sources*, target*, sourceFolder, prefix
-inventor_update | Rebuild a document | readOnly=false destructive=true idempotent=true openWorld=false | documentName, full
+inventor_update | Rebuild a document | readOnly=false destructive=false idempotent=true openWorld=false | documentName, full
 inventor_use_release | Choose the Inventor release | readOnly=false destructive=false idempotent=true openWorld=false | version

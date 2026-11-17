@@ -164,7 +164,7 @@ internal static partial class InventorTool
 		};
 	}
 
-	[McpServerTool(Name = "inventor_update", Title = "Rebuild a document", ReadOnly = false, Destructive = true, Idempotent = true, OpenWorld = false)]
+	[McpServerTool(Name = "inventor_update", Title = "Rebuild a document", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
 	[Description("Rebuilds a document. This changes the user's model and can take a long time on a large assembly.")]
 	public static Task<object> UpdateAsync(
 		BridgeClient bridge,
