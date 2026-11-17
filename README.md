@@ -538,8 +538,9 @@ It reads the vendored documentation file, so it needs no Inventor session.
 	compiled snippets that were used most recently. So Inventor stays responsive during a compile, and a tool that
 	sends the same snippet again does not compile it again.
 - Execution runs inside a `SilentOperationScope`, so a dialog cannot stall the dispatcher.
-- A return value and an output of more than 40,000 characters together (10,000 for a result that failed) keep their
-	start and their end. A marker line says how much was left out, and names a file with the full text.
+- A result of more than 40,000 characters of JSON text (10,000 for a result that failed) keeps the start and the end
+	of its output and its return value. A marker line says how much was left out, and names a file with the full
+	text. The result then has `outputTruncated`, `returnValueTruncated` and `fullTextFile`.
 
 A snippet that throws is reported as a result, with its exception type and message, rather than failing the call.
 Compiler errors come back as diagnostics. Each result that reports a failure has `isError` set, so a client can show

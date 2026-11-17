@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 using InventorMcp.Server.Bridge;
@@ -36,6 +37,18 @@ internal static class ToolPipeline
 	/// 	The argument that removes the guard for unsaved changes.
 	/// </summary>
 	private const string AllowUnsavedChangesArgument = "allowUnsavedChanges";
+
+	/// <summary>
+	/// 	The JSON options for the parameters and the results of the tools.
+	/// </summary>
+	/// <remarks>
+	/// 	The default encoder of the library writes a quote in a string as <c>"</c>, and each character that is not
+	/// 	ASCII as <c>\uXXXX</c>. A JSON return value then becomes up to six times longer in the text that the client
+	/// 	measures. The relaxed encoder writes <c>\"</c> and keeps the other characters. The result is not put in an HTML
+	/// 	page, so the HTML characters need no escape.
+	/// 	<see cref="OutputLimit.JsonLength(string?)"/> counts with the same encoder.
+	/// </remarks>
+	public static readonly JsonSerializerOptions ResultSerializerOptions = CreateResultSerializerOptions();
 
 	/// <summary>
 	/// 	Registers the services that the tools take as parameters.
@@ -90,7 +103,7 @@ internal static class ToolPipeline
 	/// </returns>
 	public static IMcpServerBuilder WithInventorTools(this IMcpServerBuilder builder, SafetySettings settings)
 	{
-		_ = builder.WithToolsFromAssembly(typeof(InventorTool).Assembly);
+		_ = builder.WithToolsFromAssembly(typeof(InventorTool).Assembly, ResultSerializerOptions);
 
 		if (settings.ReadOnlyTools)
 		{
@@ -297,7 +310,15 @@ internal static class ToolPipeline
 
 	private static CallToolResult Refusal(object payload) => new()
 	{
-		Content = [new TextContentBlock { Text = JsonSerializer.Serialize(payload, McpJsonUtilities.DefaultOptions) }],
+		Content = [new TextContentBlock { Text = JsonSerializer.Serialize(payload, ResultSerializerOptions) }],
 		IsError = true
 	};
+
+	private static JsonSerializerOptions CreateResultSerializerOptions()
+	{
+		JsonSerializerOptions options = new(McpJsonUtilities.DefaultOptions) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+		options.MakeReadOnly();
+
+		return options;
+	}
 }
