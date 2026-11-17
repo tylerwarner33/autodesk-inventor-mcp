@@ -217,9 +217,11 @@ public sealed class LiveDialogTests
 	public async Task SettingOffClicksNothing()
 	{
 		LiveInventor.Require();
-		await using BridgeClient client = LiveInventor.CreateClient();
 		string? previous = Environment.GetEnvironmentVariable(DialogPolicy.AutoCloseVariable);
+
+		// The client reads the dialog settings when it is made, so the variable is set first.
 		Environment.SetEnvironmentVariable(DialogPolicy.AutoCloseVariable, "false");
+		await using BridgeClient client = LiveInventor.CreateClient();
 
 		try
 		{

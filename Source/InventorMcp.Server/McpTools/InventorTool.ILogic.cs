@@ -351,6 +351,13 @@ internal static partial class InventorTool
 				return new { name = parameter.Name, ok = true, created, valueKind, expression, internalValue, displayValue, units };
 			}
 
+			// The value is written when this runs, so a failure to read it back is not a failed write.
+			object DescribeWritten(Parameter parameter, bool created)
+			{
+				try { return Describe(parameter, created); }
+				catch (Exception exception) { return new { name = parameter.Name, ok = true, created, readBackError = exception.Message }; }
+			}
+
 			if ({{(suppressRules ? "true" : "false")}})
 			{
 				rulesWereEnabled = (bool)automation!.RulesEnabled;
@@ -382,7 +389,7 @@ internal static partial class InventorTool
 								}
 
 								UserParameter created = all.UserParameters.AddByExpression(name, value, UnitsTypeEnum.kDefaultDisplayLengthUnits);
-								results.Add(Describe((Parameter)created, created: true));
+								results.Add(DescribeWritten((Parameter)created, created: true));
 								continue;
 							}
 
@@ -414,7 +421,7 @@ internal static partial class InventorTool
 								parameter.Expression = value;
 							}
 
-							results.Add(Describe(parameter, created: false));
+							results.Add(DescribeWritten(parameter, created: false));
 						}
 						catch (Exception exception)
 						{

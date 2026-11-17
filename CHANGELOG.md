@@ -14,6 +14,7 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 ### Changed
 - `inventor_set_parameters` now makes one Undo step in Inventor, named `MCP: Set Parameters`. Before, each parameter made its own step. A failure outside the loop over the parameters (ex. in the rebuild) reverts the document. A batch with failed entries keeps the parameters that were written.
 - `inventor_set_parameter` now uses the same path. A numeric expression that Inventor cannot parse gives `invalid-expression`, and an unknown name gives `not-found`. The result has `valueKind`, `expression`, `internalValue`, `displayValue`, `units` and `transaction`, and no longer has `parameterType`, `isDriven`, `isKey` and `comment`: read them with `inventor_parameters`.
+- When Inventor writes a parameter but cannot read it back, the entry is still a success, with `readBackError`. A repeat of the write is not necessary.
 - `runRuleAfter` of `inventor_set_parameters` now runs inside the Undo step, so one Undo reverts what the rule changed too.
 - The `interop` skill says that a user parameter cannot have the name of a unit (ex. `A` or `T`).
 

@@ -27,14 +27,23 @@ parameters were read after each step.
 | A document with no window (`Documents.Add` with `visible` false) | The same: one step with the given name | The same |
 | A document that is created and closed while the transaction is open (what a rule that opens other files does) | No error. The step ends and is named. One Undo reverts the write | No change |
 
+## Checks run later by the live tests
+
+Run: 2026-11-17, Autodesk Inventor 2025 (the same build). The checks above did not do these two cases, so two live
+tests in `LiveTransactionTests.cs` do them. Both passed, with all 15 live tests of that build.
+
+| Check | Test | Result | Then |
+| --- | --- | --- | --- |
+| A rule that iLogic runs by itself after a parameter change (the rule names the parameter as a variable: `Size2 = Size1 * 2`) | `ARuleThatAParameterChangeStartsJoinsTheStep` | The rule ran inside the step. The step count went up by one. One Undo reverted the parameter and the value that the rule wrote | No change |
+| A rule that saves the document (`ThisDoc.Document.Save()`), run through `runRuleAfter`, on a part saved to the temporary folder | `ARuleThatSavesInsideTheStepKeepsTheUndoStep` | No dialog and no rule error. The last step is still `MCP: Set Parameters`. One Undo reverted the parameter | Keep `runRuleAfter` inside the step |
+
 ## Not checked
 
-- **A save inside a transaction.** A save of a new part in a Vault project can show a dialog, and the plan does not
-  wrap a save, so it stays unproven. The tools that save (`inventor_ilogic_rule_set` with a save, and
+- **A save inside a transaction in a Vault project.** The save test used a file in the temporary folder. A save of a
+  file in a Vault project can show a dialog. The tools that save (`inventor_ilogic_rule_set` with a save, and
   `inventor_close_documents`) do not use a transaction.
-- **A rule that an event trigger starts after a parameter change.** The test rule had no event trigger, so a
-  parameter change did not run it. The check ran it with `RunRule` inside the step, which is what `runRuleAfter`
-  does. A rule with an "After parameter change" trigger is not tested.
+- **A rule with an event trigger** ("After parameter change" in the Event Triggers dialog). The test rule ran
+  because it names the parameter as a variable, which is a different start.
 
 ## Facts found on the way
 

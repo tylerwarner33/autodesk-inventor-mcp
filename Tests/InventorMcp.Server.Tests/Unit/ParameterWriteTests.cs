@@ -98,6 +98,26 @@ public sealed class ParameterWriteTests
 	}
 
 	[Fact]
+	public void AReadBackThatFailsAfterTheWriteIsNotAFailedWrite()
+	{
+		string snippet = Compose();
+
+		// The read back catches its own failure, so the catch of the write does not record it as set-failed.
+		Assert.Contains("results.Add(DescribeWritten(parameter, created: false));", snippet, StringComparison.Ordinal);
+		Assert.DoesNotContain("results.Add(Describe(", snippet, StringComparison.Ordinal);
+
+		JsonElement batch = Parse("""
+			{"document":"C:\\A.ipt","transaction":"MCP: Set Parameters","results":[
+				{"name":"Width","ok":true,"created":false,"readBackError":"E_FAIL"}],"rulesSuppressed":false}
+			""");
+
+		JsonElement shaped = JsonSerializer.SerializeToElement(InventorTool.ShapeSingleParameter(batch));
+
+		Assert.False(shaped.TryGetProperty("error", out _));
+		Assert.Equal("E_FAIL", shaped.GetProperty("readBackError").GetString());
+	}
+
+	[Fact]
 	public void AFailureOfTheSnippetIsNotChanged()
 	{
 		JsonElement failure = Parse("""{"error":"execution-failed","message":"boom"}""");

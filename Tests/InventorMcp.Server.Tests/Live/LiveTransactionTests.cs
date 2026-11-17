@@ -189,6 +189,94 @@ public sealed class LiveTransactionTests
 	}
 
 	[Fact]
+	public async Task ARuleThatAParameterChangeStartsJoinsTheStep()
+	{
+		// A rule that names a parameter as a variable, not through Parameter("..."), runs by itself when that parameter
+		// changes, inside the step. See Docs/Research/Write-Transactions-Checks.md.
+		LiveInventor.Require();
+		await using BridgeClient client = LiveInventor.CreateClient();
+		string document = await CreatePartAsync(client, 2);
+
+		try
+		{
+			ExecutionResult rule = await LiveInventor.EvalAsync(client, ScriptPrelude.Apply($$"""
+				Document doc = Application.Documents.Cast<Document>().First(open => open.DisplayName == "{{document}}");
+				SetILogicRuleText(doc, "FollowSize1", "Size2 = Size1 * 2" + System.Environment.NewLine);
+				return "added";
+				"""), Cancellation);
+
+			Assert.True(rule.Succeeded, LiveInventor.Describe(rule));
+
+			// Adding the rule runs it once: read the values that the test starts from.
+			string start = await ValuesAsync(client, document);
+			int before = await CommittedCountAsync(client);
+
+			_ = await SetAsync(client, new Dictionary<string, string>(StringComparer.Ordinal) { ["Size1"] = "7 mm" }, document);
+
+			Assert.Equal("0.7,1.4", await ValuesAsync(client, document));
+			Assert.Equal(before + 1, await CommittedCountAsync(client));
+
+			await UndoAsync(client);
+
+			Assert.Equal(start, await ValuesAsync(client, document));
+		}
+		finally
+		{
+			await ClosePartAsync(client, document);
+		}
+	}
+
+	[Fact]
+	public async Task ARuleThatSavesInsideTheStepKeepsTheUndoStep()
+	{
+		// If this test fails, run runRuleAfter after the step. See Docs/Research/Write-Transactions-Checks.md.
+		// The part is saved to the temporary folder. In a Vault project, the save can show a dialog: read it with
+		// inventor_dialogs.
+		LiveInventor.Require();
+		await using BridgeClient client = LiveInventor.CreateClient();
+		string document = await CreatePartAsync(client, 1);
+		string? path = null;
+
+		try
+		{
+			ExecutionResult saved = await LiveInventor.EvalAsync(client, ScriptPrelude.Apply($$"""
+				Document doc = Application.Documents.Cast<Document>().First(open => open.DisplayName == "{{document}}");
+				string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "InventorMcp-SaveInStep-" + Guid.NewGuid().ToString("N")[..8] + ".ipt");
+				doc.SaveAs(path, false);
+				SetILogicRuleText(doc, "SaveMe", "ThisDoc.Document.Save()" + System.Environment.NewLine);
+				doc.Save();
+				return new { path, name = doc.DisplayName };
+				"""), Cancellation);
+
+			Assert.True(saved.Succeeded, LiveInventor.Describe(saved));
+
+			JsonElement json = JsonDocument.Parse(saved.ReturnValue!).RootElement;
+			path = json.GetProperty("path").GetString()!;
+			document = json.GetProperty("name").GetString()!;
+
+			JsonElement result = await SetAsync(
+				client,
+				new Dictionary<string, string>(StringComparer.Ordinal) { ["Size1"] = "8 mm" },
+				document,
+				runRuleAfter: "SaveMe");
+
+			Assert.Equal(JsonValueKind.Null, result.GetProperty("ruleError").ValueKind);
+			Assert.Equal("MCP: Set Parameters", await LastTransactionNameAsync(client));
+
+			await UndoAsync(client);
+
+			Assert.Equal("1 mm", await ExpressionsAsync(client, document));
+		}
+		finally
+		{
+			await ClosePartAsync(client, document);
+
+			if (path is not null && File.Exists(path))
+				File.Delete(path);
+		}
+	}
+
+	[Fact]
 	public async Task AnUnknownParameterGivesNotFoundFromTheSingleParameterTool()
 	{
 		LiveInventor.Require();

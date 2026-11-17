@@ -591,7 +591,8 @@ halfway left the document half changed. The rules come from live checks, in `Doc
   returns at the top level.
 - Not wrapped: `inventor_auto_balloon` (it has its own transaction, and its abort after the time limit is part of its
   logic), tools that make one change (`inventor_set_property`, `inventor_update`), and tools that save, close or copy
-  (a save inside a transaction is not proven safe).
+  (a save inside a transaction is proven only for a file outside a Vault project, by a rule that `runRuleAfter` runs.
+  See `Docs/Research/Write-Transactions-Checks.md`).
 
 ## Behaviours worth knowing
 
