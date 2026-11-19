@@ -38,6 +38,9 @@ internal static partial class InventorTool
 		wallClockMilliseconds minus elapsedMilliseconds is the time the call waited behind other work, or to open a
 		document.
 
+		A result over 40,000 characters keeps its start and its end, names a file with the full text, and has
+		returnValueTruncated or outputTruncated. Return less, or filter, in place of a second run.
+
 		This executes arbitrary code in the user's CAD session. Every snippet is written to an audit log. Execution is
 		refused when the document has unsaved changes unless allowUnsavedChanges is set, because the work cannot be
 		recovered. Opening or updating a generated drawing marks it as changed, so a later call on it can be refused:

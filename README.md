@@ -540,7 +540,9 @@ It reads the vendored documentation file, so it needs no Inventor session.
 	compiled snippets that were used most recently. So Inventor stays responsive during a compile, and a tool that
 	sends the same snippet again does not compile it again.
 - Execution runs inside a `SilentOperationScope`, so a dialog cannot stall the dispatcher.
-- A return value or an output of more than 60,000 characters is cut, and the result says so.
+- A result of more than 40,000 characters of JSON text (10,000 for a result that failed) keeps the start and the end
+	of its output and its return value. A marker line says how much was left out, and names a file with the full
+	text. The result then has `outputTruncated`, `returnValueTruncated` and `fullTextFile`.
 
 A snippet that throws is reported as a result, with its exception type and message, rather than failing the call.
 Compiler errors come back as diagnostics. Each result that reports a failure has `isError` set, so a client can show
@@ -688,6 +690,7 @@ To add a dialog type, read a real example first, then add it to `Services/Dialog
 | `%LOCALAPPDATA%\InventorMcp\<year>\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
 | `%LOCALAPPDATA%\InventorMcp\<year>\executed-code.log` | Every snippet run through the execution tools, and each dialog the server clicked |
 | `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity, one file for each server process. Each tool call has a line with the release it used, and if the result was an error. |
+| `%LOCALAPPDATA%\InventorMcp\Results\<date>-<id>.txt` | The full text of an `inventor_eval_csharp` result that was cut to fit the size limit. Files older than 14 days are deleted. |
 | `%LOCALAPPDATA%\InventorMcp\addin.log`, `executed-code.log` | From before the folder for each release, or written before the release was known |
 | `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log` | Claude Desktop: a server that failed to start |
 

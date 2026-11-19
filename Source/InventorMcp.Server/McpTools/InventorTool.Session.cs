@@ -4,6 +4,7 @@ using System.Text.Json;
 
 using InventorMcp.Contracts;
 using InventorMcp.Server.Bridge;
+using InventorMcp.Server.Services;
 
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
@@ -216,7 +217,7 @@ internal static partial class InventorTool
 	/// <remarks>
 	/// 	One tree at depth 3 gave 106,000 characters, over a client's limit for one result.
 	/// </remarks>
-	private const int MaxTreeCharacters = 60_000;
+	private const int MaxTreeCharacters = OutputLimit.MaxCharacters;
 
 	private const int MaxSummaryDocuments = 200;
 

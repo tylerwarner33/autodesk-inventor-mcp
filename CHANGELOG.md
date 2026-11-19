@@ -6,6 +6,16 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.13] - 2026-11-19
+
+### Changed
+- A result of `inventor_eval_csharp` over 40,000 characters (10,000 for a failed result) now keeps its start and its end, with a `[TRUNCATED: ...]` marker line between them. Before, it kept only the start and cut at 60,000 characters. The marker names a file in `%LOCALAPPDATA%\InventorMcp\Results` with the full text, because the audit log does not keep the output. The server deletes these files after 14 days.
+- The limit now covers the whole JSON text of the result, in place of each of the output lines and the return value. It counts the characters after escaping, and the diagnostics and the exception message are in it. A line longer than 30 % of the limit is cut to it, so the last line keeps its end.
+- A result that was cut has `outputTruncated`, `returnValueTruncated` and `fullTextFile`.
+- Tool results now write a quote in a string as `\"` and keep characters that are not ASCII, in place of `"` and `\uXXXX`. A result is shorter, and its JSON is the same.
+- `inventor_assembly_tree` now uses the same limit of 40,000 characters, in place of 60,000.
+- A result with more than 50 diagnostics keeps the first 50 and gives the number that was left out.
+
 ## [0.4.12] - 2026-11-19
 
 ### Changed

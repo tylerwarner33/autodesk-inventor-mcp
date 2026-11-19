@@ -136,6 +136,23 @@ public sealed class ToolPipelineTests
 		Assert.NotEqual(true, worked.IsError);
 	}
 
+	[Fact]
+	public async Task AResultEscapesAQuoteWithABackslashAndKeepsOtherCharacters()
+	{
+		// The size limit counts the text after this escape. See OutputLimit.JsonLength.
+		await using ToolServer server = await ToolServer.StartAsync(_allTools);
+
+		CallToolResult result = await server.Client.CallToolAsync(
+			"inventor_skill",
+			new Dictionary<string, object?>(StringComparer.Ordinal) { ["action"] = "a\"b<é>" },
+			cancellationToken: TestContext.Current.CancellationToken);
+
+		string text = Assert.IsType<TextContentBlock>(result.Content[0]).Text;
+
+		Assert.Contains("'a\\\"b<é>'", text, StringComparison.Ordinal);
+		Assert.DoesNotContain("\\u", text, StringComparison.Ordinal);
+	}
+
 	[Theory]
 	[InlineData("""{"error":"not-found","message":"No document."}""", true)]
 	[InlineData("""{"succeeded":false,"returnValue":null,"output":[]}""", true)]
