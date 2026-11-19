@@ -806,6 +806,13 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
 | `.agents/rules/` | Coding agents: the Inventor behaviours and repository rules, one topic per file |
 
+The specifications that the server uses:
+
+| Specification | Where it applies |
+| --- | --- |
+| [Model Context Protocol](https://modelcontextprotocol.io/specification/latest) | Between the MCP client and `InventorMcp.Server` |
+| [JSON-RPC 2.0](https://www.jsonrpc.org/specification) | The message format of MCP (see the MCP [base protocol](https://modelcontextprotocol.io/specification/latest/basic)) |
+
 <details>
 <summary><b>Which coding agents read <code>AGENTS.md</code></b></summary>
 

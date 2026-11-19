@@ -17,9 +17,17 @@ flowchart LR
     addin -- "COM, main thread" --> inventor
 ```
 
-The client starts the server (`net10.0`) through `dotnet tool exec` from a local feed. Each Inventor release has its
+The client starts the server (`net10.0`) through `dotnet tool exec` from a local feed. Each Inventor process has its
 own pipe, open only to the current Windows user. The add-in targets `net8.0-windows` on 2025 and 2026, and
 `net10.0-windows` on 2027. It holds only the pipe listener, the dispatch, and the marshaling to Inventor's main thread.
+
+Two protocols are on the two links:
+
+- **Client to server:** the [Model Context Protocol](https://modelcontextprotocol.io/specification/latest) (MCP),
+  through the C# MCP SDK. Each MCP message is a [JSON-RPC 2.0](https://www.jsonrpc.org/specification) message (see
+  the MCP [base protocol](https://modelcontextprotocol.io/specification/latest/basic)).
+- **Server to add-in:** a protocol of this repository, one JSON message for each line. Its version is in the pipe
+  name. MCP does not go over the pipe (see "Two processes rather than one").
 
 | Project | Purpose |
 | --- | --- |
