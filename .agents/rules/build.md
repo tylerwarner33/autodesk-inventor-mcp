@@ -95,7 +95,8 @@ their dialogs, and only the innermost one is enabled.
 ## The server runs from a local feed, never from bin
 
 The Debug build of `InventorMcp.Server` adds a tool package to `%LOCALAPPDATA%\InventorMcp\Feed` with a new
-version, `0.1.0-dev.<UTC yyyyMMddHHmmss>`. Every client starts `dotnet tool exec InventorMcp.Server --prerelease
+version, `<version>-dev.<UTC yyyyMMddHHmmss>`, where the version is `<Version>` in `Directory.Build.props` (ex.
+`1.0.0-dev.20261119181710`). Every client starts `dotnet tool exec InventorMcp.Server --prerelease
 --source <feed> --yes`, which runs the newest version from its own NuGet cache folder. So a client never locks
 `bin\Debug`, and a server rebuild succeeds with clients connected. `LocalFeed.targets` holds all of it.
 

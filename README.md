@@ -112,7 +112,7 @@ folder, repository and solution. The repository holds no client configuration.
 | --- | --- | --- |
 | Who | Anyone who uses the tools, ex. a team member | Anyone who changes the server in this repository |
 | Feed | A team feed: a file share or an internal NuGet feed | `%LOCALAPPDATA%\InventorMcp\Feed`, filled by each Debug build |
-| Versions | Releases (ex. `0.1.0`), so no `--prerelease` | `0.1.0-dev.<UTC time>`, so `--prerelease` |
+| Versions | Releases (ex. `0.1.0`), so no `--prerelease` | `<version>-dev.<UTC time>` (ex. `1.0.0-dev.20261119181710`), so `--prerelease` |
 | New version | When a release is published to the feed | After every build that changes the server |
 | Needs the repository | No | Yes |
 

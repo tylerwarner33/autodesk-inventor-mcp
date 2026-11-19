@@ -254,7 +254,8 @@ Source\InventorMcp.Server\bin\Debug\            the build writes here; nothing r
 %USERPROFILE%\.nuget\packages\inventormcp.server\<version>\   NuGet extracts here; the server runs here
 ```
 
-The Debug build packs a tool package with a new version, `0.1.0-dev.<UTC yyyyMMddHHmmss>`, into the feed.
+The Debug build packs a tool package with a new version, `<version>-dev.<UTC yyyyMMddHHmmss>`, into the feed.
+The version is `<Version>` in `Directory.Build.props`, so the development version follows each release.
 Every client runs `dotnet tool exec InventorMcp.Server --prerelease --source <feed> --yes`, which selects the highest
 version in the feed and runs it from its own cache folder. This is the pattern `npx`, `uvx` and `dnx` give published
 servers, and Microsoft's own route for .NET MCP servers. `LocalFeed.targets` holds the build side.

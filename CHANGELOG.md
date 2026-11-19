@@ -6,6 +6,11 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [1.0.1] - 2026-11-19
+
+### Changed
+- The README and the docs give the version of a development build as `<version>-dev.<UTC time>`, where the version is the one in `Directory.Build.props` (ex. `1.0.0-dev.20261119181710`). Before, they gave `0.1.0-dev.<UTC time>`.
+
 ## [1.0.0] - 2026-11-19
 
 ### Breaking
