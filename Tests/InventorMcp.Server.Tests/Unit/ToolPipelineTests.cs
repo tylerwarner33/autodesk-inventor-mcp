@@ -65,9 +65,13 @@ public sealed class ToolPipelineTests
 			Assert.True(annotations?.ReadOnlyHint is not null, $"{tool.Name} does not set ReadOnly.");
 			Assert.True(annotations?.OpenWorldHint is not null, $"{tool.Name} does not set OpenWorld.");
 
-			// The specification reads a missing hint on a tool that writes as destructive, so the tool says it.
+			// The specification reads a missing hint on a tool that writes as destructive and not idempotent, so the tool
+			// says both. Destructive and Idempotent mean nothing for a tool that only reads.
 			if (annotations?.ReadOnlyHint is false)
+			{
 				Assert.True(annotations.DestructiveHint is not null, $"{tool.Name} writes and does not set Destructive.");
+				Assert.True(annotations.IdempotentHint is not null, $"{tool.Name} writes and does not set Idempotent.");
+			}
 		}
 	}
 
@@ -132,6 +136,23 @@ public sealed class ToolPipelineTests
 		Assert.NotEqual(true, worked.IsError);
 	}
 
+	[Fact]
+	public async Task AResultEscapesAQuoteWithABackslashAndKeepsOtherCharacters()
+	{
+		// The size limit counts the text after this escape. See OutputLimit.JsonLength.
+		await using ToolServer server = await ToolServer.StartAsync(_allTools);
+
+		CallToolResult result = await server.Client.CallToolAsync(
+			"inventor_skill",
+			new Dictionary<string, object?>(StringComparer.Ordinal) { ["action"] = "a\"b<é>" },
+			cancellationToken: TestContext.Current.CancellationToken);
+
+		string text = Assert.IsType<TextContentBlock>(result.Content[0]).Text;
+
+		Assert.Contains("'a\\\"b<é>'", text, StringComparison.Ordinal);
+		Assert.DoesNotContain("\\u", text, StringComparison.Ordinal);
+	}
+
 	[Theory]
 	[InlineData("""{"error":"not-found","message":"No document."}""", true)]
 	[InlineData("""{"succeeded":false,"returnValue":null,"output":[]}""", true)]
@@ -145,6 +166,23 @@ public sealed class ToolPipelineTests
 	public void OnlyAFailureAtTheTopLevelIsAFailure(string text, bool failure)
 	{
 		CallToolResult result = ToolPipeline.MarkFailure(new CallToolResult { Content = [new TextContentBlock { Text = text }] });
+
+		Assert.Equal(failure, result.IsError is true);
+	}
+
+	[Theory]
+	[InlineData("inventor_session", """{"error":"inventor-not-running"}""", false)]
+	[InlineData("inventor_dialogs", """{"error":"inventor-not-running"}""", false)]
+	[InlineData("inventor_start", """{"error":"inventor-starting-or-no-bridge"}""", false)]
+	[InlineData("inventor_start", """{"error":"version-required"}""", false)]
+	[InlineData("inventor_start", """{"error":"start-failed"}""", true)]
+	[InlineData("inventor_parameters", """{"error":"inventor-not-running"}""", true)]
+	[InlineData("inventor_session", """{"error":"release-required"}""", true)]
+	[InlineData("inventor_set_parameters", """{"error":"no-parameter-set","results":[{"ok":false}]}""", true)]
+	[InlineData("inventor_set_parameters", """{"succeeded":1,"failed":1,"results":[{"ok":true},{"ok":false,"error":"x"}]}""", false)]
+	public void AnAnswerOfAToolIsNotAFailure(string tool, string text, bool failure)
+	{
+		CallToolResult result = ToolPipeline.MarkFailure(new CallToolResult { Content = [new TextContentBlock { Text = text }] }, tool);
 
 		Assert.Equal(failure, result.IsError is true);
 	}

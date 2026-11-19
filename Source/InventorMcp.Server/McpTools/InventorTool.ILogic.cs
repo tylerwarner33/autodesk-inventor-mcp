@@ -78,7 +78,7 @@ internal static partial class InventorTool
 			""", cancellationToken).ConfigureAwait(false));
 
 	// Not ReadOnly: with outputFolder it writes files, and a client can run a read-only tool with no approval.
-	[McpServerTool(Name = "inventor_ilogic_rule_get", Title = "Read an iLogic rule", ReadOnly = false, Destructive = false, OpenWorld = false)]
+	[McpServerTool(Name = "inventor_ilogic_rule_get", Title = "Read an iLogic rule", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
 	[Description("Reads the text of one iLogic rule, or writes every rule of a document to files in a folder (one '<rule>.iLogicVb' file each). The document can be open, or a file path. An existing file is never overwritten: nothing is written if one of the files exists.")]
 	public static Task<object> ILogicRuleGetAsync(
 		BridgeClient bridge,
@@ -147,7 +147,7 @@ internal static partial class InventorTool
 		});
 	}
 
-	[McpServerTool(Name = "inventor_ilogic_rule_set", Title = "Change an iLogic rule", ReadOnly = false, Destructive = true, OpenWorld = false)]
+	[McpServerTool(Name = "inventor_ilogic_rule_set", Title = "Change an iLogic rule", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
 	[Description("""
 		Changes the text of one iLogic rule at an anchor: the anchor text must occur exactly once in the rule, or nothing
 		changes. Line ends are made the same as the rule's. The old text is written to a backup file first, and the
@@ -254,7 +254,7 @@ internal static partial class InventorTool
 			};
 		});
 
-	[McpServerTool(Name = "inventor_set_parameters", Title = "Set several parameters", ReadOnly = false, Destructive = true, OpenWorld = false)]
+	[McpServerTool(Name = "inventor_set_parameters", Title = "Set several parameters", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
 	[Description("""
 		Sets several parameters in one call, then updates the document once. This changes the user's model. A numeric
 		parameter takes an expression (ex. '50 mm'), a text parameter plain text, and a boolean parameter 'true' or
@@ -263,6 +263,10 @@ internal static partial class InventorTool
 		With suppressRules, iLogic rules do not run for each change: the rules are turned off for the batch and turned
 		back on in a finally block, even when a write fails. runRuleAfter then runs one rule once. RulesEnabled is a
 		setting of the whole Inventor session, not of one document. One Undo step in Inventor reverts the call.
+
+
+		The result has one entry in results for each parameter, and the counts requested, succeeded and failed. When no
+		parameter was set, the result has error 'no-parameter-set'. When some were set, send only the failed ones again.
 		""")]
 	public static Task<object> SetParametersAsync(
 		BridgeClient bridge,
@@ -322,6 +326,8 @@ internal static partial class InventorTool
 			string? ruleError = null;
 			string? ruleAfter = {{CSharpLiteral.String(runRuleAfter)}};
 			long writeMilliseconds = 0;
+			int succeededCount = 0;
+			int failedCount = 0;
 			System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
 			// The same facts that inventor_parameters gives for a parameter, read after the write.
@@ -384,11 +390,13 @@ internal static partial class InventorTool
 							{
 								if (!{{(createIfMissing ? "true" : "false")}})
 								{
+									failedCount++;
 									results.Add(new { name, ok = false, code = "not-found", error = "No parameter has this name. Pass createIfMissing to add a user parameter." });
 									continue;
 								}
 
 								UserParameter created = all.UserParameters.AddByExpression(name, value, UnitsTypeEnum.kDefaultDisplayLengthUnits);
+								succeededCount++;
 								results.Add(DescribeWritten((Parameter)created, created: true));
 								continue;
 							}
@@ -403,6 +411,7 @@ internal static partial class InventorTool
 							{
 								if (!bool.TryParse(value, out bool flag))
 								{
+									failedCount++;
 									results.Add(new { name, ok = false, code = "invalid-expression", error = $"'{name}' is a boolean parameter, so it needs 'true' or 'false' rather than '{value}'." });
 									continue;
 								}
@@ -414,6 +423,7 @@ internal static partial class InventorTool
 								// Ask Inventor to parse the expression first, so a bad one reports itself and not a COM error.
 								if (!document.UnitsOfMeasure.IsExpressionValid(value, units))
 								{
+									failedCount++;
 									results.Add(new { name, ok = false, code = "invalid-expression", error = $"Inventor cannot parse '{value}' as a value in '{units}'. State the units explicitly, ex. '50 mm'." });
 									continue;
 								}
@@ -421,10 +431,12 @@ internal static partial class InventorTool
 								parameter.Expression = value;
 							}
 
+							succeededCount++;
 							results.Add(DescribeWritten(parameter, created: false));
 						}
 						catch (Exception exception)
 						{
+							failedCount++;
 							results.Add(new { name, ok = false, code = "set-failed", error = exception.Message });
 						}
 					}
@@ -446,20 +458,31 @@ internal static partial class InventorTool
 					automation!.RulesEnabled = previous;
 			}
 
-			string json = System.Text.Json.JsonSerializer.Serialize(new
+			Dictionary<string, object?> summary = new()
 			{
-				document = document.FullFileName.Length > 0 ? document.FullFileName : document.DisplayName,
-				transaction = "MCP: Set Parameters",
-				results,
-				rulesSuppressed = rulesWereEnabled is not null,
-				rulesEnabledNow = automation is null ? (bool?)null : (bool)automation.RulesEnabled,
-				writeMilliseconds,
-				ruleRunAfter = ruleAfter,
-				ruleError,
-				totalMilliseconds = stopwatch.ElapsedMilliseconds
-			});
+				["document"] = document.FullFileName.Length > 0 ? document.FullFileName : document.DisplayName,
+				["transaction"] = "MCP: Set Parameters",
+				["requested"] = writes.Length,
+				["succeeded"] = succeededCount,
+				["failed"] = failedCount,
+				["results"] = results,
+				["rulesSuppressed"] = rulesWereEnabled is not null,
+				["rulesEnabledNow"] = automation is null ? (bool?)null : (bool)automation.RulesEnabled,
+				["writeMilliseconds"] = writeMilliseconds,
+				["ruleRunAfter"] = ruleAfter,
+				["ruleError"] = ruleError,
+				["totalMilliseconds"] = stopwatch.ElapsedMilliseconds
+			};
 
-			return json;
+			// The server marks the call as failed only when no item succeeded: a flag on a partial result would
+			// invite a repeat of the whole batch, and a parameter write is not idempotent.
+			if (succeededCount == 0 && failedCount > 0)
+			{
+				summary["error"] = "no-parameter-set";
+				summary["message"] = "No parameter was set. Read results for the reason of each item.";
+			}
+
+			return System.Text.Json.JsonSerializer.Serialize(summary);
 			""";
 	}
 

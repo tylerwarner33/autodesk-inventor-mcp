@@ -116,6 +116,21 @@ internal sealed class ReleaseSelection
 	}
 
 	/// <summary>
+	/// 	Tells if the pipe of a release exists now.
+	/// </summary>
+	/// <remarks>
+	/// 	It reads the pipe list and opens no instance. A check that connects, ex. <see cref="File.Exists(string?)"/> on the
+	/// 	pipe name, would use an instance of a pipe that can be full.
+	/// </remarks>
+	/// <param name="releaseYear">
+	/// 	The release.
+	/// </param>
+	/// <returns>
+	/// 	True when the pipe of the release is in the pipe list.
+	/// </returns>
+	public bool PipeExists(int releaseYear) => _listPipes().Contains(PipeNameFor(releaseYear), StringComparer.OrdinalIgnoreCase);
+
+	/// <summary>
 	/// 	Picks the pipe to connect to.
 	/// </summary>
 	/// <returns>

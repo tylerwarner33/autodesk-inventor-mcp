@@ -11,7 +11,7 @@ namespace InventorMcp.Server.McpTools;
 
 internal static partial class InventorTool
 {
-	[McpServerTool(Name = "inventor_eval_csharp", Title = "Run a C# snippet in Inventor", ReadOnly = false, Destructive = true, OpenWorld = true)]
+	[McpServerTool(Name = "inventor_eval_csharp", Title = "Run a C# snippet in Inventor", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = true)]
 	[Description("""
 		Runs a C# snippet inside the Inventor process against the live API. This is the general purpose tool: it reaches
 		every member of the Inventor API, so use it for anything the other tools do not cover, such as creating sketches,
@@ -37,6 +37,9 @@ internal static partial class InventorTool
 		terminate Inventor. Split such a loop over several calls. A result from a call over 10 s carries a warning.
 		wallClockMilliseconds minus elapsedMilliseconds is the time the call waited behind other work, or to open a
 		document.
+
+		A result over 40,000 characters keeps its start and its end, names a file with the full text, and has
+		returnValueTruncated or outputTruncated. Return less, or filter, in place of a second run.
 
 		This executes arbitrary code in the user's CAD session. Every snippet is written to an audit log. Execution is
 		refused when the document has unsaved changes unless allowUnsavedChanges is set, because the work cannot be
@@ -185,7 +188,7 @@ internal static partial class InventorTool
 			: new { result, rulesSuppressed = true, warning = restoreProblem };
 	}
 
-	[McpServerTool(Name = "inventor_run_ilogic", Title = "Run iLogic code", ReadOnly = false, Destructive = true, OpenWorld = true)]
+	[McpServerTool(Name = "inventor_run_ilogic", Title = "Run iLogic code", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = true)]
 	[Description("""
 		Runs an iLogic rule body, written in VB.NET, against a document. The rule is added temporarily, run, and removed,
 		so nothing is left behind in the document.
