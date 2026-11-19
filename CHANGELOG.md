@@ -6,6 +6,12 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.9] - 2026-11-19
+
+### Changed
+- Update the NuGet package `Microsoft.Extensions.Hosting` from 10.0.14 to 10.0.15. ([PR #43](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/43))
+- Update the NuGet package `Serilog.Extensions.Logging` from 10.0.0 to 11.0.0. ([PR #43](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/43))
+
 ## [0.4.8] - 2026-11-19
 
 ### Changed
