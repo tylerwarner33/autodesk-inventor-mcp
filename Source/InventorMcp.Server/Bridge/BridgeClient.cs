@@ -46,6 +46,10 @@ namespace InventorMcp.Server.Bridge;
 /// 	Gives the Inventor processes of a release, or of every release for null.
 /// 	Null for <see cref="InventorInstallations.FindRunning(int?)"/>.
 /// </param>
+/// <param name="isAddInDeployed">
+/// 	Tells if a manifest of the add-in exists for a release, to tell why a connect failed.
+/// 	Null for <see cref="InventorInstallations.IsAddInDeployed(int)"/>.
+/// </param>
 /// <param name="processRuns">
 /// 	Gives whether the process with an ID still runs. Null for <see cref="ProcessRuns(int)"/>.
 /// </param>
@@ -57,6 +61,7 @@ internal sealed partial class BridgeClient(
 	Func<DialogSettings>? dialogSettings = null,
 	Func<int, string?>? checkHost = null,
 	Func<int?, IReadOnlyList<RunningInventor>>? findRunning = null,
+	Func<int, bool>? isAddInDeployed = null,
 	Func<int, bool>? processRuns = null) : IAsyncDisposable
 {
 	/// <summary>
@@ -88,6 +93,7 @@ internal sealed partial class BridgeClient(
 	private readonly Func<DialogSettings> _dialogSettings = dialogSettings ?? LoadOnce();
 	private readonly Func<int, string?> _checkHost = checkHost ?? PipeHost.Check;
 	private readonly Func<int?, IReadOnlyList<RunningInventor>> _findRunning = findRunning ?? InventorInstallations.FindRunning;
+	private readonly Func<int, bool> _isAddInDeployed = isAddInDeployed ?? InventorInstallations.IsAddInDeployed;
 	private readonly Func<int, bool> _processRuns = processRuns ?? ProcessRuns;
 	private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -213,7 +219,10 @@ internal sealed partial class BridgeClient(
 			}
 			catch (IOException exception)
 			{
-				LogConnectionDropped(exception);
+				// The process id is read before the close, because the close clears it.
+				bool? hostStillRuns = InventorProcessId is int droppedProcess ? _processRuns(droppedProcess) : null;
+
+				LogConnectionDropped(exception, ConnectionDiagnosis.DescribeDrop(hostStillRuns));
 				_ = span?.AddEvent(new ActivityEvent("reconnect"));
 
 				await CloseAsync().ConfigureAwait(false);
@@ -573,7 +582,7 @@ internal sealed partial class BridgeClient(
 		{
 			throw new InventorBridgeException(
 				resolution.ErrorCode!,
-				resolution.ErrorCode == BridgeErrorCodes.NotRunning ? NotRunningMessage(_automaticRelease) : resolution.Message!);
+				resolution.ErrorCode == BridgeErrorCodes.NotRunning ? Diagnose(_automaticRelease, pipeExists: false).Message : resolution.Message!);
 		}
 
 		// The release this session used closed, and a different one is the only pipe now. The documents differ, so a call
@@ -597,10 +606,26 @@ internal sealed partial class BridgeClient(
 		{
 			await pipe.DisposeAsync().ConfigureAwait(false);
 
-			// The code stays NotRunning even with Inventor open, because inventor_start and inventor_session with
-			// waitSeconds poll on it while Inventor loads.
-			// Only the message tells the model not to start a second Inventor.
-			throw new InventorBridgeException(BridgeErrorCodes.NotRunning, NotRunningMessage(resolution.ReleaseYear));
+			// The same exception means a full pipe or no pipe, so the machine is examined now, after the wait: the pipe can
+			// appear during it. Only a full pipe has its own code. The other causes keep NotRunning, because inventor_start
+			// and inventor_session with waitSeconds poll on it while Inventor loads.
+			bool pipeExists = resolution.ReleaseYear is int pipeRelease && _selection.PipeExists(pipeRelease);
+			(string code, string message) = Diagnose(resolution.ReleaseYear, pipeExists);
+
+			LogConnectTimedOut(pipeName, code);
+
+			throw new InventorBridgeException(code, message);
+		}
+		catch (UnauthorizedAccessException exception)
+		{
+			// The ACL of the pipe refuses this account at once, ex. the pipe of a different Windows user. A retry cannot help.
+			await pipe.DisposeAsync().ConfigureAwait(false);
+			LogPipeRefused(pipeName, exception.Message);
+
+			throw new InventorBridgeException(
+				BridgeErrorCodes.UntrustedHost,
+				$"The MCP bridge pipe '{pipeName}' refused this Windows account. The pipe belongs to a different Windows user. " +
+				"Tell the user. Do not retry.");
 		}
 		catch (OperationCanceledException)
 		{
@@ -641,22 +666,21 @@ internal sealed partial class BridgeClient(
 	/// <summary>
 	/// 	Says why no bridge answered, and counts only the Inventor processes of the release that was asked for.
 	/// </summary>
-	private static string NotRunningMessage(int? releaseYear)
+	/// <remarks>
+	/// 	With no release known, the manifest check passes when any running process has one, because the release of a
+	/// 	process can be unknown too.
+	/// </remarks>
+	private (string Code, string Message) Diagnose(int? releaseYear, bool pipeExists)
 	{
-		string subject = releaseYear is int year ? $"Autodesk Inventor {year}" : "Inventor";
+		IReadOnlyList<RunningInventor> running = _findRunning(releaseYear);
 
-		return InventorInstallations.FindRunning(releaseYear).Count > 0
-			? $"{subject} is running, but its MCP bridge accepted no connection within " +
-				$"{_connectTimeout.TotalSeconds:0} s. The add-in may still be loading or may not be loaded, or every bridge " +
-				"connection may be in use by other MCP clients. Do not call inventor_start. Wait with inventor_session and " +
-				"waitSeconds, and if it " +
-				"persists, ask the user to check Tools > Add-Ins in Inventor or to close another MCP client."
-			: releaseYear is null
-				? "No Inventor session is hosting the MCP bridge. Ask the user whether to start Inventor, then call " +
-					"inventor_start. If Inventor is already open, make sure the Inventor MCP Bridge add-in is loaded."
-				: $"{subject} is not hosting the MCP bridge. This session uses that release only, and does not fall back to " +
-					$"another one. Ask the user whether to start it, then call inventor_start with version {releaseYear}. " +
-					"Or call inventor_use_release to use a different release.";
+		bool deployed = releaseYear is int year
+			? _isAddInDeployed(year)
+			: running.Any(process => process.ReleaseYear is not int processRelease || _isAddInDeployed(processRelease));
+
+		ConnectionCause cause = ConnectionDiagnosis.Classify(pipeExists, running, deployed, _timeProvider.GetLocalNow().DateTime);
+
+		return ConnectionDiagnosis.Describe(cause, releaseYear, running);
 	}
 
 	/// <summary>

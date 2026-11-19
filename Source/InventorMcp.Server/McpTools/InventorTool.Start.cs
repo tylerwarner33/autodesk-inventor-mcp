@@ -270,7 +270,20 @@ internal static partial class InventorTool
 				Message = $"Waiting for {release.DisplayName} to load the MCP bridge add-in."
 			});
 
-			if (await bridge.TryConnectAsync(cancellationToken).ConfigureAwait(false))
+			bool answered;
+
+			try
+			{
+				answered = await bridge.TryConnectAsync(cancellationToken).ConfigureAwait(false);
+			}
+			catch (InventorBridgeException exception)
+			{
+				// A wait cannot change this (ex. every connection in use, or a pipe of a different Windows user), and a
+				// thrown exception would reach the client as an opaque protocol error.
+				return new { error = exception.Code, message = exception.Message, detail = exception.Detail };
+			}
+
+			if (answered)
 			{
 				return new
 				{

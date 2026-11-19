@@ -5,8 +5,11 @@ namespace InventorMcp.Server.Bridge;
 // The source generator writes these methods, so a log call costs nothing when its level is off.
 internal sealed partial class BridgeClient
 {
-	[LoggerMessage(Level = LogLevel.Warning, Message = "The bridge connection dropped. Reconnecting once.")]
-	private partial void LogConnectionDropped(Exception exception);
+	[LoggerMessage(Level = LogLevel.Warning, Message = "The bridge connection dropped: {Cause}. Reconnecting once.")]
+	private partial void LogConnectionDropped(Exception exception, string cause);
+
+	[LoggerMessage(Level = LogLevel.Warning, Message = "The bridge pipe {PipeName} accepted no connection. Cause: {Code}.")]
+	private partial void LogConnectTimedOut(string pipeName, string code);
 
 	[LoggerMessage(Level = LogLevel.Warning, Message = "Discarded the late response {ResponseId} from a call that stopped waiting. Waiting for {RequestId}.")]
 	private partial void LogLateResponseDiscarded(string responseId, string requestId);
