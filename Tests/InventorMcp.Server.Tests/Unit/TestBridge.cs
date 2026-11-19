@@ -130,7 +130,7 @@ internal sealed class TestConnection : IAsyncDisposable
 			.AsTask()
 			.WaitAsync(timeout ?? TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
-	public Task RespondAsync(string id, string result)
+	public Task RespondAsync(string id, object? result)
 	{
 		_ = _answers[id].TrySetResult(BridgeResult.Wrap(result));
 

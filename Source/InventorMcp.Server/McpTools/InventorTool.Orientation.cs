@@ -80,7 +80,7 @@ internal static partial class InventorTool
 		""")]
 	public static Task<object> OrientationAsync(
 		BridgeClient bridge,
-		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name of an open document, which must be open. The tool always reads the camera of the active view, which belongs to the top document, also during an edit in place.")] string? documentName = null,
 		CancellationToken cancellationToken = default) =>
 		SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ExecutionResult>(
 			BridgeOperations.EvalCSharp,

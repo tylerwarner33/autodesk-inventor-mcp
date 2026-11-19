@@ -28,9 +28,16 @@ internal sealed partial class InventorOperations
 	{
 		// A snippet may need no document at all, ex. one that runs a plugin which opens its own.
 		// A named document that cannot be found is still an error.
-		Document? document = string.IsNullOrWhiteSpace(request.DocumentName)
-			? _inventor.ActiveDocument as Document
-			: ResolveDocument(request.DocumentName);
+		Document? document;
+
+		try
+		{
+			document = ResolveDocument(request.DocumentName);
+		}
+		catch (BridgeFailureException failure) when (failure.Code == BridgeErrorCodes.NoActiveDocument)
+		{
+			document = null;
+		}
 
 		if (document is not null)
 			GuardUnsavedChanges(document, request.AllowUnsavedChanges);
@@ -54,8 +61,11 @@ internal sealed partial class InventorOperations
 	}
 
 	/// <summary>
-	/// 	The full path of each open document, or the display name of one that was never saved.
+	/// 	The full document name of each open document, or the display name of one that was never saved.
 	/// </summary>
+	/// <remarks>
+	/// 	The full document name has the model state, so two model states of one file are two keys.
+	/// </remarks>
 	private HashSet<string> OpenDocumentKeys()
 	{
 		HashSet<string> keys = new(StringComparer.OrdinalIgnoreCase);
@@ -63,7 +73,7 @@ internal sealed partial class InventorOperations
 		try
 		{
 			foreach (Document open in _inventor.Documents)
-				_ = keys.Add(string.IsNullOrEmpty(open.FullFileName) ? open.DisplayName : open.FullFileName);
+				_ = keys.Add(string.IsNullOrEmpty(open.FullDocumentName) ? open.DisplayName : open.FullDocumentName);
 		}
 		catch (COMException exception)
 		{

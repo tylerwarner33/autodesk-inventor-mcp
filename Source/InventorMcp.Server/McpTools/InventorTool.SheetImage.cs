@@ -34,7 +34,7 @@ internal static partial class InventorTool
 		""")]
 	public static async Task<IEnumerable<ContentBlock>> ExportSheetImageAsync(
 		BridgeClient bridge,
-		[Description("Display name or full path of an open drawing, or the full path of a file. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of an open drawing, or the full path of a file. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		[Description("The sheet name, ex. 'Sheet:1'. Omit to use the active sheet.")] string? sheetName = null,
 		[Description("A region to render, as [x1, y1, x2, y2] in inches from the sheet's lower left corner. Omit for the whole sheet.")] double[]? region = null,
 		[Description("The image width in pixels, 200 to 4000. Default 1600. The height follows the region.")] int widthPixels = DefaultSheetImageWidth,
@@ -49,8 +49,8 @@ internal static partial class InventorTool
 			? "null"
 			: "new double[] { " + string.Join(", ", region.Select(static value => value.ToString("R", CultureInfo.InvariantCulture))) + " }";
 
-		object result = await SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
-			DrawingDocument drawing = FindToolDocument({{CSharpLiteral.String(documentName)}}) as DrawingDocument
+		object result = await SafeAsync(async () => await RunJsonSnippetAsync(bridge, ToolDocument + $$"""
+			DrawingDocument drawing = ToolDocument() as DrawingDocument
 				?? throw new ArgumentException("inventor_export_sheet_image renders a drawing.");
 			string? sheetName = {{CSharpLiteral.String(sheetName)}};
 			double[]? region = {{regionLiteral}};
@@ -96,7 +96,7 @@ internal static partial class InventorTool
 				pixels = new[] { width, height },
 				file = {{CSharpLiteral.String(file)}}
 			});
-			""", cancellationToken).ConfigureAwait(false)).ConfigureAwait(false);
+			""", cancellationToken, documentName).ConfigureAwait(false)).ConfigureAwait(false);
 
 		try
 		{

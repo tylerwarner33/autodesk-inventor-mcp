@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 using Inventor;
@@ -169,33 +170,55 @@ internal sealed partial class InventorOperations(
 	}
 
 	/// <summary>
-	/// 	Finds the document an operation targets.
+	/// 	Finds the document an operation targets. Every tool finds its document here.
 	/// </summary>
+	/// <remarks>
+	/// 	With no name, the document in edit: during an edit in place of a part in an assembly, that is the part.
+	/// 	With no edit in place, <c>ActiveEditDocument</c> is the active document. See <see cref="DocumentNameMatch"/> for a
+	/// 	name.
+	/// </remarks>
 	/// <param name="documentName">
-	/// 	Display name or full path. Null selects the active document.
+	/// 	A full document name, a path or a display name. Null selects the document in edit.
 	/// </param>
 	/// <returns>
 	/// 	The matching document.
 	/// </returns>
+	/// <exception cref="BridgeFailureException">
+	/// 	No document is active (<see cref="BridgeErrorCodes.NoActiveDocument"/>), no open document matches
+	/// 	(<see cref="BridgeErrorCodes.NotFound"/>), or more than one does (<see cref="BridgeErrorCodes.AmbiguousDocument"/>).
+	/// </exception>
 	private Document ResolveDocument(string? documentName)
 	{
 		if (string.IsNullOrWhiteSpace(documentName))
 		{
-			return _inventor.ActiveDocument as Document
+			return (_inventor.ActiveEditDocument ?? _inventor.ActiveDocument) as Document
 				?? throw new BridgeFailureException(BridgeErrorCodes.NoActiveDocument, "Inventor has no active document.");
 		}
 
 		Documents documents = _inventor.Documents;
+		List<Document> open = new(documents.Count);
 
 		for (int index = 1; index <= documents.Count; index++)
-		{
-			Document candidate = (Document)documents[index];
+			open.Add((Document)documents[index]);
 
-			if (string.Equals(candidate.DisplayName, documentName, StringComparison.OrdinalIgnoreCase)
-				|| string.Equals(candidate.FullFileName, documentName, StringComparison.OrdinalIgnoreCase))
-			{
-				return candidate;
-			}
+		// COM gives null, not an empty string, for the path and the full document name of a document that was never saved.
+		DocumentMatch match = DocumentNameMatch.Find(
+			[.. open.Select(static document => new DocumentNames(
+				document.DisplayName ?? string.Empty,
+				document.FullFileName ?? string.Empty,
+				document.FullDocumentName ?? string.Empty,
+				IsModelStateFactory(document)))],
+			documentName);
+
+		if (match.Index is int found)
+			return open[found];
+
+		if (match.IsAmbiguous)
+		{
+			throw new BridgeFailureException(
+				BridgeErrorCodes.AmbiguousDocument,
+				$"'{documentName}' matches {match.Candidates.Count} open documents. Call again with one of these full document names: {string.Join("; ", match.Candidates)}.",
+				string.Join(System.Environment.NewLine, match.Candidates));
 		}
 
 		throw new BridgeFailureException(
@@ -203,13 +226,41 @@ internal sealed partial class InventorOperations(
 			$"No open document matches '{documentName}'. Call the documents operation to list what is open.");
 	}
 
+	/// <summary>
+	/// 	Tells if a document is the model state factory of its file.
+	/// </summary>
+	private static bool IsModelStateFactory(Document document) => document switch
+	{
+		PartDocument part => part.ComponentDefinition.IsModelStateFactory,
+		AssemblyDocument assembly => assembly.ComponentDefinition.IsModelStateFactory,
+		_ => false
+	};
+
 	private static DocumentInfo ToDocumentInfo(Document document) => new(
 		document.DisplayName,
 		document.FullFileName,
 		DescribeDocumentType(document.DocumentType),
 		document.Dirty,
 		document.IsModifiable,
-		document.RequiresUpdate);
+		document.RequiresUpdate,
+		document.FullDocumentName,
+		ModelStateName(document));
+
+	/// <summary>
+	/// 	The model state of a document, or null for a document that has none (ex. a drawing).
+	/// </summary>
+	private static string? ModelStateName(Document document)
+	{
+		try
+		{
+			return document.ModelStateName is { Length: > 0 } name ? name : null;
+		}
+		catch (COMException)
+		{
+			// A document type with no model states throws, and has none to report.
+			return null;
+		}
+	}
 
 	private static string DescribeDocumentType(DocumentTypeEnum documentType) => documentType switch
 	{

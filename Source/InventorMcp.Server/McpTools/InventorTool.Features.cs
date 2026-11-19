@@ -34,11 +34,11 @@ internal static partial class InventorTool
 		""")]
 	public static Task<object> FeaturesAsync(
 		BridgeClient bridge,
-		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of an open document, or the full path of a file. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		[Description("Include each feature's parameters. Default true.")] bool includeParameters = true,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
-			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
+		SafeAsync(async () => await RunJsonSnippetAsync(bridge, ToolDocument + $$"""
+			Document document = ToolDocument();
 			bool includeParameters = {{(includeParameters ? "true" : "false")}};
 			System.Collections.IEnumerable all = document switch
 			{
@@ -157,7 +157,7 @@ internal static partial class InventorTool
 			string json = System.Text.Json.JsonSerializer.Serialize(new { document = document.DisplayName, count = features.Count, features });
 			CloseDocumentsOpenedHere();
 			return json;
-			""", cancellationToken).ConfigureAwait(false));
+			""", cancellationToken, documentName).ConfigureAwait(false));
 
 	[McpServerTool(Name = "inventor_pattern_elements", Title = "Read pattern elements", ReadOnly = true, OpenWorld = false)]
 	[Description("""
@@ -168,10 +168,10 @@ internal static partial class InventorTool
 	public static Task<object> PatternElementsAsync(
 		BridgeClient bridge,
 		[Description("The name of the pattern or mirror feature, as inventor_features lists it.")] string featureName,
-		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of an open document, or the full path of a file. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
-			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
+		SafeAsync(async () => await RunJsonSnippetAsync(bridge, ToolDocument + $$"""
+			Document document = ToolDocument();
 			{{DocumentLengthHelper}}
 			string featureName = {{CSharpLiteral.String(featureName)}};
 			System.Collections.IEnumerable all = document switch
@@ -215,7 +215,7 @@ internal static partial class InventorTool
 			string json = System.Text.Json.JsonSerializer.Serialize(new { document = document.DisplayName, feature = feature.Name, unit = LengthUnit(), count = result.Count, elements = result });
 			CloseDocumentsOpenedHere();
 			return json;
-			""", cancellationToken).ConfigureAwait(false));
+			""", cancellationToken, documentName).ConfigureAwait(false));
 
 	[McpServerTool(Name = "inventor_hole_check", Title = "Check holes", ReadOnly = true, OpenWorld = false)]
 	[Description("""
@@ -228,11 +228,11 @@ internal static partial class InventorTool
 		""")]
 	public static Task<object> HoleCheckAsync(
 		BridgeClient bridge,
-		[Description("Display name or full path of an open part, or the full path of a file. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of an open part, or the full path of a file. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		[Description("The most hole positions to list for each diameter. Default 50.")] int maxPositions = 50,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
-			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
+		SafeAsync(async () => await RunJsonSnippetAsync(bridge, ToolDocument + $$"""
+			Document document = ToolDocument();
 			{{DocumentLengthHelper}}
 			int maxPositions = {{(maxPositions <= 0 ? 50 : maxPositions)}};
 			PartDocument part = document as PartDocument ?? throw new ArgumentException("inventor_hole_check reads a part.");
@@ -347,15 +347,21 @@ internal static partial class InventorTool
 			});
 			CloseDocumentsOpenedHere();
 			return json;
-			""", cancellationToken).ConfigureAwait(false));
+			""", cancellationToken, documentName).ConfigureAwait(false));
 
 	/// <summary>
 	/// 	Reads the styles of one document as JSON text, into a variable named after the prefix.
 	/// </summary>
-	private static string StylesSnippet(string variable, string? documentName) => $$"""
+	/// <param name="variable">
+	/// 	The name of the variable.
+	/// </param>
+	/// <param name="otherDocument">
+	/// 	Null for the document of the tool call, or the name of a second document, which the snippet finds or opens.
+	/// </param>
+	private static string StylesSnippet(string variable, string? otherDocument) => $$"""
 		string {{variable}};
 		{
-			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
+			Document document = {{(otherDocument is null ? "ToolDocument()" : $"FindOrOpenToolDocument({CSharpLiteral.String(otherDocument)})")}};
 			List<object> styles = new();
 			string? standard = null;
 			if (document is DrawingDocument drawing)
@@ -431,16 +437,16 @@ internal static partial class InventorTool
 		""")]
 	public static Task<object> StylesAsync(
 		BridgeClient bridge,
-		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of an open document, or the full path of a file. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		[Description("A second document to compare with, as a display name or a full path.")] string? compareWith = null,
 		CancellationToken cancellationToken = default) =>
 		SafeAsync(async () =>
 		{
-			JsonElement result = await RunJsonSnippetAsync(bridge, FindToolDocument + StylesSnippet("first", documentName) +
+			JsonElement result = await RunJsonSnippetAsync(bridge, ToolDocument + StylesSnippet("first", otherDocument: null) +
 				(compareWith is null ? "string? second = null;\n" : StylesSnippet("second", compareWith)) + """
 				CloseDocumentsOpenedHere();
 				return System.Text.Json.JsonSerializer.Serialize(new { first, second });
-				""", cancellationToken).ConfigureAwait(false);
+				""", cancellationToken, documentName).ConfigureAwait(false);
 
 			if (result.TryGetProperty("first", out JsonElement firstText) is false)
 				return (object)result;

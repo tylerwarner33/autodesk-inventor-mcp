@@ -124,7 +124,7 @@ internal static partial class InventorTool
 
 		return SafeAsync(async () =>
 		{
-			JsonElement result = await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
+			JsonElement result = await RunJsonSnippetAsync(bridge, $$"""
 				string[] files = new string[] { {{files}} };
 				HashSet<string> wanted = new(new string[] { {{names}} }, StringComparer.OrdinalIgnoreCase);
 				ScriptDeadline deadline = StartDeadline(8);
@@ -164,7 +164,8 @@ internal static partial class InventorTool
 						read++;
 						try
 						{
-							Document document = FindToolDocument(file);
+							// The rules are off around this loop, so an open trigger does not run.
+							Document document = OpenOrReuseDocument(file);
 							// The interop types do not convert to the ComponentDefinition base, so each member is read per type.
 							(ModelStates? states, WorkPoints? workPoints, iMateDefinitions? iMates) = document switch
 							{

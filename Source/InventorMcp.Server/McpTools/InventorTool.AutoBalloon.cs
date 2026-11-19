@@ -65,13 +65,15 @@ internal static partial class InventorTool
 		DrawingDocument? drawing;
 		if (drawingPath is null)
 		{
-			drawing = Application.ActiveDocument as DrawingDocument
+			// Document is the document of a call with no name, the same as for every other tool.
+			drawing = Document as DrawingDocument
 				?? throw new InvalidOperationException("The active document is not a drawing. Pass drawingPath.");
 		}
 		else
 		{
-			drawing = Application.Documents.OfType<Document>()
-				.FirstOrDefault(document => string.Equals(document.FullFileName, drawingPath, StringComparison.OrdinalIgnoreCase)) as DrawingDocument;
+			drawing = FindOpenDocument(drawingPath) is Document open
+				? open as DrawingDocument ?? throw new InvalidOperationException($"'{open.DisplayName}' is not a drawing.")
+				: null;
 			if (drawing is null)
 			{
 				// With the rules off, so an open trigger does not run. Visible, and left open, so the user can check and save.

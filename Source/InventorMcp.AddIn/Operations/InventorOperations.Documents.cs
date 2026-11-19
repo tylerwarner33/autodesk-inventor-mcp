@@ -11,9 +11,14 @@ internal sealed partial class InventorOperations
 	private SessionInfo GetSession()
 	{
 		DocumentInfo? active = null;
+		DocumentInfo? edit = null;
 
 		if (_inventor.ActiveDocument is Document document)
 			active = ToDocumentInfo(document);
+
+		// With no edit in place, ActiveEditDocument is the active document, so it is reported only when it differs.
+		if (_inventor.ActiveEditDocument is Document editDocument && ReferenceEquals(editDocument, _inventor.ActiveDocument) is false)
+			edit = ToDocumentInfo(editDocument);
 
 		return new SessionInfo(
 			_inventor.SoftwareVersion.DisplayName,
@@ -24,7 +29,8 @@ internal sealed partial class InventorOperations
 			active,
 			_inventor.Documents.Count,
 			// Ready is false while Inventor is starting, running a command, or showing a modal dialog.
-			_inventor.Ready is false);
+			_inventor.Ready is false,
+			edit);
 	}
 
 	private IReadOnlyList<DocumentInfo> GetDocuments()

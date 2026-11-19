@@ -14,6 +14,9 @@ error for a missing member carries a `HINT` with the near members: read it befor
 - Keep each call under 10 s. Split a loop over several calls, and guard it with `StartDeadline()`. See the
   `split-long-work` skill.
 - `Document` is the target document, or null. `Application` is always there.
+- During an edit in place (ex. a part edited inside an assembly), `Document` with no documentName is the document in
+  edit (`Application.ActiveEditDocument`), and `Application.ActiveDocument` is the top document. The camera of
+  `Application.ActiveView` belongs to the top document.
 - To make several writes one Undo step, wrap them in `InTransaction(document, "MCP: Name", () => { ... })`. It starts
   the step on that document, ends it, and aborts it when the action throws. A rule that runs inside joins the step.
   Put `document.Update()` inside, because an `Update` after the step makes a second one.
