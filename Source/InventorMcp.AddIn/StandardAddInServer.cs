@@ -60,7 +60,8 @@ public sealed class StandardAddInServer : ApplicationAddInServer
 			OperationDispatcher operations = new(BridgeLog.Write);
 			InventorOperations.Register(operations, _inventor, _dispatcher, _activity);
 
-			_bridge = new BridgeServer(operations, BridgeLog.Write, Contracts.BridgeProtocol.PipeNameFor(releaseYear));
+			// The name has the id of this process, so a second Inventor of the same release has its own pipe.
+			_bridge = new BridgeServer(operations, BridgeLog.Write, Contracts.BridgeProtocol.PipeNameFor(releaseYear, System.Environment.ProcessId));
 			_bridge.Start();
 
 			// Fully qualified: Inventor.Environment is the ribbon environment type, so the name collides.

@@ -1,15 +1,19 @@
+using System.Globalization;
 using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using System.Text;
-using System.Text.Json;
 
 using InventorMcp.Contracts;
+
+using Microsoft.Extensions.Logging.Abstractions;
+
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 
 namespace InventorMcp.AddIn.Bridge;
 
 /// <summary>
-/// 	Listens on the named pipe and hands each request to the operation dispatcher.
+/// 	Listens on the named pipe, and serves each connection as an MCP session whose methods are the bridge operations.
 /// </summary>
 /// <remarks>
 /// 	The pipe is restricted to the account that started Inventor.
@@ -38,12 +42,32 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 	/// </summary>
 	private readonly LogThrottle _acceptFailureLog = new(TimeProvider.System, TimeSpan.FromMinutes(1));
 
+	/// <summary>
+	/// 	The name of the MCP server of the add-in.
+	/// </summary>
+	private const string ServerName = "InventorMcp.AddIn";
+
 	private readonly OperationDispatcher _dispatcher = dispatcher;
 	private readonly Action<string> _log = log;
 	private readonly CancellationTokenSource _shutdown = new();
 
 	private Task? _acceptLoop;
 	private bool _disposed;
+
+	/// <summary>
+	/// 	True after the first instance of the pipe was created, so later instances do not ask for the first.
+	/// </summary>
+	private bool _claimed;
+
+	/// <summary>
+	/// 	The failed claims of the name so far.
+	/// </summary>
+	private int _claimAttempts;
+
+	/// <summary>
+	/// 	The claims of the name before the server stops, one <see cref="_acceptRetryDelay"/> apart.
+	/// </summary>
+	private const int MaxClaimAttempts = 5;
 
 	/// <summary>
 	/// 	The name of the pipe this server listens on.
@@ -77,6 +101,9 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 
 				NamedPipeServerStream pipe = CreatePipe();
 
+				// Only the first instance claims the name. A later instance joins the name that this process owns.
+				_claimed = true;
+
 				await pipe.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
 
 				connections.Add(Task.Run(() => ServeConnectionAsync(pipe, cancellationToken), CancellationToken.None));
@@ -102,8 +129,27 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 			}
 			catch (UnauthorizedAccessException exception)
 			{
-				// Another Inventor of this release already owns the pipe name. Stop rather than spin.
-				_log($"Could not claim the pipe '{PipeName}'. Another Inventor of the same release is probably hosting the bridge. {exception.Message}");
+				// The name has the id of this process. After an unload and a load of the add-in in this process, a connection
+				// of the old server can still hold the name for a moment, so the claim is tried again a few times.
+				// After that, another process holds it and is not an Inventor of this user (a different Windows user, or a
+				// program that took the name). Stop rather than spin.
+				if (_claimed is false && ++_claimAttempts < MaxClaimAttempts)
+				{
+					_log($"Could not claim the pipe '{PipeName}' (attempt {_claimAttempts} of {MaxClaimAttempts}). Trying again. {exception.Message}");
+
+					try
+					{
+						await Task.Delay(_acceptRetryDelay, cancellationToken).ConfigureAwait(false);
+					}
+					catch (OperationCanceledException)
+					{
+						return;
+					}
+
+					continue;
+				}
+
+				_log($"Could not claim the pipe '{PipeName}'. The name has the id of this process, so another process holds it and is not this user's Inventor. {exception.Message}");
 				return;
 			}
 		}
@@ -118,12 +164,18 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 
 		security.AddAccessRule(new PipeAccessRule(currentUser, PipeAccessRights.FullControl, AccessControlType.Allow));
 
+		// .NET never sets PIPE_REJECT_REMOTE_CLIENTS. A network logon has the NETWORK SID in its token and an interactive
+		// logon has not, so a deny entry blocks a client from another computer. A remote client also needs the
+		// credentials of this user, so this is a second barrier and not the first.
+		security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.NetworkSid, null), PipeAccessRights.FullControl, AccessControlType.Deny));
+
 		return NamedPipeServerStreamAcl.Create(
 			PipeName,
 			PipeDirection.InOut,
 			MaxPipeInstances,
 			PipeTransmissionMode.Byte,
-			PipeOptions.Asynchronous,
+			// FirstPipeInstance makes the create fail when the name exists. It protects only the call that has it.
+			_claimed ? PipeOptions.Asynchronous : PipeOptions.Asynchronous | PipeOptions.FirstPipeInstance,
 			inBufferSize: 0,
 			outBufferSize: 0,
 			security);
@@ -133,26 +185,24 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 	{
 		try
 		{
-			using (pipe)
+			await using (pipe.ConfigureAwait(false))
 			{
-				// UTF8Encoding without a byte order mark: a preamble would corrupt the first line.
-				using StreamReader reader = new(pipe, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: false, leaveOpen: true);
-				await using StreamWriter writer = new(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
+				// One MCP session for each connection, with its own queue. The SDK reads the requests, and the queue holds
+				// them. The pinned version makes the add-in refuse a client of any other MCP version.
+				using SemaphoreSlim queue = new(1, 1);
 
-				while (cancellationToken.IsCancellationRequested is false)
+				McpServerOptions options = new()
 				{
-					string? line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+					ServerInfo = new Implementation { Name = ServerName, Version = BridgeProtocol.Version.ToString(CultureInfo.InvariantCulture) },
+					ProtocolVersion = BridgeProtocol.McpVersion,
+					RequestHandlers = _dispatcher.CreateRequestHandlers(queue)
+				};
 
-					if (line is null)
-						return;
+				StreamServerTransport transport = new(pipe, pipe, ServerName, NullLoggerFactory.Instance);
+				McpServer server = McpServer.Create(transport, options, NullLoggerFactory.Instance);
 
-					if (string.IsNullOrWhiteSpace(line))
-						continue;
-
-					BridgeResponse response = await HandleLineAsync(line, cancellationToken).ConfigureAwait(false);
-
-					await writer.WriteLineAsync(JsonSerializer.Serialize(response, BridgeProtocol.SerializerOptions)).ConfigureAwait(false);
-				}
+				await using (server.ConfigureAwait(false))
+					await server.RunAsync(cancellationToken).ConfigureAwait(false);
 			}
 		}
 		catch (OperationCanceledException)
@@ -167,25 +217,6 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 		{
 			_log($"Connection failed: {exception}");
 		}
-	}
-
-	private async Task<BridgeResponse> HandleLineAsync(string line, CancellationToken cancellationToken)
-	{
-		BridgeRequest? request;
-
-		try
-		{
-			request = JsonSerializer.Deserialize<BridgeRequest>(line, BridgeProtocol.SerializerOptions);
-		}
-		catch (JsonException exception)
-		{
-			return new BridgeResponse("unknown", false, null, new BridgeError(BridgeErrorCodes.Internal, "The request was not valid JSON.", exception.Message));
-		}
-
-		if (request is null)
-			return new BridgeResponse("unknown", false, null, new BridgeError(BridgeErrorCodes.Internal, "The request was empty."));
-
-		return await _dispatcher.DispatchAsync(request, cancellationToken).ConfigureAwait(false);
 	}
 
 	public void Dispose()

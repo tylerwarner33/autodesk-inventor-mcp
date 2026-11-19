@@ -15,7 +15,9 @@ public sealed class ReleaseSelectionTests
 	private const string Prefix = "InventorMcp.Test.Selection";
 
 	private static ReleaseSelection Selection(string environmentValue = "", params string[] pipes) =>
-		new(Prefix, environmentValue, () => pipes);
+		new(Prefix, environmentValue, () => pipes, static _ => true, static instance => $"process {instance.ProcessId} (started test)");
+
+	private static string Pipe(int year, int processId = 100) => BridgeProtocol.PipeNameFor(year, processId, Prefix);
 
 	// The test process hosts the fake pipes, so the host check accepts it.
 	private static BridgeClient ClientFor(ReleaseSelection selection) =>
@@ -24,16 +26,16 @@ public sealed class ReleaseSelectionTests
 	[Fact]
 	public void NoChoiceAndOnePipeUsesThatPipe()
 	{
-		PipeResolution resolution = Selection(pipes: $"{Prefix}.2026").Resolve();
+		PipeResolution resolution = Selection(pipes: Pipe(2026)).Resolve();
 
-		Assert.Equal($"{Prefix}.2026", resolution.PipeName);
+		Assert.Equal(Pipe(2026), resolution.PipeName);
 		Assert.Equal(2026, resolution.ReleaseYear);
 	}
 
 	[Fact]
 	public void NoChoiceAndTwoPipesRequiresAChoice()
 	{
-		PipeResolution resolution = Selection(string.Empty, $"{Prefix}.2025", $"{Prefix}.2027").Resolve();
+		PipeResolution resolution = Selection(string.Empty, Pipe(2025), Pipe(2027)).Resolve();
 
 		Assert.Equal(BridgeErrorCodes.ReleaseRequired, resolution.ErrorCode);
 		Assert.Contains("2025", resolution.Message);
@@ -43,9 +45,9 @@ public sealed class ReleaseSelectionTests
 	[Fact]
 	public void EnvironmentVariableWinsOverAnotherPipe()
 	{
-		PipeResolution resolution = Selection("2027", $"{Prefix}.2025", $"{Prefix}.2027").Resolve();
+		PipeResolution resolution = Selection("2027", Pipe(2025), Pipe(2027)).Resolve();
 
-		Assert.Equal($"{Prefix}.2027", resolution.PipeName);
+		Assert.Equal(Pipe(2027), resolution.PipeName);
 	}
 
 	[Fact]
@@ -67,17 +69,179 @@ public sealed class ReleaseSelectionTests
 	[Fact]
 	public void ChosenReleaseNeverFallsBackToAnotherPipe()
 	{
+		ReleaseSelection selection = Selection(pipes: Pipe(2025));
+
+		selection.Choose(2026);
+
+		PipeResolution resolution = selection.Resolve();
+
+		// The pipe of release 2025 is not offered for release 2026, and no message is set, so the client examines the machine.
+		Assert.Null(resolution.PipeName);
+		Assert.Equal(2026, resolution.ReleaseYear);
+		Assert.Equal(BridgeErrorCodes.NotRunning, resolution.ErrorCode);
+		Assert.Null(resolution.Message);
+	}
+
+	[Fact]
+	public void TwoProcessesOfOneReleaseRequireAChoice()
+	{
+		PipeResolution resolution = Selection(string.Empty, Pipe(2026, 111), Pipe(2026, 222)).Resolve();
+
+		Assert.Null(resolution.PipeName);
+		Assert.Equal(BridgeErrorCodes.InstanceRequired, resolution.ErrorCode);
+		Assert.Contains("111", resolution.Message, StringComparison.Ordinal);
+		Assert.Contains("222", resolution.Message, StringComparison.Ordinal);
+		Assert.Contains("inventor_use_release", resolution.Message, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void ChosenProcessIsUsedAndIsTheOnlyOneUsed()
+	{
+		ReleaseSelection selection = Selection(string.Empty, Pipe(2026, 111), Pipe(2026, 222));
+
+		selection.ChooseProcess(2026, 222);
+		PipeResolution resolution = selection.Resolve();
+
+		Assert.Equal(Pipe(2026, 222), resolution.PipeName);
+		Assert.Equal(222, resolution.ProcessId);
+		Assert.Equal(2026, selection.Chosen);
+		Assert.Equal(222, selection.ChosenProcessId);
+	}
+
+	[Fact]
+	public void ChosenProcessThatIsGoneIsNotRunningAndDoesNotFallBackToAnotherProcess()
+	{
+		ReleaseSelection selection = Selection(string.Empty, Pipe(2026, 111));
+
+		selection.ChooseProcess(2026, 222);
+		PipeResolution resolution = selection.Resolve();
+
+		Assert.Null(resolution.PipeName);
+		Assert.Equal(BridgeErrorCodes.NotRunning, resolution.ErrorCode);
+		Assert.Contains("222", resolution.Message, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void TheRetryOfARequestDoesNotMoveToAnotherProcess()
+	{
+		ReleaseSelection selection = Selection(string.Empty, Pipe(2026, 222));
+
+		// The session used the process 111. Only 222 hosts a bridge now.
+		PipeResolution moved = selection.Resolve(lockedProcessId: 111, retry: true);
+
+		Assert.Equal(BridgeErrorCodes.InstanceRequired, moved.ErrorCode);
+		Assert.Contains("111", moved.Message, StringComparison.Ordinal);
+		Assert.Contains("process 222 (started test)", moved.Message, StringComparison.Ordinal);
+		Assert.Equal(Pipe(2026, 222), selection.Resolve(lockedProcessId: 222, retry: true).PipeName);
+	}
+
+	[Fact]
+	public void ANewCallAfterARestartUsesTheOnlyProcessThatIsLeft()
+	{
+		// The user restarted Inventor: the process 111 is gone, and the new process is 222.
+		ReleaseSelection selection = Selection(string.Empty, Pipe(2026, 222));
+
+		selection.Choose(2026);
+		PipeResolution resolution = selection.Resolve(lockedProcessId: 111);
+
+		Assert.Equal(Pipe(2026, 222), resolution.PipeName);
+		Assert.Equal(222, resolution.ProcessId);
+	}
+
+	[Fact]
+	public void ANewCallStaysOnItsProcessAndAsksWhenItIsGoneAndTwoAreLeft()
+	{
+		ReleaseSelection selection = Selection(string.Empty, Pipe(2026, 111), Pipe(2026, 222), Pipe(2026, 333));
+
+		Assert.Equal(Pipe(2026, 222), selection.Resolve(lockedProcessId: 222).PipeName);
+
+		PipeResolution gone = selection.Resolve(lockedProcessId: 444);
+
+		Assert.Equal(BridgeErrorCodes.InstanceRequired, gone.ErrorCode);
+		Assert.Contains("444", gone.Message, StringComparison.Ordinal);
+		Assert.Contains("process 333 (started test)", gone.Message, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void AProcessIsDescribedByItsStartTimeAndItsId()
+	{
+		string description = ReleaseSelection.DescribeProcess(new PipeInstance("pipe", 2026, Environment.ProcessId));
+
+		Assert.StartsWith($"process {Environment.ProcessId} (started ", description, StringComparison.Ordinal);
+		Assert.Equal("process -1", ReleaseSelection.DescribeProcess(new PipeInstance("pipe", 2026, -1)));
+	}
+
+	[Fact]
+	public void ASessionWithItsProcessGoneAndNoOtherProcessIsNotRunning()
+	{
+		ReleaseSelection selection = Selection();
+
+		selection.Choose(2026);
+
+		Assert.Equal(BridgeErrorCodes.NotRunning, selection.Resolve(lockedProcessId: 111).ErrorCode);
+	}
+
+	[Fact]
+	public void AProcessOfAnotherWindowsSessionIsNotListed()
+	{
+		ReleaseSelection selection = new(Prefix, string.Empty, () => [Pipe(2026, 111), Pipe(2026, 222)], static processId => processId == 222);
+
+		Assert.Equal([222], selection.RunningInstances().Select(static instance => instance.ProcessId));
+		Assert.Equal(Pipe(2026, 222), selection.Resolve().PipeName);
+	}
+
+	[Fact]
+	public void APipeOfProtocolTwoIsOutdated()
+	{
+		PipeResolution resolution = Selection(pipes: $"{Prefix}.2026").Resolve();
+
+		Assert.Equal(BridgeErrorCodes.BridgeOutdated, resolution.ErrorCode);
+		Assert.Contains("redeploy", resolution.Message, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void APipeOfProtocolTwoForAnotherReleaseDoesNotHideTheChosenRelease()
+	{
 		ReleaseSelection selection = Selection(pipes: $"{Prefix}.2025");
 
 		selection.Choose(2026);
 
-		Assert.Equal($"{Prefix}.2026", selection.Resolve().PipeName);
+		Assert.Equal(BridgeErrorCodes.NotRunning, selection.Resolve().ErrorCode);
+	}
+
+	[Fact]
+	public void ABridgeOfANewerProtocolAsksForAClientRestart()
+	{
+		PipeResolution resolution = Selection(pipes: $"{Prefix}.v{BridgeProtocol.Version + 1}.2026.111").Resolve();
+
+		Assert.Equal(BridgeErrorCodes.VersionMismatch, resolution.ErrorCode);
+		Assert.Contains("restart the MCP client", resolution.Message, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void ABridgeOfThisProtocolWinsOverAnOutdatedPipe() =>
+		Assert.Equal(Pipe(2026), Selection(string.Empty, $"{Prefix}.2025", Pipe(2026)).Resolve().PipeName);
+
+	[Fact]
+	public void ChoosingAProcessChangesTheGenerationAndChoosingAReleaseClearsIt()
+	{
+		ReleaseSelection selection = Selection();
+
+		selection.ChooseProcess(2026, 111);
+		selection.ChooseProcess(2026, 111);
+
+		Assert.Equal(1, selection.Generation);
+
+		selection.Choose(2026);
+
+		Assert.Null(selection.ChosenProcessId);
+		Assert.Equal(2, selection.Generation);
 	}
 
 	[Fact]
 	public void EnvironmentValueThatIsNotAReleaseIsReported()
 	{
-		PipeResolution resolution = Selection("2019", $"{Prefix}.2025").Resolve();
+		PipeResolution resolution = Selection("2019", Pipe(2025)).Resolve();
 
 		Assert.Equal(BridgeErrorCodes.ReleaseRequired, resolution.ErrorCode);
 		Assert.Contains("2019", resolution.Message);
@@ -260,7 +424,7 @@ public sealed class ReleaseSelectionTests
 		Task<TestConnection> acceptAgain = restarted.AcceptAsync();
 		Task<string> call = client.InvokeAsync<string>(BridgeOperations.Ping, null, TestContext.Current.CancellationToken);
 		TestConnection connection = await acceptAgain;
-		BridgeRequest request = await connection.ReadRequestAsync();
+		TestRequest request = await connection.ReadRequestAsync();
 		await connection.RespondAsync(request.Id, "pong");
 
 		Assert.Equal("pong", await call.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));

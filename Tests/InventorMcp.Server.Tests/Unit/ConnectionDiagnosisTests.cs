@@ -121,10 +121,10 @@ public sealed class ConnectionDiagnosisTests
 	[Fact]
 	public void AReleaseSelectionTellsIfThePipeExistsFromTheListAlone()
 	{
-		ReleaseSelection selection = new("Prefix", environmentValue: string.Empty, listPipes: static () => ["prefix.2025"]);
+		ReleaseSelection selection = new("Prefix", environmentValue: string.Empty, listPipes: static () => ["prefix.v3.2025.100"]);
 
-		Assert.True(selection.PipeExists(2025));
-		Assert.False(selection.PipeExists(2026));
+		Assert.True(selection.PipeExists("prefix.v3.2025.100"));
+		Assert.False(selection.PipeExists("prefix.v3.2026.100"));
 	}
 
 	[Fact]
@@ -195,13 +195,13 @@ public sealed class ConnectionDiagnosisTests
 	{
 		RecordingLogger logger = new();
 		await using TestBridge bridge = new(processRuns: _ => processRuns, logger: logger);
-		(Task<string> call, TestConnection first, _) = await bridge.StartPingAsync();
+		(Task<string> call, TestConnection first, _) = await bridge.StartCallAsync();
 
 		Task<TestConnection> accept = bridge.Server.AcceptAsync();
 		first.Disconnect();
 
 		TestConnection second = await accept;
-		BridgeRequest retry = await second.ReadRequestAsync();
+		TestRequest retry = await second.ReadRequestAsync();
 		await second.RespondAsync(retry.Id, "fresh");
 
 		Assert.Equal("fresh", await call);

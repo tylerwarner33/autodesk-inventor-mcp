@@ -6,6 +6,36 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [1.0.0] - 2026-11-19
+
+### Breaking
+- The add-in and the server use bridge protocol version 3. Close Inventor, build and deploy the add-in again for each release (see the README), start Inventor, and restart the MCP client. A new add-in with an old server, or an old add-in with a new server, does not connect: the old server reports `inventor-not-running`, and the new server reports `bridge-outdated`.
+- The pipe name is now `InventorMcp.Bridge.v3.<year>.<process id>`, one for each Inventor process, in place of one for each release.
+- The server and the add-in now speak MCP on the pipe (version `2026-07-28`, pinned on both sides), through the C# MCP SDK, in place of a line protocol of this repository. An add-in built before this release does not complete the handshake, and the server reports `bridge-outdated`: deploy the add-in again for each release.
+- With no `documentName`, a tool now uses the document in edit. During an edit in place of a part in an assembly, that is the part, not the assembly.
+
+### Added
+- A `documentName` can be a full document name (the path with the model state, ex. `C:\Parts\Bracket.ipt<State2>`), to name one model state of a file. A name that matches more than one open document (ex. a path whose file has two model states open, or two documents with one display name) returns the new code `ambiguous-document`, with the full document names to use.
+- `inventor_session` gives the full document name and the model state of each document, and the document in edit during an edit in place (`activeEditDocument`).
+- `inventor_activity` answers while a long call runs, because it no longer waits behind a call to Inventor's main thread.
+- A cancelled tool call now reaches the add-in, and a call that still waits for Inventor then does not run. A call that already runs ends normally.
+- A second Inventor process of the same release now has its own bridge. When two run, a tool returns `instance-required` with the id, the start time and the window title of each process, and `inventor_use_release` takes a `processId` to choose one. `inventor_session` lists the processes with the same description. A session keeps its process while it runs. The retry of a call after a dropped connection never goes to another process. After a restart of Inventor, the next call uses the new process when it is the only one.
+- `version-mismatch` tells the user to restart the MCP client when an add-in is newer than the server.
+
+### Changed
+- The bridge pipe refuses a client from another computer (a deny entry for the `NETWORK` SID), and only the first instance can claim the name.
+- After a connect, the server compares the process id in the pipe name with the process that hosts the pipe. A different id refuses the pipe with `untrusted-bridge-host`.
+- `bridge-outdated` now also covers a pipe of protocol version 2.
+- Each line of `addin.log` has the id of its Inventor process, because two processes of one release write to the same file. An append that finds the file open in another process is tried again, so a line is not lost.
+- After an unload and a load of the add-in in one Inventor, the bridge tries to claim its pipe name 5 times before it stops.
+- The `untrusted-bridge-host` message for a refused account also names a server that runs with a network logon (ex. through SSH or WinRM).
+- Every tool finds its document with the same rules, in the add-in. Before, a name matched the first document with that path or display name, so a tool could use the wrong model state of a file, or the wrong one of two documents with one display name, with no message.
+- The add-in runs the calls of one server one at a time, so a cancelled call and the next call never run at the same time.
+- `inventor_orientation` says that it reads the camera of the active view, which belongs to the top document, also during an edit in place.
+
+### Removed
+- The add-in operation `parameters.set`. `inventor_set_parameter` uses the same snippet as `inventor_set_parameters` since version 0.5.0.
+
 ## [0.5.1] - 2026-11-19
 
 ### Changed

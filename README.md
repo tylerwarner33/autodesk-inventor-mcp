@@ -452,12 +452,20 @@ uses one release.
 	`release-required` with the years, and Claude asks you.
 
 A chosen release never falls back to another release. If its Inventor is closed, the result is `inventor-not-running`
-and names the release. Two Inventor processes of the same release still compete for one pipe.
+and names the release.
+
+Two Inventor processes of one release each have their own bridge. A tool then returns `instance-required` with the
+id, the start time and the window title of each process, and Claude asks you which Inventor to use, then calls
+`inventor_use_release` with the release and the `processId`. The retry of a call after a dropped connection never goes
+to another process, because it could then change other documents. After you restart Inventor, the next call uses the
+new process when it is the only one.
 
 | Error | Meaning |
 | --- | --- |
 | `release-required` | More than one release runs, and this session has not chosen one. Call `inventor_use_release`. |
-| `bridge-outdated` | An Inventor hosts an add-in from before protocol version 2, which uses the old pipe name. Close Inventor, redeploy the add-in for each release, and start it again. |
+| `instance-required` | More than one Inventor of the release runs. Call `inventor_use_release` with the release and the `processId` of the Inventor to use. `inventor_session` lists the processes. |
+| `bridge-outdated` | An Inventor hosts an add-in of protocol version 2 or older, which uses an old pipe name. Close Inventor, redeploy the add-in for each release, and start it again. |
+| `version-mismatch` | An Inventor hosts an add-in that is newer than this server. Restart the MCP client, so it starts the new server. |
 | `bridge-connections-in-use` | The bridge of the release exists, but every one of its 16 connections is in use. Close an MCP client that is not in use. Waiting does not help. |
 | `untrusted-bridge-host` | The pipe belongs to a different Windows user, or its process is not this user's Inventor. The server did not use it. |
 
@@ -730,7 +738,7 @@ reconnect. `Docs/Telemetry.md` has every variable, what is sent, and how to star
 | Hop | Transport | Notes |
 | --- | --- | --- |
 | Client to server | stdio | Claude Code, Claude Desktop, Visual Studio or Visual Studio Code starts the server with `dotnet tool exec`. |
-| Server to add-in | Named pipe `InventorMcp.Bridge.<year>`, one for each Inventor release | Only the current Windows user can connect. |
+| Server to add-in | Named pipe `InventorMcp.Bridge.v3.<year>.<process id>`, one for each Inventor process | Only the current Windows user can connect, and a client from another computer is refused. |
 | Add-in to Inventor | In-process COM | Every call runs on Inventor's main thread. |
 
 The server targets `net10.0`. The add-in targets `net8.0-windows` on Inventor 2025 and 2026, and `net10.0-windows` on 2027.
@@ -797,6 +805,14 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
 | `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
 | `.agents/rules/` | Coding agents: the Inventor behaviours and repository rules, one topic per file |
+
+The specifications that the server uses:
+
+| Specification | Where it applies |
+| --- | --- |
+| [Model Context Protocol](https://modelcontextprotocol.io/specification/latest) | Between the MCP client and `InventorMcp.Server` |
+| [Model Context Protocol](https://modelcontextprotocol.io/specification/latest), version `2026-07-28` | Between `InventorMcp.Server` and the add-in, on the named pipe. Each bridge operation is a custom method (see `Docs/Architecture.md`, "The bridge speaks MCP") |
+| [JSON-RPC 2.0](https://www.jsonrpc.org/specification) | The message format of MCP (see the MCP [base protocol](https://modelcontextprotocol.io/specification/latest/basic)) |
 
 <details>
 <summary><b>Which coding agents read <code>AGENTS.md</code></b></summary>

@@ -20,6 +20,7 @@ internal static partial class ScriptPrelude
 	/// </summary>
 	public static readonly string[] HelperNames =
 	[
+		"FindOpenDocument",
 		"OpenOrReuseDocument",
 		"CloseDocumentsOpenedHere",
 		"ILogicAutomation",

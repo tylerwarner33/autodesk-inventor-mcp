@@ -65,7 +65,7 @@ internal static partial class InventorTool
 		BridgeClient bridge,
 		ApiReferenceService apiReference,
 		[Description("The C# snippet to run.")] string code,
-		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of the open document. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		[Description("Set true to run against a document with unsaved changes. Those changes cannot be recovered if the snippet damages them.")] bool allowUnsavedChanges = false,
 		[Description("Turn iLogic rules off while the snippet runs, so a parameter change does not run them. They are turned back on after it, also after a failure. RulesEnabled is a setting of the whole session.")] bool suppressRules = false,
 		CancellationToken cancellationToken = default) =>
@@ -205,7 +205,7 @@ internal static partial class InventorTool
 	public static Task<object> RunILogicAsync(
 		BridgeClient bridge,
 		[Description("The iLogic rule body, in VB.NET. Omit when ruleName is given.")] string? code = null,
-		[Description("Display name or full path of an open document. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of an open document. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		[Description("Set true to run against a document with unsaved changes. Those changes cannot be recovered if the rule damages them.")] bool allowUnsavedChanges = false,
 		[Description("The name of a rule in the document to run, in place of code.")] string? ruleName = null,
 		CancellationToken cancellationToken = default)
@@ -221,8 +221,8 @@ internal static partial class InventorTool
 				cancellationToken));
 		}
 
-		return SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
-			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}}, allowOpen: false);
+		return SafeAsync(async () => await RunJsonSnippetAsync(bridge, ToolDocument + $$"""
+			Document document = ToolDocument();
 			string ruleName = {{CSharpLiteral.String(ruleName)}};
 			if (!{{(allowUnsavedChanges ? "true" : "false")}} && document.Dirty)
 				throw new InvalidOperationException($"'{document.DisplayName}' has unsaved changes. Save it, or pass allowUnsavedChanges.");
@@ -231,7 +231,7 @@ internal static partial class InventorTool
 			System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
 			RunILogicRule(document, ruleName);
 			return System.Text.Json.JsonSerializer.Serialize(new { document = document.DisplayName, rule = ruleName, ruleMilliseconds = stopwatch.ElapsedMilliseconds, dirty = document.Dirty });
-			""", cancellationToken).ConfigureAwait(false));
+			""", cancellationToken, documentName, allowOpen: false).ConfigureAwait(false));
 	}
 
 	[McpServerTool(Name = "inventor_api_lookup", Title = "Search the Inventor API reference", ReadOnly = true, OpenWorld = false)]

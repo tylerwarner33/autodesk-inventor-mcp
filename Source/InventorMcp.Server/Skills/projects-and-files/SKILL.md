@@ -56,6 +56,9 @@ A Content Center part does not insert by file path: `Occurrences.Add` gives E_IN
 - Close only the documents that you opened. Never call `Documents.CloseAll`: it closes the user's documents.
 - `Documents.Open` returns the user's copy when the file is open already. Use `OpenOrReuseDocument(path)` and
   `CloseDocumentsOpenedHere()` in a snippet: they close only what the snippet opened.
+- `Documents.Open` and `OpenOrReuseDocument` take a full document name (the path with the model state, ex.
+  `C:\Parts\Bracket.ipt<State2>`) to open one model state. A path alone opens the primary model state. When two
+  model states of one file are open, `OpenOrReuseDocument` throws for the path and lists the full document names.
 - `inventor_close_documents` closes the documents under a folder, drawings first, and never one outside it.
 - Opening a generated drawing marks it as changed. Pass `allowUnsavedChanges` when the only changes are from the open.
 

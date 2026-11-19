@@ -1,27 +1,35 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using InventorMcp.Contracts;
 using InventorMcp.Server.Services;
 using InventorMcp.Server.Telemetry;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Win32.SafeHandles;
+
+using ModelContextProtocol;
+using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 
 namespace InventorMcp.Server.Bridge;
 
 /// <summary>
-/// 	Talks to the Inventor add-in over the named pipe.
+/// 	Talks to the Inventor add-in over the named pipe, as an MCP client whose methods are the bridge operations.
 /// </summary>
 /// <remarks>
-/// 	Requests are serialised one at a time.
-/// 	Everything they reach lands on Inventor's single main thread anyway, so overlapping them would only queue deeper.
-/// 	A wait can stop before its response arrives (ex. on a blocking dialog), so each response is matched to its
-/// 	request by ID, and a late response is discarded.
+/// 	Requests that use Inventor's main thread go one at a time.
+/// 	Everything they reach lands on that single thread anyway, so overlapping them would only queue deeper.
+/// 	The add-in also runs the requests of one connection one at a time, because a cancel frees this gate before the
+/// 	cancelled request ends in the add-in. <see cref="BridgeOperations.RunsWithoutMainThread"/> skips both.
+/// 	The SDK matches each response to its request by id, so a wait that stops early (ex. on a blocking dialog) leaves
+/// 	nothing behind for the next call.
 /// </remarks>
 /// <param name="logger">
 /// 	The server log.
@@ -77,6 +85,24 @@ internal sealed partial class BridgeClient(
 	private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(3);
 
 	/// <summary>
+	/// 	The limit of the MCP handshake after the pipe connects.
+	/// </summary>
+	/// <remarks>
+	/// 	The handshake does not use Inventor's main thread, so it answers during a start and under a dialog. An add-in that
+	/// 	does not answer in this time speaks another protocol (a build from before MCP over the pipe).
+	/// </remarks>
+	private static readonly TimeSpan _handshakeTimeout = TimeSpan.FromSeconds(10);
+
+	/// <summary>
+	/// 	The MCP client options of every connection, with the pinned version of <see cref="BridgeProtocol.McpVersion"/>.
+	/// </summary>
+	private static readonly McpClientOptions _clientOptions = new()
+	{
+		ClientInfo = new Implementation { Name = "InventorMcp.Server", Version = BridgeProtocol.Version.ToString(CultureInfo.InvariantCulture) },
+		ProtocolVersion = BridgeProtocol.McpVersion
+	};
+
+	/// <summary>
 	/// 	The number of checks in a row that must see a block with no dialog of Inventor before the call stops.
 	/// </summary>
 	/// <remarks>
@@ -96,6 +122,15 @@ internal sealed partial class BridgeClient(
 	private readonly Func<int, bool> _isAddInDeployed = isAddInDeployed ?? InventorInstallations.IsAddInDeployed;
 	private readonly Func<int, bool> _processRuns = processRuns ?? ProcessRuns;
 	private readonly SemaphoreSlim _gate = new(1, 1);
+
+	/// <summary>
+	/// 	Guards the connect, the reconnect and the close.
+	/// </summary>
+	/// <remarks>
+	/// 	<see cref="_gate"/> does not guard every use of the connection, because an operation that runs without the main
+	/// 	thread skips it.
+	/// </remarks>
+	private readonly SemaphoreSlim _connectLock = new(1, 1);
 
 	/// <summary>
 	/// 	Inventor release of the connected pipe, ex. 2025, or null with no connection.
@@ -131,7 +166,11 @@ internal sealed partial class BridgeClient(
 	/// 	check, inventor_start took the pipe of an Inventor that had closed as the bridge of the new one, and the dialog
 	/// 	tools examined the old process. See <c>Docs/Research/Blocking-Dialog-Detection.md</c>, "The Vault "Log In" dialog".
 	/// </remarks>
-	private bool HasLiveConnection => _pipe is { IsConnected: true } && InventorProcessId is int processId && _processRuns(processId);
+	private bool HasLiveConnection =>
+		_pipe is { IsConnected: true }
+		&& _client is { Completion.IsCompleted: false }
+		&& InventorProcessId is int processId
+		&& _processRuns(processId);
 
 	/// <summary>
 	/// 	The MCP client that this server serves, ex. "claude-code 2.1.282", or null before its first tool call.
@@ -157,19 +196,23 @@ internal sealed partial class BridgeClient(
 	/// </remarks>
 	private int? _automaticRelease;
 
-	private NamedPipeClientStream? _pipe;
-	private StreamReader? _reader;
-	private StreamWriter? _writer;
-
 	/// <summary>
-	/// 	The read of the next response line.
+	/// 	The Inventor process that this session connected to, so a reconnect goes to this process only.
 	/// </summary>
 	/// <remarks>
-	/// 	A wait that stops early leaves the read running, and the next call continues it.
-	/// 	A cancelled <see cref="StreamReader.ReadLineAsync(CancellationToken)"/> is not used, because it can leave the
-	/// 	reader unusable.
+	/// 	The retry after a dropped pipe sends the same request again. With two Inventor processes of one release, a
+	/// 	different process would run that request on other documents. Cleared when the selection changes.
+	/// 	A new call goes on to the only process that is left (see <see cref="ReleaseSelection.Resolve"/>), so a restart of
+	/// 	Inventor needs no choice.
 	/// </remarks>
-	private Task<string?>? _pendingLine;
+	private int? _lockedProcess;
+
+	private NamedPipeClientStream? _pipe;
+
+	/// <summary>
+	/// 	The MCP session on <see cref="_pipe"/>, or null with no connection.
+	/// </summary>
+	private McpClient? _client;
 
 	/// <summary>
 	/// 	Sends one operation and returns its typed result.
@@ -199,9 +242,15 @@ internal sealed partial class BridgeClient(
 		if (payload is ExecuteRequest { ClientName: null } execute && ClientName is not null)
 			payload = execute with { ClientName = ClientName };
 
-		long waitStarted = Stopwatch.GetTimestamp();
-		await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-		ServerTelemetry.RecordQueueWait(Stopwatch.GetElapsedTime(waitStarted), ReleaseYear);
+		// An operation that never uses the main thread does not wait behind a call that does, and cannot meet a dialog.
+		bool usesMainThread = BridgeOperations.RunsWithoutMainThread(operation) is false;
+
+		if (usesMainThread)
+		{
+			long waitStarted = Stopwatch.GetTimestamp();
+			await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+			ServerTelemetry.RecordQueueWait(Stopwatch.GetElapsedTime(waitStarted), ReleaseYear);
+		}
 
 		using Activity? span = ServerTelemetry.StartBridgeCall(operation);
 		long started = Stopwatch.GetTimestamp();
@@ -215,7 +264,7 @@ internal sealed partial class BridgeClient(
 
 			try
 			{
-				result = await SendAsync<TResult>(operation, payload, cancellationToken).ConfigureAwait(false);
+				result = await SendAsync<TResult>(operation, payload, usesMainThread, retrying: false, cancellationToken).ConfigureAwait(false);
 			}
 			catch (IOException exception)
 			{
@@ -227,7 +276,7 @@ internal sealed partial class BridgeClient(
 
 				await CloseAsync().ConfigureAwait(false);
 
-				result = await SendAsync<TResult>(operation, payload, cancellationToken).ConfigureAwait(false);
+				result = await SendAsync<TResult>(operation, payload, usesMainThread, retrying: true, cancellationToken).ConfigureAwait(false);
 			}
 
 			if (result is Contracts.Models.SessionInfo session)
@@ -254,7 +303,8 @@ internal sealed partial class BridgeClient(
 		{
 			ServerTelemetry.RecordBridgeCall(span, operation, outcome, errorType, Stopwatch.GetElapsedTime(started), ReleaseYear);
 
-			_ = _gate.Release();
+			if (usesMainThread)
+				_ = _gate.Release();
 		}
 	}
 
@@ -277,7 +327,7 @@ internal sealed partial class BridgeClient(
 
 		try
 		{
-			await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
+			_ = await EnsureConnectedAsync(retrying: false, cancellationToken).ConfigureAwait(false);
 
 			return true;
 		}
@@ -343,37 +393,46 @@ internal sealed partial class BridgeClient(
 			: null;
 	}
 
-	private async Task<TResult> SendAsync<TResult>(string operation, object? payload, CancellationToken cancellationToken)
+	private async Task<TResult> SendAsync<TResult>(string operation, object? payload, bool usesMainThread, bool retrying, CancellationToken cancellationToken)
 	{
-		await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
+		McpClient client = await EnsureConnectedAsync(retrying, cancellationToken).ConfigureAwait(false);
 
-		JsonElement? serialisedPayload = payload is null
-			? null
-			: JsonSerializer.SerializeToElement(payload, BridgeProtocol.SerializerOptions);
+		JsonRpcRequest request = new()
+		{
+			Method = operation,
+			Params = payload is null ? null : JsonSerializer.SerializeToNode(payload, BridgeProtocol.SerializerOptions)
+		};
 
-		BridgeRequest request = new(Guid.NewGuid().ToString("N"), operation, serialisedPayload);
+		DialogWatch watch = new();
 
 		// A dialog's modal loop still runs the add-in's work, so a call sent now would run nested inside the call that
 		// opened the dialog (ex. inside a waiting iLogic rule). So the dialog is handled first, and nothing is sent while
-		// one needs a person.
-		DialogWatch watch = new();
-		await HandleDialogsAsync(watch, cancellationToken).ConfigureAwait(false);
+		// one needs a person. An operation without the main thread runs nothing in that loop.
+		if (usesMainThread)
+			await HandleDialogsAsync(watch, cancellationToken).ConfigureAwait(false);
 
-		await _writer!.WriteLineAsync(JsonSerializer.Serialize(request, BridgeProtocol.SerializerOptions)).ConfigureAwait(false);
+		// The token of the call goes to the SDK, which then sends the cancel to the add-in. A stop of the wait on a dialog
+		// does not cancel the request: the call that opened the dialog already runs.
+		Task<JsonRpcResponse> send = client.SendRequestAsync(request, cancellationToken);
 
-		BridgeResponse response = await ReadResponseAsync(request.Id, watch, cancellationToken).ConfigureAwait(false);
-
-		if (response.Success is false)
+		try
 		{
-			BridgeError error = response.Error ?? new BridgeError(BridgeErrorCodes.Internal, "The bridge reported a failure with no detail.");
+			JsonRpcResponse response = usesMainThread
+				? await WaitForResponseAsync(send, watch, cancellationToken).ConfigureAwait(false)
+				: await send.ConfigureAwait(false);
 
-			throw new InventorBridgeException(error.Code, error.Message, error.Detail);
+			return BridgeResult.Unwrap<TResult>(response.Result)!;
 		}
-
-		if (response.Result is not JsonElement result || result.ValueKind is JsonValueKind.Null)
-			return default!;
-
-		return result.Deserialize<TResult>(BridgeProtocol.SerializerOptions)!;
+		catch (McpProtocolException exception)
+		{
+			throw ToBridgeException(exception, operation);
+		}
+		finally
+		{
+			// A wait that stopped early leaves the request running. Its end, a result or an exception, has no reader.
+			if (send.IsCompleted is false)
+				_ = send.ContinueWith(static abandoned => _ = abandoned.Exception, TaskScheduler.Default);
+		}
 	}
 
 	/// <summary>
@@ -384,30 +443,20 @@ internal sealed partial class BridgeClient(
 	/// 	So the check runs on a timer here, not after the call returns.
 	/// 	See <c>Docs/Architecture.md</c>, "The server watches for dialogs from outside Inventor".
 	/// </remarks>
-	private async Task<BridgeResponse> ReadResponseAsync(string requestId, DialogWatch watch, CancellationToken cancellationToken)
+	private async Task<JsonRpcResponse> WaitForResponseAsync(Task<JsonRpcResponse> send, DialogWatch watch, CancellationToken cancellationToken)
 	{
 		TimeSpan wait = FirstDialogCheck;
 
 		while (true)
 		{
-			// No token: the read outlives this call, and a later call takes it over.
-			_pendingLine ??= _reader!.ReadLineAsync(CancellationToken.None).AsTask();
-
 			using CancellationTokenSource delayCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 			Task delay = Task.Delay(wait, _timeProvider, delayCancellation.Token);
 
-			if (await Task.WhenAny(_pendingLine, delay).ConfigureAwait(false) == _pendingLine)
+			if (await Task.WhenAny(send, delay).ConfigureAwait(false) == send)
 			{
 				await delayCancellation.CancelAsync().ConfigureAwait(false);
 
-				BridgeResponse response = await TakeResponseAsync().ConfigureAwait(false);
-
-				if (response.Id == requestId)
-					return response;
-
-				LogLateResponseDiscarded(response.Id, requestId);
-
-				continue;
+				return await send.ConfigureAwait(false);
 			}
 
 			cancellationToken.ThrowIfCancellationRequested();
@@ -418,16 +467,34 @@ internal sealed partial class BridgeClient(
 		}
 	}
 
-	private async Task<BridgeResponse> TakeResponseAsync()
+	/// <summary>
+	/// 	Turns an error of the add-in into the bridge code that the tools report.
+	/// </summary>
+	/// <param name="exception">
+	/// 	The error of the response.
+	/// </param>
+	/// <param name="operation">
+	/// 	The operation that failed.
+	/// </param>
+	/// <returns>
+	/// 	The exception with the code from <c>error.data.code</c>, or <see cref="BridgeErrorCodes.UnknownOperation"/> for a
+	/// 	method that the add-in does not know.
+	/// </returns>
+	internal static InventorBridgeException ToBridgeException(McpProtocolException exception, string operation)
 	{
-		Task<string?> read = _pendingLine!;
-		_pendingLine = null;
+		// A new operation does not change the protocol version, so an add-in of the same version can lack it.
+		if (exception.ErrorCode is McpErrorCode.MethodNotFound)
+		{
+			return new InventorBridgeException(
+				BridgeErrorCodes.UnknownOperation,
+				$"The Inventor add-in does not know the operation '{operation}', so it is older than this server. Tell the user " +
+				"to close Inventor, deploy the add-in again (see the README), and start Inventor.");
+		}
 
-		string? line = await read.ConfigureAwait(false)
-			?? throw new IOException("The Inventor bridge closed the connection.");
-
-		return JsonSerializer.Deserialize<BridgeResponse>(line, BridgeProtocol.SerializerOptions)
-			?? throw new InventorBridgeException(BridgeErrorCodes.Internal, "The bridge returned an empty response.");
+		return new InventorBridgeException(
+			exception.Data[BridgeResult.CodeMember] as string ?? BridgeErrorCodes.Internal,
+			exception.Data[BridgeResult.MessageMember] as string ?? exception.Message,
+			exception.Data[BridgeResult.DetailMember] as string);
 	}
 
 	/// <summary>
@@ -563,26 +630,44 @@ internal sealed partial class BridgeClient(
 		}
 	}
 
-	private async Task EnsureConnectedAsync(CancellationToken cancellationToken)
+	private async Task<McpClient> EnsureConnectedAsync(bool retrying, CancellationToken cancellationToken)
+	{
+		await _connectLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+		try
+		{
+			return await ConnectAsync(retrying, cancellationToken).ConfigureAwait(false);
+		}
+		finally
+		{
+			_ = _connectLock.Release();
+		}
+	}
+
+	private async Task<McpClient> ConnectAsync(bool retrying, CancellationToken cancellationToken)
 	{
 		// A change of the release makes the open connection stale, even when it still works.
 		if (HasLiveConnection && _connectedGeneration == _selection.Generation)
-			return;
+			return _client!;
 
-		await CloseAsync().ConfigureAwait(false);
+		await CloseConnectionAsync().ConfigureAwait(false);
 
 		if (_connectedGeneration != _selection.Generation)
+		{
 			_automaticRelease = null;
+			_lockedProcess = null;
+		}
 
 		_connectedGeneration = _selection.Generation;
 
-		PipeResolution resolution = _selection.Resolve();
+		PipeResolution resolution = _selection.Resolve(_lockedProcess, retrying);
 
 		if (resolution.PipeName is not string pipeName)
 		{
+			// A NotRunning resolution with no message means that no pipe exists, so the machine is examined for the cause.
 			throw new InventorBridgeException(
 				resolution.ErrorCode!,
-				resolution.ErrorCode == BridgeErrorCodes.NotRunning ? Diagnose(_automaticRelease, pipeExists: false).Message : resolution.Message!);
+				resolution.Message ?? Diagnose(resolution.ReleaseYear ?? _automaticRelease, pipeExists: false).Message);
 		}
 
 		// The release this session used closed, and a different one is the only pipe now. The documents differ, so a call
@@ -609,7 +694,7 @@ internal sealed partial class BridgeClient(
 			// The same exception means a full pipe or no pipe, so the machine is examined now, after the wait: the pipe can
 			// appear during it. Only a full pipe has its own code. The other causes keep NotRunning, because inventor_start
 			// and inventor_session with waitSeconds poll on it while Inventor loads.
-			bool pipeExists = resolution.ReleaseYear is int pipeRelease && _selection.PipeExists(pipeRelease);
+			bool pipeExists = _selection.PipeExists(pipeName);
 			(string code, string message) = Diagnose(resolution.ReleaseYear, pipeExists);
 
 			LogConnectTimedOut(pipeName, code);
@@ -618,14 +703,16 @@ internal sealed partial class BridgeClient(
 		}
 		catch (UnauthorizedAccessException exception)
 		{
-			// The ACL of the pipe refuses this account at once, ex. the pipe of a different Windows user. A retry cannot help.
+			// The ACL of the pipe refuses this account at once: the pipe of a different Windows user, or a server with a
+			// network logon (ex. started through SSH or WinRM), which the add-in denies. A retry cannot help.
 			await pipe.DisposeAsync().ConfigureAwait(false);
 			LogPipeRefused(pipeName, exception.Message);
 
 			throw new InventorBridgeException(
 				BridgeErrorCodes.UntrustedHost,
-				$"The MCP bridge pipe '{pipeName}' refused this Windows account. The pipe belongs to a different Windows user. " +
-				"Tell the user. Do not retry.");
+				$"The MCP bridge pipe '{pipeName}' refused this Windows account. Either the pipe belongs to a different Windows " +
+				"user, or this server runs with a network logon (ex. through SSH or WinRM), which the add-in refuses. Start the " +
+				"MCP client in the desktop session of the user who runs Inventor. Tell the user. Do not retry.");
 		}
 		catch (OperationCanceledException)
 		{
@@ -636,8 +723,11 @@ internal sealed partial class BridgeClient(
 
 		// Every request, and every dialog read and click, goes to this process, so it must be this user's Inventor.
 		// See PipeHost.
+		// The name has the id of the process that created the pipe. A different id means that a program took the name.
 		string? refusal = GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint processId)
-			? _checkHost((int)processId)
+			? resolution.ProcessId is int expected && expected != (int)processId
+				? $"The name of the pipe has the process id {expected}, but the process that hosts it has the id {processId}."
+				: _checkHost((int)processId)
 			: "Windows did not give the process that hosts the pipe.";
 
 		if (refusal is not null)
@@ -651,16 +741,45 @@ internal sealed partial class BridgeClient(
 				$"use it: {refusal} Tell the user. Do not retry until the user has closed that process.");
 		}
 
+		McpClient client;
+
+		try
+		{
+			using CancellationTokenSource handshake = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			handshake.CancelAfter(_handshakeTimeout);
+
+			client = await McpClient.CreateAsync(new StreamClientTransport(pipe, pipe, NullLoggerFactory.Instance), _clientOptions, NullLoggerFactory.Instance, handshake.Token).ConfigureAwait(false);
+		}
+		catch (Exception exception) when (cancellationToken.IsCancellationRequested is false && exception is OperationCanceledException or IOException or McpException)
+		{
+			await pipe.DisposeAsync().ConfigureAwait(false);
+
+			// An Inventor that closed during the handshake is not an outdated add-in.
+			(string code, string message) = _processRuns((int)processId)
+				? (BridgeErrorCodes.BridgeOutdated,
+					$"The Inventor add-in on pipe '{pipeName}' did not complete the MCP handshake of bridge version {BridgeProtocol.Version}, " +
+					"so it is a build from before the bridge used MCP. Tell the user to close Inventor, deploy the add-in again (see " +
+					"the README), and start Inventor.")
+				: Diagnose(resolution.ReleaseYear, pipeExists: false);
+
+			LogHandshakeFailed(exception, pipeName, code);
+
+			throw new InventorBridgeException(code, message);
+		}
+
 		_pipe = pipe;
+		_client = client;
 		ReleaseYear = resolution.ReleaseYear;
 
 		if (_selection.Chosen is null)
 			_automaticRelease = resolution.ReleaseYear;
-		_reader = new StreamReader(pipe, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: false, leaveOpen: true);
-		_writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
+
+		_lockedProcess = (int)processId;
 		InventorProcessId = (int)processId;
 
 		LogConnected(pipeName, InventorProcessId);
+
+		return client;
 	}
 
 	/// <summary>
@@ -710,19 +829,33 @@ internal sealed partial class BridgeClient(
 
 	private async Task CloseAsync()
 	{
-		// Disposing the writer flushes, which throws on a pipe whose Inventor has closed.
-		// Closing must still succeed, or the reconnect after it never runs.
+		await _connectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+
 		try
 		{
-			if (_writer is not null)
-				await _writer.DisposeAsync().ConfigureAwait(false);
+			await CloseConnectionAsync().ConfigureAwait(false);
 		}
-		catch (IOException)
+		finally
 		{
-			// The pipe is already broken, so the unflushed data has nowhere to go.
+			_ = _connectLock.Release();
 		}
+	}
 
-		_reader?.Dispose();
+	/// <summary>
+	/// 	Ends the session and the pipe. The caller holds <see cref="_connectLock"/>.
+	/// </summary>
+	private async Task CloseConnectionAsync()
+	{
+		// Closing must succeed on a pipe whose Inventor has closed, or the reconnect after it never runs.
+		try
+		{
+			if (_client is not null)
+				await _client.DisposeAsync().ConfigureAwait(false);
+		}
+		catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
+		{
+			// The pipe is already broken, so the session has nothing to end.
+		}
 
 		try
 		{
@@ -734,13 +867,8 @@ internal sealed partial class BridgeClient(
 			// The pipe is already broken, and the reconnect opens a new one.
 		}
 
-		_writer = null;
-		_reader = null;
+		_client = null;
 		_pipe = null;
-
-		// A read of the closed pipe ends with an exception that nobody waits for.
-		_ = _pendingLine?.ContinueWith(static read => _ = read.Exception, TaskScheduler.Default);
-		_pendingLine = null;
 
 		// The next connection may be a different Inventor release.
 		ReleaseYear = null;
@@ -751,6 +879,7 @@ internal sealed partial class BridgeClient(
 	{
 		await CloseAsync().ConfigureAwait(false);
 		_gate.Dispose();
+		_connectLock.Dispose();
 	}
 
 	private static Func<DialogSettings> LoadOnce()

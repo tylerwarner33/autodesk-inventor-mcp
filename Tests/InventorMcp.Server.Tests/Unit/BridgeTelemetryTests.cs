@@ -27,14 +27,14 @@ public sealed class BridgeTelemetryTests
 		using TelemetryCapture capture = new();
 		await using TestBridge bridge = new();
 
-		(Task<string> call, TestConnection connection, BridgeRequest request) = await bridge.StartPingAsync();
+		(Task<string> call, TestConnection connection, TestRequest request) = await bridge.StartCallAsync();
 		await connection.RespondAsync(request.Id, "done");
 		Assert.Equal("done", await call);
 
 		Activity span = Assert.Single(capture.Spans, static span => span.Source.Name == ServerTelemetry.Name);
-		Assert.Equal($"bridge {BridgeOperations.Ping}", span.DisplayName);
+		Assert.Equal($"bridge {BridgeOperations.Session}", span.DisplayName);
 		Assert.Equal(ActivityKind.Client, span.Kind);
-		Assert.Equal(BridgeOperations.Ping, span.GetTagItem(TelemetryTags.BridgeOperation));
+		Assert.Equal(BridgeOperations.Session, span.GetTagItem(TelemetryTags.BridgeOperation));
 		Assert.Equal(TelemetryTags.OutcomeOk, span.GetTagItem(TelemetryTags.Outcome));
 		Assert.Equal("2025", span.GetTagItem(TelemetryTags.Release));
 		Assert.Empty(span.Events);
@@ -45,13 +45,13 @@ public sealed class BridgeTelemetryTests
 	{
 		using TelemetryCapture capture = new();
 		await using TestBridge bridge = new();
-		(Task<string> call, TestConnection first, _) = await bridge.StartPingAsync();
+		(Task<string> call, TestConnection first, _) = await bridge.StartCallAsync();
 
 		Task<TestConnection> accept = bridge.Server.AcceptAsync();
 		first.Disconnect();
 
 		TestConnection second = await accept;
-		BridgeRequest retry = await second.ReadRequestAsync();
+		TestRequest retry = await second.ReadRequestAsync();
 		await second.RespondAsync(retry.Id, "fresh");
 		Assert.Equal("fresh", await call);
 
@@ -66,7 +66,7 @@ public sealed class BridgeTelemetryTests
 		using TelemetryCapture capture = new();
 		await using TestBridge bridge = new();
 		_ = DialogReports.Begin();
-		(Task<string> call, TestConnection connection, BridgeRequest request) = await bridge.StartPingAsync();
+		(Task<string> call, TestConnection connection, TestRequest request) = await bridge.StartCallAsync();
 		bridge.Dialogs.Dialogs = [_iLogicError];
 
 		await bridge.AdvanceAsync(BridgeClient.FirstDialogCheck + TimeSpan.FromMilliseconds(250));

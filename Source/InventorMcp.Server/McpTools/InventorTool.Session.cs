@@ -23,7 +23,8 @@ internal static partial class InventorTool
 	/// 	failure. RulesEnabled is in the result because <c>suppressRules</c> changes it for the whole session.
 	/// </remarks>
 	private const string SessionStateSnippet = """
-		string? only = __DOCUMENT__;
+		// With a documentName, the add-in resolved it to Document, and only that document is reported.
+		bool only = __ONLY__;
 		DesignProject project = Application.DesignProjectManager.ActiveDesignProject;
 		// A project path can be relative to the folder of the .ipj, ex. .\Designs.
 		string projectFolder = System.IO.Path.GetDirectoryName(project.FullFileName) ?? "";
@@ -36,20 +37,28 @@ internal static partial class InventorTool
 				.Select(library => library.Name)
 				.FirstOrDefault();
 
-		List<Document> documents = Application.Documents.OfType<Document>()
-			.Where(document => only is null
-				|| string.Equals(document.FullFileName, only, StringComparison.OrdinalIgnoreCase)
-				|| string.Equals(document.DisplayName, only, StringComparison.OrdinalIgnoreCase))
-			.ToList();
-		// The active document first, so a caller that needs the target reads the first entry.
-		if (only is null && Document is Document active)
+		List<Document> documents = only && Document is Document target
+			? new List<Document> { target }
+			: Application.Documents.OfType<Document>().ToList();
+		// The document of a call with no name first (the edit document during an edit in place), so a caller that needs
+		// the target reads the first entry.
+		if (!only && Document is Document active)
 		{
 			documents.Remove(active);
 			documents.Insert(0, active);
 		}
 
+		Document? edit = Application.ActiveEditDocument is Document editDocument && !ReferenceEquals(editDocument, Application.ActiveDocument) ? editDocument : null;
+
 		bool? rulesEnabled = null;
 		try { rulesEnabled = (bool)ILogicAutomation().RulesEnabled; } catch (Exception) { }
+
+		// A drawing has no model state, and can throw.
+		string? ModelStateOf(Document document)
+		{
+			try { return document.ModelStateName is { Length: > 0 } name ? name : null; }
+			catch (Exception) { return null; }
+		}
 
 		return System.Text.Json.JsonSerializer.Serialize(new
 		{
@@ -64,10 +73,15 @@ internal static partial class InventorTool
 			},
 			iLogicRulesEnabled = rulesEnabled,
 			documentCount = Application.Documents.Count,
+			// Only during an edit in place: the document that a tool with no documentName uses.
+			activeEditDocument = edit is null ? null : new { name = edit.DisplayName, fullDocumentName = edit.FullDocumentName },
 			documents = documents.Take(__MAX__).Select(document => new
 			{
 				name = document.DisplayName,
 				path = document.FullFileName,
+				// The path with the model state. Two model states of one file are two documents with different values.
+				fullDocumentName = document.FullDocumentName,
+				modelState = ModelStateOf(document),
 				type = document.DocumentType.ToString(),
 				visible = document.Views.Count > 0,
 				dirty = document.Dirty,
@@ -88,9 +102,11 @@ internal static partial class InventorTool
 		RunJsonSnippetAsync(
 			bridge,
 			SessionStateSnippet
-				.Replace("__DOCUMENT__", Services.CSharpLiteral.String(documentName), StringComparison.Ordinal)
+				.Replace("__ONLY__", string.IsNullOrWhiteSpace(documentName) ? "false" : "true", StringComparison.Ordinal)
 				.Replace("__MAX__", MaxSessionDocuments.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal),
-			cancellationToken);
+			cancellationToken,
+			documentName,
+			allowOpen: false);
 
 	[McpServerTool(Name = "inventor_session", Title = "Read the Inventor session", ReadOnly = true, OpenWorld = false)]
 	[Description("""
@@ -130,7 +146,7 @@ internal static partial class InventorTool
 				return (object)new
 				{
 					session,
-					release = new { selection = selection.Source, chosen = selection.Chosen, running = selection.RunningReleases() },
+					release = new { selection = selection.Source, chosen = selection.Chosen, chosenProcessId = selection.ChosenProcessId, running = selection.RunningReleases(), instances = Instances(selection) },
 					state
 				};
 			}),
@@ -199,7 +215,7 @@ internal static partial class InventorTool
 	[Description("Walks the occurrence tree of an open assembly, reporting suppression, visibility, grounding, and the file each occurrence references. Large assemblies are truncated rather than refused. Use summary for a large assembly: it gives the count at each depth and the unique documents. A tree over the output limit is returned as the summary, with a message.")]
 	public static Task<object> AssemblyTreeAsync(
 		BridgeClient bridge,
-		[Description("Display name or full path of the assembly. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of the open assembly. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		[Description("Deepest level to walk. Default 4.")] int maxDepth = 4,
 		[Description("Maximum occurrences to return. Default 2000.")] int maxNodes = 2000,
 		[Description("Return the counts at each depth and the unique documents, not the tree. Default false.")] bool summary = false,

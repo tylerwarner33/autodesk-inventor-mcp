@@ -47,10 +47,37 @@ internal static class RollingFile
 		FileInfo file = new(path);
 		bool rolled = file.Exists && file.Length >= maxBytes && TryRoll(path, keep);
 
+		// Two Inventor processes of one release, and the server, append to the same files. A file that another process
+		// has open for its append refuses the open, so the append is tried again a few times before the text is lost.
+		for (int attempt = 1; attempt < AppendAttempts; attempt++)
+		{
+			try
+			{
+				File.AppendAllText(path, text);
+
+				return rolled;
+			}
+			catch (IOException)
+			{
+				Thread.Sleep(_appendRetryDelay);
+			}
+		}
+
+		// The last attempt throws to the caller, which decides if the loss is safe.
 		File.AppendAllText(path, text);
 
 		return rolled;
 	}
+
+	/// <summary>
+	/// 	The opens of a file for one append, one <see cref="_appendRetryDelay"/> apart.
+	/// </summary>
+	private const int AppendAttempts = 5;
+
+	/// <summary>
+	/// 	The pause between two opens. An append of one line takes much less.
+	/// </summary>
+	private static readonly TimeSpan _appendRetryDelay = TimeSpan.FromMilliseconds(20);
 
 	private static bool TryRoll(string path, int keep)
 	{

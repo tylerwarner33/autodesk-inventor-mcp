@@ -129,7 +129,7 @@ public sealed class ParameterWriteTests
 		ParameterSnippet(new Dictionary<string, string>(StringComparer.Ordinal) { ["Width"] = "50 mm" }, suppressRules, runRuleAfter);
 
 	private static string ParameterSnippet(Dictionary<string, string> parameters, bool suppressRules = false, string? runRuleAfter = null) =>
-		InventorTool.ComposeSetParametersSnippet(parameters, null, suppressRules, runRuleAfter, createIfMissing: false, allowUnsavedChanges: false);
+		InventorTool.ComposeSetParametersSnippet(parameters, suppressRules, runRuleAfter, createIfMissing: false, allowUnsavedChanges: false);
 
 	private static JsonElement Parse(string json) => JsonElement.Parse(json);
 }

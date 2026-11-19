@@ -9,14 +9,51 @@
 
 List<Document> __documentsOpenedHere = new();
 
-// Returns the open copy of a file, or opens it and remembers that this snippet opened it.
-Document OpenOrReuseDocument(string fullFileName, bool visible = false)
+// Returns the open document that a name means, or null when none is open.
+// The name is a full document name (the path with the model state, ex. C:\Parts\Bracket.ipt<State2>), a path, or a
+// display name. The rules are the same as for the documentName of a tool: an open model state has a factory and a
+// member with one full document name, and the factory wins. A name of more than one document throws, with the full
+// document names to use.
+Document? FindOpenDocument(string name)
 {
+	// COM gives null, not an empty string, for the path and the full document name of a document that was never saved.
+	bool Same(string? value) => !string.IsNullOrEmpty(value) && string.Equals(value, name, StringComparison.OrdinalIgnoreCase);
+	string FullName(Document document) => document.FullDocumentName ?? "";
+	bool IsFactory(Document document) => document switch
+	{
+		PartDocument part => part.ComponentDefinition.IsModelStateFactory,
+		AssemblyDocument assembly => assembly.ComponentDefinition.IsModelStateFactory,
+		_ => false
+	};
+
+	// A document that was never saved has no full document name, so it is a group of its own.
+	List<List<Document>> matches = new();
 	foreach (Document open in Application.Documents)
 	{
-		if (string.Equals(open.FullFileName, fullFileName, StringComparison.OrdinalIgnoreCase))
-			return open;
+		if (!(Same(open.FullDocumentName) || Same(open.FullFileName) || Same(open.DisplayName)))
+			continue;
+
+		List<Document>? group = FullName(open).Length == 0 ? null : matches.FirstOrDefault(
+			existing => string.Equals(FullName(existing[0]), FullName(open), StringComparison.OrdinalIgnoreCase));
+
+		if (group is null)
+			matches.Add(new List<Document> { open });
+		else
+			group.Add(open);
 	}
+
+	if (matches.Count > 1)
+		throw new ArgumentException($"'{name}' matches {matches.Count} open documents. Use one of these full document names: {string.Join("; ", matches.Select(group => FullName(group[0]).Length > 0 ? FullName(group[0]) : group[0].DisplayName))}.");
+
+	return matches.Count == 0 ? null : matches[0].FirstOrDefault(IsFactory) ?? matches[0][0];
+}
+
+// Returns the open document that a name means (see FindOpenDocument), or opens the file and remembers that this
+// snippet opened it. Documents.Open takes a full document name too, to open one model state.
+Document OpenOrReuseDocument(string fullFileName, bool visible = false)
+{
+	if (FindOpenDocument(fullFileName) is Document open)
+		return open;
 
 	Document opened = Application.Documents.Open(fullFileName, visible);
 	__documentsOpenedHere.Add(opened);

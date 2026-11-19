@@ -12,9 +12,6 @@ namespace InventorMcp.Contracts.Models;
 /// <param name="ProcessId">
 /// 	Process identifier of the host Inventor.exe.
 /// </param>
-/// <param name="BridgeVersion">
-/// 	Protocol version the add-in speaks. Compared against <see cref="BridgeProtocol.Version"/>.
-/// </param>
 /// <param name="ActiveDocument">
 /// 	The document currently in focus, or null when no document is open.
 /// </param>
@@ -24,14 +21,18 @@ namespace InventorMcp.Contracts.Models;
 /// <param name="IsBusy">
 /// 	True when Inventor is running a command or showing a modal dialog.
 /// </param>
+/// <param name="ActiveEditDocument">
+/// 	The document in edit during an edit in place (ex. a part edited inside an assembly), or null with no edit in
+/// 	place. A tool with no document name uses it.
+/// </param>
 public sealed record SessionInfo(
 	string Version,
 	int ReleaseYear,
 	int ProcessId,
-	int BridgeVersion,
 	DocumentInfo? ActiveDocument,
 	int OpenDocumentCount,
-	bool IsBusy);
+	bool IsBusy,
+	DocumentInfo? ActiveEditDocument = null);
 
 /// <summary>
 /// 	Identity and state of one open Inventor document.
@@ -54,10 +55,19 @@ public sealed record SessionInfo(
 /// <param name="RequiresUpdate">
 /// 	True when the document is out of date and needs a rebuild.
 /// </param>
+/// <param name="FullDocumentName">
+/// 	The path with the model state, ex. "C:\Parts\Bracket.ipt&lt;State2&gt;". The path alone for the primary model state,
+/// 	and an empty string for a document that was never saved. Two model states of one file have different values.
+/// </param>
+/// <param name="ModelStateName">
+/// 	The model state, ex. "[Primary]", or null for a document with none (ex. a drawing).
+/// </param>
 public sealed record DocumentInfo(
 	string DisplayName,
 	string FullFileName,
 	string DocumentType,
 	bool IsDirty,
 	bool IsModifiable,
-	bool RequiresUpdate);
+	bool RequiresUpdate,
+	string? FullDocumentName = null,
+	string? ModelStateName = null);

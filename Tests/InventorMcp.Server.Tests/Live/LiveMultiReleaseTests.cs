@@ -10,7 +10,7 @@ namespace InventorMcp.Server.Tests.Live;
 /// 	Two Inventor releases at one time, each with its own bridge.
 /// </summary>
 /// <remarks>
-/// 	Needs two releases running with the add-in loaded, ex. 2025 and 2027, deployed with protocol version 2.
+/// 	Needs two releases running with the add-in loaded, ex. 2025 and 2027, deployed with protocol version 3.
 /// 	The test skips when fewer than two bridges answer.
 /// </remarks>
 [Trait("Level", "Live")]

@@ -20,54 +20,50 @@ namespace InventorMcp.Server.McpTools;
 internal static partial class InventorTool
 {
 	/// <summary>
-	/// 	Finds the document of a tool call: the active one, an open one by name or path, or a file that it opens.
+	/// 	The helpers of a tool snippet that works on one document: <c>ToolDocument()</c> and <c>FindOrOpenToolDocument</c>.
 	/// </summary>
 	/// <remarks>
-	/// 	A document that it opens is in <c>__documentsOpenedHere</c>, and <c>CloseDocumentsOpenedHere()</c> closes it with
-	/// 	no save. A write passes allowOpen false, because a change to a document that the call opens is lost when it
-	/// 	closes, and a hidden document that stays open is a leak.
+	/// 	The add-in resolves the documentName of the call, so <c>ToolDocument()</c> is the <c>Document</c> global, the same
+	/// 	document as for every other tool. When the name is the path of a file that is not open,
+	/// 	<see cref="RunJsonSnippetAsync"/> sends the snippet again with a line in place of <see cref="OpenHere"/> that
+	/// 	opens it. A document that it opens is in <c>__documentsOpenedHere</c>, and <c>CloseDocumentsOpenedHere()</c> closes
+	/// 	it with no save. See <c>Docs/Architecture.md</c>, "Each tool finds its document the same way".
 	/// </remarks>
-	private const string FindToolDocument = """
-		Document FindToolDocument(string? nameOrPath, bool allowOpen = true)
+	private const string ToolDocument = """
+		Document? __toolDocument = null;
+
+		// The document of the tool call: the one that the add-in found for documentName, or the file that the call opened.
+		Document ToolDocument() => __toolDocument ?? Document ?? throw new InvalidOperationException("No document is active. Give documentName: a display name, a full path, or a full document name.");
+
+		// Finds an open document by name, or opens a file with the rules off, so an open trigger does not run.
+		Document FindOrOpenToolDocument(string nameOrPath)
 		{
-			if (string.IsNullOrWhiteSpace(nameOrPath))
-				return Document ?? throw new InvalidOperationException("No document is active. Give documentName: a display name, or a full path.");
+			dynamic? automation = null;
+			bool? rulesWereEnabled = null;
+			try { automation = ILogicAutomation(); rulesWereEnabled = (bool)automation.RulesEnabled; automation.RulesEnabled = false; }
+			catch (Exception) { }
 
-			foreach (Document open in Application.Documents)
-			{
-				if (string.Equals(open.FullFileName, nameOrPath, StringComparison.OrdinalIgnoreCase)
-					|| string.Equals(open.DisplayName, nameOrPath, StringComparison.OrdinalIgnoreCase))
-					return open;
-			}
-
-			if (System.IO.File.Exists(nameOrPath))
-			{
-				if (!allowOpen)
-					throw new InvalidOperationException($"'{nameOrPath}' is not open. Open it first, ex. with inventor_eval_csharp and OpenOrReuseDocument(path, true).");
-
-				// With the rules off, so an open trigger does not run: a tool only reads the file.
-				dynamic? automation = null;
-				bool? rulesWereEnabled = null;
-				try { automation = ILogicAutomation(); rulesWereEnabled = (bool)automation.RulesEnabled; automation.RulesEnabled = false; }
-				catch (Exception) { }
-
-				try { return OpenOrReuseDocument(nameOrPath); }
-				finally { if (rulesWereEnabled is bool previous) automation!.RulesEnabled = previous; }
-			}
-
-			throw new ArgumentException($"No open document and no file is named '{nameOrPath}'.");
+			try { return OpenOrReuseDocument(nameOrPath); }
+			finally { if (rulesWereEnabled is bool previous) automation!.RulesEnabled = previous; }
 		}
 
+		// open-tool-document-here
+
 		""";
+
+	/// <summary>
+	/// 	The line of <see cref="ToolDocument"/> that a second send replaces with the open of the file.
+	/// </summary>
+	private const string OpenHere = "// open-tool-document-here";
 
 	[McpServerTool(Name = "inventor_ilogic_rules", Title = "List iLogic rules", ReadOnly = true, OpenWorld = false)]
 	[Description("Lists the iLogic rules of a document: the name, the active flag and the length of each rule. The document can be open, or a file path, which is opened invisibly and closed again.")]
 	public static Task<object> ILogicRulesAsync(
 		BridgeClient bridge,
-		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of an open document, or the full path of a file. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		CancellationToken cancellationToken = default) =>
-		SafeAsync(async () => await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
-			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
+		SafeAsync(async () => await RunJsonSnippetAsync(bridge, ToolDocument + """
+			Document document = ToolDocument();
 			string json = System.Text.Json.JsonSerializer.Serialize(new
 			{
 				document = document.FullFileName.Length > 0 ? document.FullFileName : document.DisplayName,
@@ -75,14 +71,14 @@ internal static partial class InventorTool
 			});
 			CloseDocumentsOpenedHere();
 			return json;
-			""", cancellationToken).ConfigureAwait(false));
+			""", cancellationToken, documentName).ConfigureAwait(false));
 
 	// Not ReadOnly: with outputFolder it writes files, and a client can run a read-only tool with no approval.
 	[McpServerTool(Name = "inventor_ilogic_rule_get", Title = "Read an iLogic rule", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
 	[Description("Reads the text of one iLogic rule, or writes every rule of a document to files in a folder (one '<rule>.iLogicVb' file each). The document can be open, or a file path. An existing file is never overwritten: nothing is written if one of the files exists.")]
 	public static Task<object> ILogicRuleGetAsync(
 		BridgeClient bridge,
-		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of an open document, or the full path of a file. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		[Description("The rule to read. Omit it and give outputFolder to write every rule to files.")] string? ruleName = null,
 		[Description("A folder to write every rule to, as '<rule>.iLogicVb' files. It is made if it does not exist.")] string? outputFolder = null,
 		CancellationToken cancellationToken = default)
@@ -95,8 +91,8 @@ internal static partial class InventorTool
 
 		return SafeAsync(async () =>
 		{
-			JsonElement rules = await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
-				Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
+			JsonElement rules = await RunJsonSnippetAsync(bridge, ToolDocument + $$"""
+				Document document = ToolDocument();
 				string? onlyRule = {{CSharpLiteral.String(ruleName)}};
 				List<object> rules = new();
 				foreach ((string Name, bool IsActive, int Length) rule in ILogicRuleNames(document))
@@ -107,7 +103,7 @@ internal static partial class InventorTool
 				string json = System.Text.Json.JsonSerializer.Serialize(new { document = document.FullFileName.Length > 0 ? document.FullFileName : document.DisplayName, rules });
 				CloseDocumentsOpenedHere();
 				return json;
-				""", cancellationToken).ConfigureAwait(false);
+				""", cancellationToken, documentName).ConfigureAwait(false);
 
 			if (rules.ValueKind is not JsonValueKind.Object)
 				return (object)rules;
@@ -166,7 +162,7 @@ internal static partial class InventorTool
 		[Description("The new text: it replaces the anchor, or goes before or after it.")] string text,
 		[Description("Text that occurs exactly once in the rule. Omit only with mode 'replace-all' or for a new rule.")] string? anchor = null,
 		[Description("'replace' (default): replace the anchor. 'insert-before' or 'insert-after': add text next to the anchor. 'replace-all': replace the whole rule, with no anchor.")] string mode = "replace",
-		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of an open document, or the full path of a file. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		[Description("Add the rule when it does not exist, with text as its whole text. Default false.")] bool createIfMissing = false,
 		[Description("Save the document after the change. Required when documentName is a file that is not open, or the change is lost when the tool closes it.")] bool save = false,
 		CancellationToken cancellationToken = default) =>
@@ -175,8 +171,8 @@ internal static partial class InventorTool
 			if (mode is not ("replace" or "insert-before" or "insert-after" or "replace-all"))
 				return new { error = "invalid-arguments", message = $"Unknown mode '{mode}'. Use replace, insert-before, insert-after or replace-all." };
 
-			JsonElement current = await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
-				Document document = FindToolDocument({{CSharpLiteral.String(documentName)}});
+			JsonElement current = await RunJsonSnippetAsync(bridge, ToolDocument + $$"""
+				Document document = ToolDocument();
 				string json = System.Text.Json.JsonSerializer.Serialize(new
 				{
 					document = document.FullFileName.Length > 0 ? document.FullFileName : document.DisplayName,
@@ -185,7 +181,7 @@ internal static partial class InventorTool
 				});
 				CloseDocumentsOpenedHere();
 				return json;
-				""", cancellationToken).ConfigureAwait(false);
+				""", cancellationToken, documentName).ConfigureAwait(false);
 
 			if (current.ValueKind is not JsonValueKind.Object)
 				return (object)current;
@@ -216,8 +212,8 @@ internal static partial class InventorTool
 
 			string? backup = oldText is null ? null : RuleEdit.WriteBackup(documentPath, ruleName, oldText);
 
-			JsonElement written = await RunJsonSnippetAsync(bridge, FindToolDocument + $$"""
-				Document document = FindToolDocument({{CSharpLiteral.String(documentPath)}}, allowOpen: {{(save ? "true" : "false")}});
+			JsonElement written = await RunJsonSnippetAsync(bridge, ToolDocument + $$"""
+				Document document = ToolDocument();
 				string? expected = {{CSharpLiteral.String(oldText)}};
 				string? now = ILogicRuleText(document, {{CSharpLiteral.String(ruleName)}});
 				string status;
@@ -234,7 +230,7 @@ internal static partial class InventorTool
 				}
 				CloseDocumentsOpenedHere();
 				return System.Text.Json.JsonSerializer.Serialize(new { status });
-				""", cancellationToken).ConfigureAwait(false);
+				""", cancellationToken, documentName, allowOpen: save).ConfigureAwait(false);
 
 			if (written.ValueKind is not JsonValueKind.Object)
 				return (object)written;
@@ -271,7 +267,7 @@ internal static partial class InventorTool
 	public static Task<object> SetParametersAsync(
 		BridgeClient bridge,
 		[Description("Parameter names and their new values, ex. {\"Width\": \"50 mm\", \"Finish\": \"Painted\"}.")] Dictionary<string, string> parameters,
-		[Description("Display name or full path of an open document, or the full path of a file. Omit to use the active document.")] string? documentName = null,
+		[Description("A display name, a full path, or a full document name (the path with the model state) of an open document, or the full path of a file. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
 		[Description("Turn iLogic rules off during the writes. Default false.")] bool suppressRules = false,
 		[Description("A rule to run once after the writes and the update, ex. the top level rule.")] string? runRuleAfter = null,
 		[Description("Add a user parameter that does not exist, from its expression. Numeric only. Default false.")] bool createIfMissing = false,
@@ -283,16 +279,20 @@ internal static partial class InventorTool
 
 		return SafeAsync(async () => await RunJsonSnippetAsync(
 			bridge,
-			ComposeSetParametersSnippet(parameters, documentName, suppressRules, runRuleAfter, createIfMissing, allowUnsavedChanges),
-			cancellationToken).ConfigureAwait(false));
+			ComposeSetParametersSnippet(parameters, suppressRules, runRuleAfter, createIfMissing, allowUnsavedChanges),
+			cancellationToken,
+			documentName,
+			allowOpen: false).ConfigureAwait(false));
 	}
 
 	/// <summary>
 	/// 	Composes the snippet of <see cref="SetParameters"/>, also used by <c>inventor_set_parameter</c> with suppressRules.
 	/// </summary>
+	/// <remarks>
+	/// 	The document is the documentName of the call, which the add-in resolves. Send it with allowOpen false.
+	/// </remarks>
 	internal static string ComposeSetParametersSnippet(
 		IReadOnlyDictionary<string, string> parameters,
-		string? documentName,
 		bool suppressRules,
 		string? runRuleAfter,
 		bool createIfMissing,
@@ -303,8 +303,8 @@ internal static partial class InventorTool
 		foreach ((string name, string value) in parameters)
 			_ = entries.Append(CultureInfo.InvariantCulture, $"\t({CSharpLiteral.String(name)}, {CSharpLiteral.String(value)}),\n");
 
-		return FindToolDocument + $$"""
-			Document document = FindToolDocument({{CSharpLiteral.String(documentName)}}, allowOpen: false);
+		return ToolDocument + $$"""
+			Document document = ToolDocument();
 			if (!{{(allowUnsavedChanges ? "true" : "false")}} && document.Dirty)
 				throw new InvalidOperationException($"'{document.DisplayName}' has unsaved changes. Save it, or pass allowUnsavedChanges.");
 
@@ -489,21 +489,59 @@ internal static partial class InventorTool
 	/// <summary>
 	/// 	Runs a composed snippet and parses the JSON text it returns.
 	/// </summary>
+	/// <param name="bridge">
+	/// 	The bridge.
+	/// </param>
+	/// <param name="code">
+	/// 	The snippet. A snippet for one document starts with <see cref="ToolDocument"/> and calls <c>ToolDocument()</c>.
+	/// </param>
+	/// <param name="cancellationToken">
+	/// 	Cancels the call.
+	/// </param>
+	/// <param name="documentName">
+	/// 	The documentName of the tool. The add-in resolves it, and the snippet gets it as <c>Document</c>.
+	/// </param>
+	/// <param name="allowOpen">
+	/// 	True to open the file when <paramref name="documentName"/> is the path of a file that is not open. A write passes
+	/// 	false, because a change to a document that the call opens is lost when it closes.
+	/// </param>
 	/// <returns>
 	/// 	The parsed result, or the execution result when the snippet failed.
 	/// </returns>
-	private static async Task<JsonElement> RunJsonSnippetAsync(BridgeClient bridge, string code, CancellationToken cancellationToken)
+	private static async Task<JsonElement> RunJsonSnippetAsync(BridgeClient bridge, string code, CancellationToken cancellationToken, string? documentName = null, bool allowOpen = true)
 	{
 		// A canned snippet that throws must still close what it opened. None of them declares a type, which a block
 		// cannot hold. A second close does nothing, because the helper forgets each document it closes.
-		if (code.Contains("FindToolDocument(", StringComparison.Ordinal) || code.Contains("OpenOrReuseDocument(", StringComparison.Ordinal))
+		if (code.Contains("ToolDocument(", StringComparison.Ordinal) || code.Contains("OpenOrReuseDocument(", StringComparison.Ordinal))
 			code = $"try\n{{\n{code}\n}}\nfinally\n{{\n\tCloseDocumentsOpenedHere();\n}}";
 
-		ExecutionResult result = await bridge.InvokeAsync<ExecutionResult>(
-			BridgeOperations.EvalCSharp,
+		ExecutionResult result;
+
+		try
+		{
 			// The snippets guard unsaved changes themselves where they write, and a read needs no guard.
-			new ExecuteRequest(ScriptPrelude.Apply(code), DocumentName: null, AllowUnsavedChanges: true),
-			cancellationToken).ConfigureAwait(false);
+			result = await bridge.InvokeAsync<ExecutionResult>(
+				BridgeOperations.EvalCSharp,
+				new ExecuteRequest(ScriptPrelude.Apply(code), documentName, AllowUnsavedChanges: true),
+				cancellationToken).ConfigureAwait(false);
+		}
+		catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotFound
+			&& documentName is not null
+			&& Path.IsPathFullyQualified(documentName)
+			&& File.Exists(documentName))
+		{
+			if (allowOpen is false || code.Contains(OpenHere, StringComparison.Ordinal) is false)
+			{
+				throw new InventorBridgeException(
+					BridgeErrorCodes.NotFound,
+					$"'{documentName}' is not open. Open it first, ex. with inventor_eval_csharp and OpenOrReuseDocument(path, true).");
+			}
+
+			result = await bridge.InvokeAsync<ExecutionResult>(
+				BridgeOperations.EvalCSharp,
+				new ExecuteRequest(ScriptPrelude.Apply(code.Replace(OpenHere, $"__toolDocument = FindOrOpenToolDocument({CSharpLiteral.String(documentName)});", StringComparison.Ordinal)), DocumentName: null, AllowUnsavedChanges: true),
+				cancellationToken).ConfigureAwait(false);
+		}
 
 		if (result.Succeeded && result.ReturnValue is string json)
 			return JsonElement.Parse(json);

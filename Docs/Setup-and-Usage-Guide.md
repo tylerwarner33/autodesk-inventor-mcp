@@ -34,8 +34,8 @@ Restart Inventor, then confirm the bridge started:
 type %LOCALAPPDATA%\InventorMcp\2027\addin.log
 ```
 
-Use the year of the release. A line reading `Bridge started on pipe 'InventorMcp.Bridge.2027' in process <id>` means
-it is working.
+Use the year of the release. A line reading `Bridge started on pipe 'InventorMcp.Bridge.v3.2027.<id>' in process <id>`
+means it is working.
 
 If it is missing, open **Tools > Add-Ins** in Inventor and check that **Inventor MCP Bridge** is loaded,
 with **Load Automatically** ticked.
@@ -94,9 +94,9 @@ ready.
 
 The MCP connection itself stays healthy, so you can close and reopen Inventor without restarting Claude.
 
-Each release hosts its own bridge, so Inventor 2025, 2026 and 2027 can run at the same time. A second Inventor of
-the same release logs the conflict and does not compete for the bridge of the first.
-`inventor_session` reports which release is connected.
+Each Inventor process hosts its own bridge, so Inventor 2025, 2026 and 2027 can run at the same time, and so can two
+Inventor processes of one release. With two of one release, Claude asks which one to use. `inventor_session` reports
+which release and process are connected, and lists the processes that run.
 
 ### Two releases at the same time
 
@@ -183,7 +183,9 @@ automatically, and `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true` clicks `OK` on Dat
 | "No Inventor session is hosting the MCP bridge" | Inventor is closed, or the add-in is not loaded |
 | "Autodesk Inventor 2025 is not hosting the MCP bridge" | The release this session uses is closed. Start it, or ask Claude to use another release. |
 | `release-required` | More than one release runs. Tell Claude which one to use. |
-| `bridge-outdated` | The add-in is from before protocol version 2. Close Inventor, redeploy the add-in, and start it again. |
+| `bridge-outdated` | The add-in is of protocol version 2 or older. Close Inventor, redeploy the add-in for each release, and start it again. |
+| `instance-required` | More than one Inventor of the release runs. Tell Claude which one to use. |
+| `version-mismatch` | The add-in is newer than the server. Restart the MCP client. |
 | The add-in is missing from **Tools > Add-Ins** | The manifest was never deployed for that release. Run the install command with its `AutodeskVersion`. |
 | `<year>\addin.log` has no entry for today on 2025 or 2026 | The loader failed before the add-in started. Read `<year>\addin-startup.log`. |
 | "Inventor rejected the call because it is busy" | A command or modal dialog is running. Finish it and retry. |

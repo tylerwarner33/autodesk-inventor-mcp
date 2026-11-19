@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO.Pipes;
 
+using InventorMcp.Contracts;
 using InventorMcp.Server.Bridge;
 using InventorMcp.Server.McpTools;
 
@@ -25,7 +26,7 @@ public sealed class WaitForAnswerTests
 			NullLogger<BridgeClient>.Instance,
 			new FakeDialogs(),
 			new FakeTimeProvider(),
-			new ReleaseSelection(prefix, string.Empty, () => [$"{prefix}.{releaseYear}"]),
+			new ReleaseSelection(prefix, string.Empty, () => [BridgeProtocol.PipeNameFor(releaseYear, Environment.ProcessId, prefix)]),
 			checkHost: static _ => null);
 
 	[Fact]
@@ -33,8 +34,8 @@ public sealed class WaitForAnswerTests
 	{
 		// One instance that another client holds: a connection attempt waits for the bridge's full connect timeout.
 		string prefix = $"InventorMcp.Test.{Guid.NewGuid():N}";
-		await using NamedPipeServerStream server = new($"{prefix}.2026", PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-		await using NamedPipeClientStream holder = new(".", $"{prefix}.2026", PipeDirection.InOut, PipeOptions.Asynchronous);
+		await using NamedPipeServerStream server = new(BridgeProtocol.PipeNameFor(2026, Environment.ProcessId, prefix), PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+		await using NamedPipeClientStream holder = new(".", BridgeProtocol.PipeNameFor(2026, Environment.ProcessId, prefix), PipeDirection.InOut, PipeOptions.Asynchronous);
 		Task accept = server.WaitForConnectionAsync(TestContext.Current.CancellationToken);
 		await holder.ConnectAsync(5000, TestContext.Current.CancellationToken);
 		await accept;

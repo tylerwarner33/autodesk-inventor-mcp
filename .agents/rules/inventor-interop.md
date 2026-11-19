@@ -50,6 +50,26 @@ lists the known cases.
 - Assembly feature collections can hold entries that do not expose `PartFeature`; those are skipped.
 - `inventor_update` marks a clean document dirty even when the rebuild changes nothing, so it is not a read only call.
 
+### Model states and the edit document
+
+Measured in Inventor 2026 on 2026-11-19, with an assembly that has two occurrences of one part, one in the primary
+model state and one in a second state. The resolver of the add-in (`DocumentNameMatch`) and `OpenOrReuseDocument`
+follow these facts.
+
+- `FullDocumentName` is the path for the primary model state, and the path with `<State>` for another state, ex.
+	`C:\Parts\Bracket.ipt<State2>`. `DisplayName` is then `Bracket.ipt (State2)`.
+- An open model state has two documents with the same `FullDocumentName`: the factory
+	(`ComponentDefinition.IsModelStateFactory`) and the member (`IsModelStateMember`). Its factory has the active model
+	state of the file. Both report `IsModifiable` true. The member of the primary state names that factory as its
+	`FactoryDocument`.
+- A document that was never saved has an empty `FullFileName`, and a **null** `FullDocumentName` through COM. Guard
+	a `.Length` on it.
+- `Application.ActiveEditDocument` is never null with a document open. With no edit in place, it is the same object as
+	`ActiveDocument`. During an edit in place of a part, it is the part, and `ActiveDocument` stays the assembly. During
+	a sketch edit (in a top part or in a part in place), it is the part.
+- During an edit in place, `Application.ActiveView.Document` is the top document, so a camera (ex.
+	`inventor_orientation`) reads the view of the assembly.
+
 ## A long snippet can terminate Inventor
 
 A snippet runs on Inventor's main thread, so no window message is processed until it returns.

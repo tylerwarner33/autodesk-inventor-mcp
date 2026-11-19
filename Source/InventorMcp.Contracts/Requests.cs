@@ -34,20 +34,6 @@ public sealed record ParametersRequest(
 	string? NameFilter = null) : DocumentScopedRequest(DocumentName);
 
 /// <summary>
-/// 	Arguments for setting one parameter.
-/// </summary>
-/// <param name="Name">
-/// 	Parameter name.
-/// </param>
-/// <param name="Expression">
-/// 	The new expression, ex. "50 mm". Inventor parses it in the parameter's own units.
-/// </param>
-public sealed record SetParameterRequest(
-	string Name,
-	string Expression,
-	string? DocumentName = null) : DocumentScopedRequest(DocumentName);
-
-/// <summary>
 /// 	Arguments for evaluating an expression without writing it.
 /// </summary>
 /// <param name="Expression">
