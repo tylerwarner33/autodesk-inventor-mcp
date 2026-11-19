@@ -199,7 +199,7 @@ internal sealed partial class InventorInstallations(ILogger<InventorInstallation
 	/// <remarks>
 	/// 	The paths match <c>InventorBundleDir</c> and <c>InventorAddinsDir</c> in <c>InventorMcp.AddIn.csproj</c>.
 	/// </remarks>
-	private static bool IsAddInDeployed(int year)
+	internal static bool IsAddInDeployed(int year)
 	{
 		string applicationData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 

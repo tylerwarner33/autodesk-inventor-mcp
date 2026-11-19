@@ -6,6 +6,15 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.10] - 2026-11-19
+
+### Changed
+- A connection that fails now gives the cause. A bridge with every connection in use gives the new code `bridge-connections-in-use`, and the message tells the model to ask the user to close an MCP client, not to wait and not to start Inventor.
+- When Inventor runs but its add-in has no bridge, the message now says if the add-in is not deployed, is probably still loading (Inventor started less than 120 s ago), or is not loaded. Each message keeps the code `inventor-not-running` and tells the model not to start a second Inventor.
+- A pipe that refuses the Windows account now gives `untrusted-bridge-host`, not an unreadable error.
+- `inventor_start` now returns a readable result when the connection fails during its wait.
+- The server log now says if the process of a dropped connection still runs.
+
 ## [0.4.9] - 2026-11-19
 
 ### Changed
