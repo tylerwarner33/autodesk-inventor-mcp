@@ -585,6 +585,37 @@ Not used: NuGet lock files (`RestorePackagesWithLockFile`). The add-in's target 
 `AutodeskVersion`, so one lock file cannot serve every release. Central package management already keeps each
 version in one file. `xunit.analyzers` is not added, because `xunit.v3` brings it.
 
+### Parameter writes are one Undo step
+
+`inventor_set_parameters` and `inventor_set_parameter` run one composed snippet (`ComposeSetParametersSnippet`), and
+the snippet groups its writes in one Inventor transaction, named `MCP: Set Parameters`. One Undo in Inventor reverts
+the call, and the activity feed shows the name. Before, ten parameters gave ten steps or more, and a write that failed
+halfway left the document half changed. The rules come from live checks, in `Docs/Research/Write-Transactions-Checks.md`:
+
+- The step starts on the document that is written, not on the active document. A document with no window, or one
+  that is not active, gets the step too.
+- `document.Update()` and `runRuleAfter` are inside the step. A rule that runs inside joins it, and an `Update` after
+  the step would make a second one. A nested transaction joins the outer one, so no check of the current transaction
+  is needed.
+- A batch with failed entries keeps the successes and ends the step, because the model repeats only the failed
+  entries. An exception outside the loop (ex. from `Update`) aborts the step, and the document goes back.
+  `Abort` fails when the step is not the current one, so a failure of `Abort` is logged and the first exception is
+  thrown again.
+- The restore of `RulesEnabled` is after the step, in a `finally` block. It is a setting of the session, and an abort
+  does not restore it.
+- `inventor_set_parameter` uses the same snippet in every case, so there is one write path, no add-in build, and the
+  same checks (a numeric expression is parsed before it is written). Its result has the kind, expression, internal
+  value, display value and units of the parameter, and the add-in operation `parameters.set` has no caller. The
+  bridge version 3 work removes it.
+- A model that wants one Undo step for its own snippet calls the prelude helper
+  `InTransaction(document, "MCP: Name", () => { ... })`. There is no `transactionName` parameter on
+  `inventor_eval_csharp`, because a wrapper around the code of the model breaks a snippet that declares a method or
+  returns at the top level.
+- Not wrapped: `inventor_auto_balloon` (it has its own transaction, and its abort after the time limit is part of its
+  logic), tools that make one change (`inventor_set_property`, `inventor_update`), and tools that save, close or copy
+  (a save inside a transaction is proven only for a file outside a Vault project, by a rule that `runRuleAfter` runs.
+  See `Docs/Research/Write-Transactions-Checks.md`).
+
 ## Behaviours worth knowing
 
 ### The activity feed is a pull, not a push

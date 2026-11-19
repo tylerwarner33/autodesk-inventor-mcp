@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json;
 
 using InventorMcp.Contracts;
 using InventorMcp.Server.Bridge;
@@ -28,7 +29,7 @@ internal static partial class InventorTool
 			cancellationToken));
 
 	[McpServerTool(Name = "inventor_set_parameter", Title = "Set a parameter", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-	[Description("Sets one parameter and rebuilds the document. This changes the user's model. The accessor used depends on the parameter's kind: a numeric parameter takes an expression such as '50 mm', a text parameter takes plain text, and a boolean parameter takes 'true' or 'false'. Check the kind with inventor_parameters first, and check a numeric expression with inventor_evaluate_expression.")]
+	[Description("Sets one parameter and rebuilds the document. This changes the user's model. One Undo step in Inventor reverts the call. The accessor used depends on the parameter's kind: a numeric parameter takes an expression such as '50 mm', a text parameter takes plain text, and a boolean parameter takes 'true' or 'false'. Check the kind with inventor_parameters first, and check a numeric expression with inventor_evaluate_expression.")]
 	public static Task<object> SetParameterAsync(
 		BridgeClient bridge,
 		[Description("Parameter name.")] string name,
@@ -36,16 +37,48 @@ internal static partial class InventorTool
 		[Description("Display name or full path of the document. Omit to use the active document.")] string? documentName = null,
 		[Description("Turn iLogic rules off for the write, so the change does not run them. They are turned back on after it. For several writes, use inventor_set_parameters.")] bool suppressRules = false,
 		CancellationToken cancellationToken = default) =>
-		suppressRules
-			// The same snippet as inventor_set_parameters, because the add-in operation cannot turn the rules off.
-			? SafeAsync(async () => await RunJsonSnippetAsync(
-				bridge,
-				ComposeSetParametersSnippet(new Dictionary<string, string>(StringComparer.Ordinal) { [name] = expression }, documentName, suppressRules: true, runRuleAfter: null, createIfMissing: false, allowUnsavedChanges: true),
-				cancellationToken).ConfigureAwait(false))
-			: SafeAsync(() => bridge.InvokeAsync<Contracts.Models.ParameterInfo>(
-				BridgeOperations.SetParameter,
-				new SetParameterRequest(name, expression, documentName),
-				cancellationToken));
+		// The same snippet as inventor_set_parameters, so every parameter write has one path, one Undo step, and the
+		// same checks. allowUnsavedChanges is true because the add-in operation of before had no guard for it.
+		SafeAsync(async () => ShapeSingleParameter(await RunJsonSnippetAsync(
+			bridge,
+			ComposeSetParametersSnippet(new Dictionary<string, string>(StringComparer.Ordinal) { [name] = expression }, documentName, suppressRules, runRuleAfter: null, createIfMissing: false, allowUnsavedChanges: true),
+			cancellationToken).ConfigureAwait(false)));
+
+	/// <summary>
+	/// 	Turns the result of the batch snippet for one parameter into the result of <c>inventor_set_parameter</c>.
+	/// </summary>
+	/// <param name="batch">
+	/// 	The result of the snippet, or the failure of the snippet.
+	/// </param>
+	/// <returns>
+	/// 	The facts of the parameter after the write, or an error with the code and the message of the failed entry.
+	/// </returns>
+	internal static object ShapeSingleParameter(JsonElement batch)
+	{
+		if (batch.ValueKind is not JsonValueKind.Object || batch.TryGetProperty("results", out JsonElement results) is false || results.GetArrayLength() == 0)
+			return batch;
+
+		JsonElement entry = results[0];
+
+		if (entry.GetProperty("ok").GetBoolean() is false)
+		{
+			return new
+			{
+				error = entry.TryGetProperty("code", out JsonElement code) ? code.GetString() : "set-failed",
+				message = entry.GetProperty("error").GetString()
+			};
+		}
+
+		Dictionary<string, JsonElement> shaped = new(StringComparer.Ordinal);
+
+		foreach (JsonProperty property in entry.EnumerateObject().Where(static property => property.Name is not ("ok" or "created")))
+			shaped[property.Name] = property.Value;
+
+		foreach (string name in new[] { "document", "transaction", "rulesSuppressed" })
+			shaped[name] = batch.GetProperty(name);
+
+		return shaped;
+	}
 
 	[McpServerTool(Name = "inventor_evaluate_expression", Title = "Evaluate an expression", ReadOnly = true, OpenWorld = false)]
 	[Description("Asks Inventor what an expression evaluates to, without writing it anywhere. Reports validity, the internal value, the display value, and which parameters the expression reads. Use this to check an expression before calling inventor_set_parameter.")]

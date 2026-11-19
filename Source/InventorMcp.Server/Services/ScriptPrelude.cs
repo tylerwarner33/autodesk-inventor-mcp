@@ -34,6 +34,7 @@ internal static partial class ScriptPrelude
 		"ToDegrees",
 		"FromDegrees",
 		"TryGetUserParameter",
+		"InTransaction",
 		"StartDeadline"
 	];
 
