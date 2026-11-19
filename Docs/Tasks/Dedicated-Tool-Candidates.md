@@ -54,12 +54,13 @@ Counts are snippets in the audit logs that match a text pattern, of 4,437. Each 
 	model then repeats only the failed items. See `Docs/Architecture.md`, "Safety", for when such a result is an
 	error.
 - One Undo step for the whole call. See `Docs/Architecture.md`, "Parameter writes are one Undo step".
-- The same `documentName` rules as each other tool. See `Docs/Tasks/Document-Targeting.md`.
+- The same `documentName` rules as each other tool: send it to the add-in, and use `ToolDocument()`. See
+	`Docs/Architecture.md`, "Each tool finds its document the same way".
 
 ## Plan for `inventor_selection`
 
-Do it after `Docs/Tasks/Document-Targeting.md`, because both use the edit document. It can also be done before,
-with `Application.ActiveDocument`, and changed later.
+Use the edit document, as every tool does with no documentName (see `Docs/Architecture.md`, "Each tool finds its
+document the same way").
 
 1. Live checks first, with snippets:
 	- [ ] During an edit of a part in place in an assembly, select a face. Which `SelectSet` has it: that of the

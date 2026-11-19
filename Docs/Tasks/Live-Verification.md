@@ -78,10 +78,8 @@ bridge items, then the dialog items, then the checks of the other plans.
 	(ex. Parameters) or start a large rebuild, then call any tool except `inventor_activity`. A hang or an
 	unhandled `COMException` is a defect. If rejections occur, add a retry in `BridgeClient` first, because that
 	needs no add-in rebuild.
-- [ ] The server's throttle of `All pipe instances are busy`.
-	- **Do:** connect 16 servers (ex. 16 test clients that hold a connection), then a 17th.
-	- **Expect:** no line flood in `addin.log`, and `bridge-connections-in-use` for the 17th.
-	- **Automate:** the end-to-end test in `Docs/Tasks/Bridge-JsonRpc-Migration.md` covers it with no Inventor.
+- [x] The server's throttle of `All pipe instances are busy`.
+	- Done by `BridgeEndToEndTests.TheSeventeenthClientGetsConnectionsInUse`, with the real listener and no Inventor.
 - [ ] The causes of a failed connection (`Docs/Architecture.md`, the table of causes).
 	- **Do:** turn the add-in off in the Add-In Manager, and call `inventor_session` more than 120 s after the
 		start. Then call `inventor_session` during a start of Inventor. Then close Inventor while a call waits.
@@ -128,5 +126,4 @@ them.
 
 | Plan | Checks |
 | --- | --- |
-| `Docs/Tasks/Document-Targeting.md`, "Checks before the code" | `ActiveEditDocument` during an edit in place and with none, two model states of one file, the format of `FullDocumentName` |
 | `Docs/Tasks/Dedicated-Tool-Candidates.md` | Which `SelectSet` has the selection during an edit in place, and the saved release of an open document |

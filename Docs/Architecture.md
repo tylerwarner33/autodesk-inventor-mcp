@@ -26,8 +26,10 @@ Two protocols are on the two links:
 - **Client to server:** the [Model Context Protocol](https://modelcontextprotocol.io/specification/latest) (MCP),
   through the C# MCP SDK. Each MCP message is a [JSON-RPC 2.0](https://www.jsonrpc.org/specification) message (see
   the MCP [base protocol](https://modelcontextprotocol.io/specification/latest/basic)).
-- **Server to add-in:** a protocol of this repository, one JSON message for each line. Its version is in the pipe
-  name. MCP does not go over the pipe (see "Two processes rather than one").
+- **Server to add-in:** MCP too, as a second and separate session, through the same SDK. Each bridge operation is a
+  custom MCP method (ex. `parameters.evaluate`), and the version is pinned and is in the pipe name (see "The bridge
+  speaks MCP"). The client's session does not go into Inventor: the tools stay in the server (see "Two processes
+  rather than one").
 
 | Project | Purpose |
 | --- | --- |
@@ -153,6 +155,10 @@ server, which looks for the old name, finds none and reports `inventor-not-runni
 A second pipe with the old name that answers "restart the client" was not selected: more add-in code for a case that
 ends with the next restart.
 
+Changed on 2026-11-19 (protocol version 3): the messages on the pipe are MCP, in place of the line protocol of this
+repository (see "The bridge speaks MCP"). An add-in built before that does not complete the handshake, and the server
+reports `bridge-outdated`.
+
 Changed on 2026-11-16 (protocol version 3): the pipe name has the protocol version and the process id, as described
 above. A new add-in is needed for each release, and Inventor must restart to load it. Two processes of one release
 share the log folder of the release, so each `addin.log` line has the process id in brackets, and `RollingFile`
@@ -168,6 +174,66 @@ because a server belongs to a session and not to a release, so each tool call wr
 
 No code uses `GetActiveObject` or `GetObject`. With several releases open, they return the last Inventor that
 registered with COM, not the one that hosts the bridge pipe. Do not add them.
+
+### The bridge speaks MCP
+
+The add-in serves each pipe connection as an `McpServer` of the C# SDK (`ModelContextProtocol.Core`), and
+`BridgeClient` is an `McpClient`. Each bridge operation is a custom JSON-RPC method, registered as an
+`McpServerRequestHandler` (experimental in the SDK, `MCPEXP002`). The decision and the measurements are in
+`Docs/Research/Task-Analysis.md`, "Bridge protocol decision and JSON-RPC migration", and `Docs/Research/Mcp-Over-Pipe-Spike.md`, with live
+checks in Inventor 2025, 2026 and 2027.
+
+Why not a protocol of this repository: MCP is JSON-RPC 2.0 already, the server uses the SDK already, and the SDK gives
+the match of a response to its request, the cancel, and the errors with a code, which the old line protocol either
+did by hand or did not have. The SDK assemblies load in the isolated context of the add-in (see "The add-in runs in
+its own assembly load context"). On 2027, another add-in loads `ModelContextProtocol.Core` 1.2.0, and the add-in's
+2.4.0 loads beside it with no conflict.
+
+This does not reverse "Two processes rather than one": the client's MCP session ends in the server, and the pipe has a
+second, internal session whose only methods are the bridge operations.
+
+The rules on the pipe:
+
+- **A pinned version.** Both sides set `ProtocolVersion` to `BridgeProtocol.McpVersion` (`2026-07-28`), and the add-in
+  refuses any other. Without the pin, the version follows the two SDK versions that meet, and the add-in is deployed
+  far less often than the server. Change the MCP version only when a newer one gives the bridge something that it
+  needs, or when an SDK release stops supporting the pinned one. Then change `BridgeProtocol.McpVersion` and
+  `BridgeProtocol.Version` in the same pull request (ex. pipe `v3` to `v4`): an add-in of the old version keeps the old
+  pipe name, and the server reports `bridge-outdated`, so the two versions never drift apart. Watch the MCP
+  specification (https://modelcontextprotocol.io/specification/latest) and the SDK release notes
+  (https://github.com/modelcontextprotocol/csharp-sdk/releases) for the removal of the pinned version.
+- **A result is an object.** The value of an operation is in its `value` member, and no value is an empty object
+  (`BridgeResult`). An MCP result must be an object, and SDK 2.4.0 writes a null result with no `result` member, so its
+  client never completes the call.
+- **A failure has the bridge code.** JSON-RPC code `-32000`, with `code`, `message` and `detail` in `error.data`. The
+  SDK client puts "Request failed (remote): " before `error.message`, so the server reads the message from
+  `error.data.message`. Code `-32601` (a method that the add-in does not know) gives `unknown-operation`, with a
+  message that tells the user to deploy the add-in again. A new operation does not change the protocol version.
+- **No MCP method names.** `ping` is an MCP method, and the SDK answers it before a handler of the add-in can, so the
+  bridge's ping is `bridge.ping`. A new operation must not be a name of MCP either (ex. `initialize`, or a name with a
+  slash).
+- **One request at a time for each connection.** The server sends one main thread call at a time (`_gate` of
+  `BridgeClient`), and the add-in runs the requests of one connection one at a time, in order. Both are needed: the SDK
+  runs the requests of one connection at the same time, and a cancel frees the gate of the server before the
+  cancelled request ends in the add-in. Without the queue of the add-in, the next call could run nested in the modal
+  loop of a dialog that the cancelled call opened (see "The server watches for dialogs from outside Inventor").
+- **Two operations do not wait.** `bridge.ping` and `activity` never use the main thread
+  (`BridgeOperations.RunsWithoutMainThread`). They skip the gate, the queue and the dialog watch, so `inventor_activity`
+  answers while a long call runs. The add-in registers them through `RegisterWithoutMainThread`, from a static method
+  with no Inventor object, and the dispatcher refuses an operation that is registered through the wrong method. The
+  connect and the reconnect of `BridgeClient` have their own lock, because the gate no longer guards every use of the
+  connection.
+- **A cancel stops only a call that still waits.** The SDK sends the cancel of a tool call to the add-in, and a
+  request that still waits in the queue or for the main thread then never runs. A request that already runs ends
+  normally, and a cancel can reach the add-in after the main thread is free (2 of 8 runs under load in the spike), so a
+  tool must read the model back after a cancelled write. A stop of the wait on `blocked-by-dialog` sends no cancel,
+  because the call that opened the dialog already runs.
+- **The handshake does not use the main thread.** It answers while Inventor starts and under a dialog. An add-in that
+  does not complete it in 10 s speaks another protocol, and the server reports `bridge-outdated`.
+
+The SDK behaviors that the add-in works around are listed in `Docs/Research/Mcp-Over-Pipe-Spike.md`, "SDK behavior to
+check again on each SDK update". `BridgeEndToEndTests` tests each of them with the real listener and the real client,
+so an SDK update that changes one fails there.
 
 ### stdio rather than HTTP to Claude
 
@@ -660,8 +726,8 @@ halfway left the document half changed. The rules come from live checks, in `Doc
   does not restore it.
 - `inventor_set_parameter` uses the same snippet in every case, so there is one write path, no add-in build, and the
   same checks (a numeric expression is parsed before it is written). Its result has the kind, expression, internal
-  value, display value and units of the parameter, and the add-in operation `parameters.set` has no caller. The
-  bridge version 3 work removes it.
+  value, display value and units of the parameter. The add-in operation `parameters.set` was removed with bridge
+  version 3.
 - A model that wants one Undo step for its own snippet calls the prelude helper
   `InTransaction(document, "MCP: Name", () => { ... })`. There is no `transactionName` parameter on
   `inventor_eval_csharp`, because a wrapper around the code of the model breaks a snippet that declares a method or
@@ -670,6 +736,29 @@ halfway left the document half changed. The rules come from live checks, in `Doc
   logic), tools that make one change (`inventor_set_property`, `inventor_update`), and tools that save, close or copy
   (a save inside a transaction is proven only for a file outside a Vault project, by a rule that `runRuleAfter` runs.
   See `Docs/Research/Write-Transactions-Checks.md`).
+
+### Each tool finds its document the same way
+
+A tool sends its `documentName` to the add-in, and the add-in resolves it (`ResolveDocument`, with the pure function
+`DocumentNameMatch`). A composed snippet then uses the `Document` global through `ToolDocument()`, so no snippet has its
+own resolver. Before, six places resolved a name, and three cases gave a wrong document with no message. The facts
+come from live checks in Inventor 2026, in `.agents/rules/inventor-interop.md`, "Model states and the edit document".
+
+1. **No name:** `ActiveEditDocument`, else `ActiveDocument`, else `no-active-document`. During an edit in place of a
+   part in an assembly, the part. With no edit in place, the two are the same object.
+2. **A name:** each open document whose full document name, path or display name equals it (no case) matches. The
+   matches are grouped by full document name, because an open model state has two documents with one full document
+   name: the factory and the member. The factory of a group wins, because Inventor edits a model state through it.
+3. **One group** is the document. **More than one group** gives `ambiguous-document`, with the full document name of
+   each in the message and in `detail`. A path whose file has two model states open is ambiguous, because a path
+   alone opens the primary model state, which can be neither. **No match** gives `not-found`.
+
+A tool that may open a file sends the snippet again on `not-found` when the name is a full path of a file that exists,
+with a line that opens it with the rules off. A write does not open a file, because a change to a document that the
+call opens is lost when it closes. `OpenOrReuseDocument` and `FindOpenDocument` of the prelude use the same rules, for
+a snippet that finds a second document (ex. `compareWith` of `inventor_styles`, and the files of
+`inventor_file_info`). `inventor_orientation` always reads the camera of the active view, which belongs to the top
+document, also during an edit in place.
 
 ## Behaviours worth knowing
 
@@ -744,8 +833,8 @@ Before a click, the server reads the dialog again. It clicks only when the dialo
 and has exactly one visible, enabled button of that name.
 
 The server gets the Inventor process ID from the pipe (`GetNamedPipeServerProcessId`), not from a bridge call,
-because a bridge call also waits on the dialog. Each response carries its request ID, so the server discards a late
-response to a stopped call, and that response never becomes the answer to the next call.
+because a bridge call also waits on the dialog. The MCP SDK matches each response to its request ID, so a late
+response to a stopped call never becomes the answer to the next call.
 
 Up to 16 servers can wait on one Inventor, and each sees the same dialog. Only the server that holds the named mutex
 `Local\InventorMcp.Dialogs.<processId>` clicks. The others report that the dialog was closed by a different server or

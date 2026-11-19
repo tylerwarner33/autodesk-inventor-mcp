@@ -811,6 +811,7 @@ The specifications that the server uses:
 | Specification | Where it applies |
 | --- | --- |
 | [Model Context Protocol](https://modelcontextprotocol.io/specification/latest) | Between the MCP client and `InventorMcp.Server` |
+| [Model Context Protocol](https://modelcontextprotocol.io/specification/latest), version `2026-07-28` | Between `InventorMcp.Server` and the add-in, on the named pipe. Each bridge operation is a custom method (see `Docs/Architecture.md`, "The bridge speaks MCP") |
 | [JSON-RPC 2.0](https://www.jsonrpc.org/specification) | The message format of MCP (see the MCP [base protocol](https://modelcontextprotocol.io/specification/latest/basic)) |
 
 <details>

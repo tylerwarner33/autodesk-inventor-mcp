@@ -1,13 +1,14 @@
 # MCP Over the Bridge Pipe: Spike Results
 
-Date: 2026-11-19. Branch: `spike/mcp-over-pipe` (from `feat/bridge-pipe-per-process`, not for merge).
-Code: `Tests/InventorMcp.Server.Tests/Spike/McpOverPipeSpikeTests.cs` on that branch.
+Date: 2026-11-19. The spike code was on a local branch that was not merged. The checks that the bridge depends on
+are now tests of the real listener and client, in `Tests/InventorMcp.Server.Tests/Unit/BridgeEndToEndTests.cs`. The
+decision is in `Docs/Architecture.md`, "The bridge speaks MCP".
 
 ## Question
 
 Can the add-in host an MCP server of the C# SDK (`ModelContextProtocol.Core` 2.4.0) on its named pipe, with the bridge
 operations as custom JSON-RPC methods, and can `InventorMcp.Server` use an MCP client of the SDK on the same pipe?
-This is the option "MCP over the pipe" for `Docs/Tasks/Bridge-JsonRpc-Migration.md`.
+This was the option "MCP over the pipe" of the bridge version 3 plan.
 
 ## Setup
 
@@ -84,9 +85,13 @@ The add-in works around these. When the SDK changes, use its default behavior an
 
 | Behavior in 2.4.0 | Workaround in the add-in | How to check a new SDK | When fixed |
 | --- | --- | --- | --- |
-| A handler that returns null gives a response with no `result` and no `error`, and the SDK client never completes the call. Cause: `McpJsonUtilities` writes no null property (`WhenWritingNull`), and `JsonRpcResponse.Result` has no exception to it. Not reported upstream on 2026-11-19 | One wrapper for every bridge handler changes null to `{}` | `TheWireShowsWhatANullResultGives` of the spike: the line has `"result"` | Remove the wrapper. Keep a test that a handler that returns null completes the call |
-| `McpServerRequestHandler` is `[Experimental("MCPEXP002")]` | One suppression with its reason | The attribute is gone, or the API changed | Remove the suppression, or change the handlers |
-| On `2026-07-28` the SDK adds `_meta` (`io.modelcontextprotocol/serverInfo`) to each custom result | The reader of a result ignores members that it does not know | Not a defect. Check only that the reader still ignores it | Nothing to remove |
+| A handler that returns null gives a response with no `result` and no `error`, and the SDK client never completes the call. Cause: `McpJsonUtilities` writes no null property (`WhenWritingNull`), and `JsonRpcResponse.Result` has no exception to it. Not reported upstream on 2026-11-19 | Every result is an object with its value in `value` (`BridgeResult`), which an MCP result must be anyway | An SDK test, or a raw pipe client: a handler that returns null gives a line with `"result"` | Nothing to remove: the object stays, for the MCP rule. `ANullResultCompletesTheCall` keeps passing |
+| `McpServerRequestHandler` is `[Experimental("MCPEXP002")]` | One `.editorconfig` section with its reason, for `OperationDispatcher.cs`, `BridgeServer.cs` and `TestBridge.cs` | The attribute is gone, or the API changed | Remove the suppression, or change the handlers |
+| On `2026-07-28` the SDK adds `_meta` (`io.modelcontextprotocol/serverInfo`) to each custom result, and to the params of each request | The reader of a result reads `value` only. The dispatcher removes `_meta` from the params before a handler reads them | Not a defect | Nothing to remove |
+| The SDK client puts "Request failed (remote): " before `error.message` | The add-in puts the message in `error.data.message` too, and the server reads it there | `AFailureKeepsItsCodeItsMessageAndItsDetail` | Nothing to remove |
+| `ping` is an MCP method, and the SDK answers it before a custom handler of that name. On `2026-07-28` it answers that `ping` is not available | The bridge operation is `bridge.ping` | `TheRealServerAndTheRealClientTalkOnTheNameOfTheProcess` | Nothing to remove |
+| The SDK runs the requests of one connection at the same time | A queue for each connection in the add-in | `TheAddInRunsTheRequestsOfOneConnectionOneAtATime` | Nothing to remove |
+| `RequestContext.Server` of a handler is not one object for each connection, so it cannot key a state of the connection | The queue is made for each connection in `BridgeServer` and given to the handlers | The same test | Nothing to remove |
 
 The specifications: JSON-RPC 2.0 (https://www.jsonrpc.org/specification#response_object, "Either the result member
 or error member MUST be included") and the MCP schema
@@ -116,6 +121,9 @@ The SDK settings, from its source (2.4.0):
 - The custom handler API is experimental, so an SDK update can change it. The add-in is not rebuilt for each SDK
 	update, but a rebuild after such a change needs code work.
 - The SDK assemblies load in Inventor 2025, 2026 and 2027, and the existing live tests still pass.
-- Not checked: a handshake while a real modal dialog is open, and the use of `McpClient` under the existing
-	`BridgeClient` rules (one request at a time, the dialog watch, the process lock of #41, the host check).
+- Not checked in the spike: a handshake while a real modal dialog is open, and the use of `McpClient` under the
+	existing `BridgeClient` rules (one request at a time, the dialog watch, the process lock of #41, the host check).
+	The implementation checked both: the `BridgeClientTests` of the dialog watch and the process lock pass with an SDK
+	fake add-in, and on 2026-11-19 a call to Inventor 2026 with the Vault "Log In" dialog open at the start returned
+	`blocked-by-dialog` at once.
 - The null result defect of the SDK is described for upstream in a task of the SDK clone, not in this repository.
