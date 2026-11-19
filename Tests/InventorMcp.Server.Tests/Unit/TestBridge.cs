@@ -6,6 +6,7 @@ using InventorMcp.Contracts;
 using InventorMcp.Server.Bridge;
 using InventorMcp.Server.Services;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
@@ -177,19 +178,35 @@ internal sealed class TestBridge : IAsyncDisposable
 	/// <param name="processRuns">
 	/// 	Whether the process that hosts the pipe still runs, or null for always, because the host is the test process.
 	/// </param>
-	public TestBridge(Func<int, string?>? checkHost = null, IReadOnlyList<RunningInventor>? running = null, Func<int, bool>? processRuns = null)
+	/// <param name="isAddInDeployed">
+	/// 	Tells if the add-in is deployed, or null for deployed.
+	/// </param>
+	/// <param name="logger">
+	/// 	The log of the client, or null for no log.
+	/// </param>
+	/// <param name="findRunning">
+	/// 	The process list as a function, for a test that needs the time of the fake clock. It wins over <paramref name="running"/>.
+	/// </param>
+	public TestBridge(
+		Func<int, string?>? checkHost = null,
+		IReadOnlyList<RunningInventor>? running = null,
+		Func<int, bool>? processRuns = null,
+		Func<int, bool>? isAddInDeployed = null,
+		ILogger<BridgeClient>? logger = null,
+		Func<int?, IReadOnlyList<RunningInventor>>? findRunning = null)
 	{
 		Selection = new ReleaseSelection(Server.Prefix, environmentValue: string.Empty);
 		Selection.Choose(2025);
 		// The defaults only, so a user's own settings file does not change the tests.
 		Client = new BridgeClient(
-			NullLogger<BridgeClient>.Instance,
+			logger ?? NullLogger<BridgeClient>.Instance,
 			Dialogs,
 			Time,
 			Selection,
 			static () => DialogSettings.Defaults,
 			checkHost ?? (static _ => null),
-			_ => running ?? [],
+			findRunning ?? (_ => running ?? []),
+			isAddInDeployed ?? (static _ => true),
 			processRuns ?? (static _ => true));
 	}
 
