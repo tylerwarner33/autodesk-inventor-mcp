@@ -14,16 +14,15 @@ namespace InventorMcp.AddIn.Operations;
 /// <remarks>
 /// 	Every handler that touches the Inventor API runs through <see cref="MainThreadDispatcher"/>,
 /// 	because Inventor's COM objects belong to its main single threaded apartment.
-/// 	Draining the activity feed is the one exception: it reads plain managed memory.
+/// 	The ping and the activity feed are the exceptions: they read plain managed memory, and an instance of this class is
+/// 	not given to them (see <see cref="RegisterWithoutMainThread"/>).
 /// </remarks>
 internal sealed partial class InventorOperations(
 	Application inventor,
-	MainThreadDispatcher mainThread,
-	ActivityRecorder activity)
+	MainThreadDispatcher mainThread)
 {
 	private readonly Application _inventor = inventor;
 	private readonly MainThreadDispatcher _mainThread = mainThread;
-	private readonly ActivityRecorder _activity = activity;
 
 	/// <summary>
 	/// 	Registers every handler on the dispatcher.
@@ -46,9 +45,9 @@ internal sealed partial class InventorOperations(
 		MainThreadDispatcher mainThread,
 		ActivityRecorder activity)
 	{
-		InventorOperations operations = new(inventor, mainThread, activity);
+		InventorOperations operations = new(inventor, mainThread);
 
-		dispatcher.Register(BridgeOperations.Ping, (_, _) => Task.FromResult<object?>("pong"));
+		RegisterWithoutMainThread(dispatcher, activity);
 
 		dispatcher.Register(BridgeOperations.Session, (_, token) =>
 			operations.OnMainThreadAsync(operations.GetSession, token));
@@ -66,12 +65,6 @@ internal sealed partial class InventorOperations(
 		{
 			ParametersRequest request = ParseOrDefault(payload, new ParametersRequest());
 			return operations.OnMainThreadAsync(() => operations.GetParameters(request), token);
-		});
-
-		dispatcher.Register(BridgeOperations.SetParameter, (payload, token) =>
-		{
-			SetParameterRequest request = ParseRequired<SetParameterRequest>(payload);
-			return operations.OnMainThreadAsync(() => operations.SetParameter(request), token);
 		});
 
 		dispatcher.Register(BridgeOperations.EvaluateExpression, (payload, token) =>
@@ -115,12 +108,29 @@ internal sealed partial class InventorOperations(
 			ExecuteRequest request = ParseRequired<ExecuteRequest>(payload);
 			return operations.OnMainThreadAsync(() => operations.RunILogicRule(request), token);
 		});
+	}
 
-		// The ring buffer is managed memory, so this stays responsive while Inventor is busy.
-		dispatcher.Register(BridgeOperations.Activity, (payload, _) =>
+	/// <summary>
+	/// 	Registers the operations that never use the main thread.
+	/// </summary>
+	/// <remarks>
+	/// 	Static, and with no Inventor object or dispatcher, so these handlers cannot reach the main thread. They skip the
+	/// 	queue of their connection, so a call to the main thread would run nested in the modal loop of a dialog.
+	/// </remarks>
+	/// <param name="dispatcher">
+	/// 	The dispatcher the bridge server reads from.
+	/// </param>
+	/// <param name="activity">
+	/// 	The recorder holding the event ring buffer, which is managed memory.
+	/// </param>
+	private static void RegisterWithoutMainThread(OperationDispatcher dispatcher, ActivityRecorder activity)
+	{
+		dispatcher.RegisterWithoutMainThread(BridgeOperations.Ping, static _ => Task.FromResult<object?>("pong"));
+
+		dispatcher.RegisterWithoutMainThread(BridgeOperations.Activity, payload =>
 		{
 			ActivityRequest request = ParseOrDefault(payload, new ActivityRequest());
-			return Task.FromResult<object?>(operations._activity.Drain(request.SinceSequence, request.MaxEntries));
+			return Task.FromResult<object?>(activity.Drain(request.SinceSequence, request.MaxEntries));
 		});
 	}
 

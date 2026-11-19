@@ -1,6 +1,9 @@
+using System.Collections.Concurrent;
 using System.IO.Pipes;
-using System.Text;
+using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading.Channels;
 
 using InventorMcp.Contracts;
 using InventorMcp.Server.Bridge;
@@ -9,6 +12,10 @@ using InventorMcp.Server.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+
+using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 
 namespace InventorMcp.Server.Tests.Unit;
 
@@ -66,42 +73,122 @@ internal sealed class TestPipeServer(int? releaseYear = 2025, string? prefix = n
 }
 
 /// <summary>
-/// 	One connection of <see cref="TestPipeServer"/>.
+/// 	A request that the fake add-in received.
 /// </summary>
-internal sealed class TestConnection(NamedPipeServerStream pipe) : IAsyncDisposable
-{
-	private readonly StreamReader _reader = new(pipe, new UTF8Encoding(false), false, leaveOpen: true);
-	private readonly StreamWriter _writer = new(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
+/// <param name="Id">
+/// 	The JSON-RPC id, to answer it with <see cref="TestConnection.RespondAsync"/>.
+/// </param>
+/// <param name="Operation">
+/// 	The method.
+/// </param>
+/// <param name="Payload">
+/// 	The params without the member that the MCP client adds, or null.
+/// </param>
+internal sealed record TestRequest(string Id, string Operation, JsonElement? Payload);
 
-	public async Task<BridgeRequest> ReadRequestAsync(TimeSpan? timeout = null)
+/// <summary>
+/// 	One connection of <see cref="TestPipeServer"/>: an MCP session of the SDK whose requests the test answers.
+/// </summary>
+internal sealed class TestConnection : IAsyncDisposable
+{
+	private static readonly string[] _operations =
+	[
+		.. typeof(BridgeOperations)
+			.GetFields(BindingFlags.Public | BindingFlags.Static)
+			.Where(static field => field.IsLiteral)
+			.Select(static field => (string)field.GetRawConstantValue()!)
+	];
+
+	private readonly NamedPipeServerStream _pipe;
+	private readonly Channel<TestRequest> _requests = Channel.CreateUnbounded<TestRequest>();
+	private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonNode?>> _answers = new(StringComparer.Ordinal);
+	private readonly McpServer _server;
+	private readonly Task _run;
+
+	public TestConnection(NamedPipeServerStream pipe)
 	{
-		string? line = await _reader.ReadLineAsync(TestContext.Current.CancellationToken)
+		_pipe = pipe;
+
+		McpServerOptions options = new()
+		{
+			ServerInfo = new Implementation { Name = "InventorMcp.TestAddIn", Version = "test" },
+			ProtocolVersion = BridgeProtocol.McpVersion,
+			RequestHandlers = [.. _operations.Select(operation => new McpServerRequestHandler { Method = operation, Handler = (context, cancellationToken) => ReceiveAsync(operation, context, cancellationToken) })]
+		};
+
+		_server = McpServer.Create(new StreamServerTransport(pipe, pipe, "InventorMcp.TestAddIn", NullLoggerFactory.Instance), options, NullLoggerFactory.Instance);
+		_run = _server.RunAsync(CancellationToken.None);
+	}
+
+	/// <summary>
+	/// 	The ids of the requests whose cancel reached the fake add-in.
+	/// </summary>
+	public ConcurrentQueue<string> Cancelled { get; } = [];
+
+	public async Task<TestRequest> ReadRequestAsync(TimeSpan? timeout = null) =>
+		await _requests.Reader.ReadAsync(TestContext.Current.CancellationToken)
 			.AsTask()
 			.WaitAsync(timeout ?? TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
-		return JsonSerializer.Deserialize<BridgeRequest>(line!, BridgeProtocol.SerializerOptions)!;
+	public Task RespondAsync(string id, string result)
+	{
+		_ = _answers[id].TrySetResult(BridgeResult.Wrap(result));
+
+		return Task.CompletedTask;
 	}
 
-	public Task RespondAsync(string id, string result) =>
-		_writer.WriteLineAsync(JsonSerializer.Serialize(
-			new BridgeResponse(id, true, JsonSerializer.SerializeToElement(result), null),
-			BridgeProtocol.SerializerOptions));
+	/// <summary>
+	/// 	Answers a request with a bridge failure, as the add-in does.
+	/// </summary>
+	public Task FailAsync(string id, string code, string message)
+	{
+		McpProtocolException failure = new(message, (McpErrorCode)BridgeResult.ServerErrorCode);
+		failure.Data[BridgeResult.CodeMember] = code;
+		failure.Data[BridgeResult.MessageMember] = message;
+		_ = _answers[id].TrySetException(failure);
 
-	public void Disconnect() => pipe.Disconnect();
+		return Task.CompletedTask;
+	}
+
+	public void Disconnect() => _pipe.Disconnect();
 
 	public async ValueTask DisposeAsync()
 	{
+		foreach (TaskCompletionSource<JsonNode?> answer in _answers.Values)
+			_ = answer.TrySetCanceled(TestContext.Current.CancellationToken);
+
 		try
 		{
-			await _writer.DisposeAsync();
+			await _server.DisposeAsync();
+			await _run;
 		}
-		catch (Exception exception) when (exception is IOException or InvalidOperationException)
+		catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException or OperationCanceledException)
 		{
-			// The flush fails on a pipe that the test disconnected.
+			// The session of a pipe that the test disconnected ends with an error.
 		}
 
-		_reader.Dispose();
-		await pipe.DisposeAsync();
+		await _pipe.DisposeAsync();
+	}
+
+	private async ValueTask<JsonNode?> ReceiveAsync(string operation, RequestContext<JsonNode?> context, CancellationToken cancellationToken)
+	{
+		string id = ((JsonRpcRequest)context.JsonRpcMessage).Id.ToString();
+		TaskCompletionSource<JsonNode?> answer = new(TaskCreationOptions.RunContinuationsAsynchronously);
+		_answers[id] = answer;
+
+		JsonNode? payload = context.Params?.DeepClone();
+		_ = (payload as JsonObject)?.Remove("_meta");
+
+		_ = _requests.Writer.TryWrite(new TestRequest(id, operation, payload is JsonObject { Count: 0 } or null ? null : JsonSerializer.SerializeToElement(payload)));
+
+		await using (cancellationToken.Register(() =>
+		{
+			Cancelled.Enqueue(id);
+			_ = answer.TrySetCanceled(cancellationToken);
+		}))
+		{
+			return await answer.Task;
+		}
 	}
 }
 
@@ -211,12 +298,18 @@ internal sealed class TestBridge : IAsyncDisposable
 	}
 
 	/// <summary>
-	/// 	Starts a ping, and returns it with the request that the fake add-in received.
+	/// 	Starts a call that uses the main thread, and returns it with the request that the fake add-in received.
 	/// </summary>
-	public async Task<(Task<string> Call, TestConnection Connection, BridgeRequest Request)> StartPingAsync(TestConnection? connection = null)
+	/// <param name="connection">
+	/// 	The connection of an earlier call, or null to accept a new one.
+	/// </param>
+	/// <param name="cancellationToken">
+	/// 	The token of the call, or none for the token of the test.
+	/// </param>
+	public async Task<(Task<string> Call, TestConnection Connection, TestRequest Request)> StartCallAsync(TestConnection? connection = null, CancellationToken? cancellationToken = null)
 	{
 		Task<TestConnection> accept = connection is null ? Server.AcceptAsync() : Task.FromResult(connection);
-		Task<string> call = Client.InvokeAsync<string>(BridgeOperations.Ping, null, TestContext.Current.CancellationToken);
+		Task<string> call = Client.InvokeAsync<string>(BridgeOperations.Session, null, cancellationToken ?? TestContext.Current.CancellationToken);
 		TestConnection accepted = await accept;
 
 		return (call, accepted, await accepted.ReadRequestAsync());

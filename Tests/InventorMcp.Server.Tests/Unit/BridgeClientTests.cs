@@ -90,39 +90,70 @@ public sealed class BridgeClientTests
 	}
 
 	[Fact]
-	public async Task LateResponseIsDiscarded()
+	public async Task AFailureOfTheAddInGivesItsBridgeCode()
 	{
 		await using TestBridge bridge = new();
-		(Task<string> call, TestConnection connection, BridgeRequest request) = await bridge.StartPingAsync();
+		(Task<string> call, TestConnection connection, TestRequest request) = await bridge.StartCallAsync();
 
-		await connection.RespondAsync("an-older-request", "stale");
-		await connection.RespondAsync(request.Id, "fresh");
+		await connection.FailAsync(request.Id, BridgeErrorCodes.Busy, "Inventor is busy.");
 
-		Assert.Equal("fresh", await call);
+		InventorBridgeException exception = await Assert.ThrowsAsync<InventorBridgeException>(() => call);
+		Assert.Equal(BridgeErrorCodes.Busy, exception.Code);
+		Assert.Equal("Inventor is busy.", exception.Message);
 	}
 
 	[Fact]
-	public async Task PipeThatClosesAfterALateResponseReconnectsOnce()
+	public async Task PipeThatClosesDuringACallReconnectsOnce()
 	{
 		await using TestBridge bridge = new();
-		(Task<string> call, TestConnection first, _) = await bridge.StartPingAsync();
+		(Task<string> call, TestConnection first, _) = await bridge.StartCallAsync();
 
 		Task<TestConnection> accept = bridge.Server.AcceptAsync();
-		await first.RespondAsync("an-older-request", "stale");
 		first.Disconnect();
 
 		TestConnection second = await accept;
-		BridgeRequest retry = await second.ReadRequestAsync();
+		TestRequest retry = await second.ReadRequestAsync();
 		await second.RespondAsync(retry.Id, "fresh");
 
 		Assert.Equal("fresh", await call);
 	}
 
 	[Fact]
+	public async Task ACancelOfTheCallReachesTheAddIn()
+	{
+		await using TestBridge bridge = new();
+		using CancellationTokenSource cancel = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+		(Task<string> call, TestConnection connection, TestRequest request) = await bridge.StartCallAsync(cancellationToken: cancel.Token);
+
+		await cancel.CancelAsync();
+
+		_ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
+		await TestBridge.WaitUntilAsync(() => connection.Cancelled.Contains(request.Id));
+	}
+
+	[Fact]
+	public async Task ActivityDoesNotWaitBehindACallThatUsesTheMainThread()
+	{
+		await using TestBridge bridge = new();
+		(Task<string> blocked, TestConnection connection, TestRequest first) = await bridge.StartCallAsync();
+
+		Task<string> activity = bridge.Client.InvokeAsync<string>(BridgeOperations.Activity, null, TestContext.Current.CancellationToken);
+		TestRequest second = await connection.ReadRequestAsync();
+		await connection.RespondAsync(second.Id, "events");
+
+		Assert.Equal(BridgeOperations.Activity, second.Operation);
+		Assert.Equal("events", await activity);
+		Assert.False(blocked.IsCompleted);
+
+		await connection.RespondAsync(first.Id, "done");
+		Assert.Equal("done", await blocked);
+	}
+
+	[Fact]
 	public async Task NoDialogCheckBeforeTheFirstInterval()
 	{
 		await using TestBridge bridge = new();
-		(Task<string> call, TestConnection connection, BridgeRequest request) = await bridge.StartPingAsync();
+		(Task<string> call, TestConnection connection, TestRequest request) = await bridge.StartCallAsync();
 
 		// One check runs before the request is sent.
 		Assert.Equal(1, bridge.Dialogs.DetectCalls);
@@ -142,7 +173,7 @@ public sealed class BridgeClientTests
 	{
 		await using TestBridge bridge = new();
 		List<DialogReport> reports = DialogReports.Begin();
-		(Task<string> call, TestConnection connection, BridgeRequest request) = await bridge.StartPingAsync();
+		(Task<string> call, TestConnection connection, TestRequest request) = await bridge.StartCallAsync();
 
 		await bridge.AdvanceAsync(TimeSpan.FromSeconds(10));
 		await TestBridge.WaitUntilAsync(() => bridge.Dialogs.DetectCalls >= 4);
@@ -158,7 +189,7 @@ public sealed class BridgeClientTests
 	{
 		await using TestBridge bridge = new();
 		List<DialogReport> reports = DialogReports.Begin();
-		(Task<string> call, TestConnection connection, BridgeRequest request) = await bridge.StartPingAsync();
+		(Task<string> call, TestConnection connection, TestRequest request) = await bridge.StartCallAsync();
 		bridge.Dialogs.Dialogs = [_iLogicError];
 
 		await bridge.AdvanceAsync(BridgeClient.FirstDialogCheck + TimeSpan.FromMilliseconds(250));
@@ -181,7 +212,7 @@ public sealed class BridgeClientTests
 	{
 		await using TestBridge bridge = new();
 		List<DialogReport> reports = DialogReports.Begin();
-		(Task<string> call, TestConnection connection, BridgeRequest request) = await bridge.StartPingAsync();
+		(Task<string> call, TestConnection connection, TestRequest request) = await bridge.StartCallAsync();
 		bridge.Dialogs.Dialogs = [_dotNetError];
 
 		await bridge.AdvanceAsync(BridgeClient.FirstDialogCheck + TimeSpan.FromMilliseconds(250));
@@ -201,7 +232,7 @@ public sealed class BridgeClientTests
 	{
 		await using TestBridge bridge = new();
 		List<DialogReport> reports = DialogReports.Begin();
-		(Task<string> call, _, _) = await bridge.StartPingAsync();
+		(Task<string> call, _, _) = await bridge.StartCallAsync();
 		bridge.Dialogs.Dialogs = [_question];
 
 		await bridge.AdvanceAsync(BridgeClient.FirstDialogCheck + TimeSpan.FromMilliseconds(250));
@@ -218,14 +249,14 @@ public sealed class BridgeClientTests
 	public async Task NextCallAfterAStoppedWaitGetsItsOwnResponse()
 	{
 		await using TestBridge bridge = new();
-		(Task<string> blocked, TestConnection connection, BridgeRequest first) = await bridge.StartPingAsync();
+		(Task<string> blocked, TestConnection connection, TestRequest first) = await bridge.StartCallAsync();
 		bridge.Dialogs.Dialogs = [_question];
 		await bridge.AdvanceAsync(BridgeClient.FirstDialogCheck + TimeSpan.FromMilliseconds(250));
 		_ = await Assert.ThrowsAsync<InventorBridgeException>(() => blocked.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
 
 		// The user answers the question. The add-in then answers the first call, which nobody waits for.
 		bridge.Dialogs.Dialogs = null;
-		(Task<string> next, _, BridgeRequest second) = await bridge.StartPingAsync(connection);
+		(Task<string> next, _, TestRequest second) = await bridge.StartCallAsync(connection);
 		await connection.RespondAsync(first.Id, "first");
 		await connection.RespondAsync(second.Id, "second");
 
@@ -242,7 +273,7 @@ public sealed class BridgeClientTests
 		bridge.Dialogs.Dialogs = [_question];
 
 		InventorBridgeException exception = await Assert.ThrowsAsync<InventorBridgeException>(
-			() => bridge.Client.InvokeAsync<string>(BridgeOperations.Ping, null, TestContext.Current.CancellationToken));
+			() => bridge.Client.InvokeAsync<string>(BridgeOperations.Session, null, TestContext.Current.CancellationToken));
 
 		Assert.Equal(BridgeErrorCodes.BlockedByDialog, exception.Code);
 		_ = await Assert.ThrowsAsync<TimeoutException>(() => connection.ReadRequestAsync(TimeSpan.FromMilliseconds(500)));
@@ -257,7 +288,7 @@ public sealed class BridgeClientTests
 		TestConnection connection = await accept;
 		bridge.Dialogs.Dialogs = [_iLogicError];
 
-		(Task<string> call, _, BridgeRequest request) = await bridge.StartPingAsync(connection);
+		(Task<string> call, _, TestRequest request) = await bridge.StartCallAsync(connection);
 		await connection.RespondAsync(request.Id, "done");
 
 		Assert.Equal("done", await call);
@@ -268,7 +299,7 @@ public sealed class BridgeClientTests
 	public async Task BlockWithNoDialogStopsTheWaitOnTheSecondCheck()
 	{
 		await using TestBridge bridge = new();
-		(Task<string> call, _, _) = await bridge.StartPingAsync();
+		(Task<string> call, _, _) = await bridge.StartCallAsync();
 		bridge.Dialogs.BlockedWithoutDialog = true;
 
 		await bridge.AdvanceAsync(BridgeClient.FirstDialogCheck + TimeSpan.FromMilliseconds(250));

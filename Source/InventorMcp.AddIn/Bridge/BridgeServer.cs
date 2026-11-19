@@ -1,15 +1,19 @@
+using System.Globalization;
 using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using System.Text;
-using System.Text.Json;
 
 using InventorMcp.Contracts;
+
+using Microsoft.Extensions.Logging.Abstractions;
+
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 
 namespace InventorMcp.AddIn.Bridge;
 
 /// <summary>
-/// 	Listens on the named pipe and hands each request to the operation dispatcher.
+/// 	Listens on the named pipe, and serves each connection as an MCP session whose methods are the bridge operations.
 /// </summary>
 /// <remarks>
 /// 	The pipe is restricted to the account that started Inventor.
@@ -37,6 +41,11 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 	/// 	One line per accept failure message a minute, with the count of the ones held back.
 	/// </summary>
 	private readonly LogThrottle _acceptFailureLog = new(TimeProvider.System, TimeSpan.FromMinutes(1));
+
+	/// <summary>
+	/// 	The name of the MCP server of the add-in.
+	/// </summary>
+	private const string ServerName = "InventorMcp.AddIn";
 
 	private readonly OperationDispatcher _dispatcher = dispatcher;
 	private readonly Action<string> _log = log;
@@ -176,26 +185,24 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 	{
 		try
 		{
-			using (pipe)
+			await using (pipe.ConfigureAwait(false))
 			{
-				// UTF8Encoding without a byte order mark: a preamble would corrupt the first line.
-				using StreamReader reader = new(pipe, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: false, leaveOpen: true);
-				await using StreamWriter writer = new(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
+				// One MCP session for each connection, with its own queue. The SDK reads the requests, and the queue holds
+				// them. The pinned version makes the add-in refuse a client of any other MCP version.
+				using SemaphoreSlim queue = new(1, 1);
 
-				while (cancellationToken.IsCancellationRequested is false)
+				McpServerOptions options = new()
 				{
-					string? line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+					ServerInfo = new Implementation { Name = ServerName, Version = BridgeProtocol.Version.ToString(CultureInfo.InvariantCulture) },
+					ProtocolVersion = BridgeProtocol.McpVersion,
+					RequestHandlers = _dispatcher.CreateRequestHandlers(queue)
+				};
 
-					if (line is null)
-						return;
+				StreamServerTransport transport = new(pipe, pipe, ServerName, NullLoggerFactory.Instance);
+				McpServer server = McpServer.Create(transport, options, NullLoggerFactory.Instance);
 
-					if (string.IsNullOrWhiteSpace(line))
-						continue;
-
-					BridgeResponse response = await HandleLineAsync(line, cancellationToken).ConfigureAwait(false);
-
-					await writer.WriteLineAsync(JsonSerializer.Serialize(response, BridgeProtocol.SerializerOptions)).ConfigureAwait(false);
-				}
+				await using (server.ConfigureAwait(false))
+					await server.RunAsync(cancellationToken).ConfigureAwait(false);
 			}
 		}
 		catch (OperationCanceledException)
@@ -210,25 +217,6 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 		{
 			_log($"Connection failed: {exception}");
 		}
-	}
-
-	private async Task<BridgeResponse> HandleLineAsync(string line, CancellationToken cancellationToken)
-	{
-		BridgeRequest? request;
-
-		try
-		{
-			request = JsonSerializer.Deserialize<BridgeRequest>(line, BridgeProtocol.SerializerOptions);
-		}
-		catch (JsonException exception)
-		{
-			return new BridgeResponse("unknown", false, null, new BridgeError(BridgeErrorCodes.Internal, "The request was not valid JSON.", exception.Message));
-		}
-
-		if (request is null)
-			return new BridgeResponse("unknown", false, null, new BridgeError(BridgeErrorCodes.Internal, "The request was empty."));
-
-		return await _dispatcher.DispatchAsync(request, cancellationToken).ConfigureAwait(false);
 	}
 
 	public void Dispose()

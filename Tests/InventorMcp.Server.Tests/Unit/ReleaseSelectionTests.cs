@@ -424,7 +424,7 @@ public sealed class ReleaseSelectionTests
 		Task<TestConnection> acceptAgain = restarted.AcceptAsync();
 		Task<string> call = client.InvokeAsync<string>(BridgeOperations.Ping, null, TestContext.Current.CancellationToken);
 		TestConnection connection = await acceptAgain;
-		BridgeRequest request = await connection.ReadRequestAsync();
+		TestRequest request = await connection.ReadRequestAsync();
 		await connection.RespondAsync(request.Id, "pong");
 
 		Assert.Equal("pong", await call.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));

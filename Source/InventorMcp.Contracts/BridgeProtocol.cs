@@ -113,11 +113,20 @@ public static class BridgeProtocol
 	public const int Version = 3;
 
 	/// <summary>
-	/// 	Serializer options used on both sides of the pipe.
+	/// 	The MCP protocol version of the bridge. Both sides pin it, and accept no other.
 	/// </summary>
 	/// <remarks>
-	/// 	Messages are newline delimited, so the writer must never indent.
-	/// 	JSON escapes every control character, so a payload can never contain a raw newline.
+	/// 	Without the pin, the version follows the two SDK versions that meet, and an SDK update on one side changes the
+	/// 	messages. Change it only together with <see cref="Version"/>, so an add-in of the old version keeps the old pipe
+	/// 	name and the server reports it as outdated. See <c>Docs/Architecture.md</c>, "The bridge speaks MCP".
+	/// </remarks>
+	public const string McpVersion = "2026-07-28";
+
+	/// <summary>
+	/// 	Serializer options for the payloads and the results on both sides of the pipe.
+	/// </summary>
+	/// <remarks>
+	/// 	The MCP transport writes one message for each line, so the writer must never indent.
 	/// </remarks>
 	public static readonly JsonSerializerOptions SerializerOptions = new()
 	{

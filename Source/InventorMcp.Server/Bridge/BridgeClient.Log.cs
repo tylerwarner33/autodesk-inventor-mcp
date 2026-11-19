@@ -11,8 +11,8 @@ internal sealed partial class BridgeClient
 	[LoggerMessage(Level = LogLevel.Warning, Message = "The bridge pipe {PipeName} accepted no connection. Cause: {Code}.")]
 	private partial void LogConnectTimedOut(string pipeName, string code);
 
-	[LoggerMessage(Level = LogLevel.Warning, Message = "Discarded the late response {ResponseId} from a call that stopped waiting. Waiting for {RequestId}.")]
-	private partial void LogLateResponseDiscarded(string responseId, string requestId);
+	[LoggerMessage(Level = LogLevel.Warning, Message = "The bridge on pipe {PipeName} did not complete the MCP handshake. Cause: {Code}.")]
+	private partial void LogHandshakeFailed(Exception exception, string pipeName, string code);
 
 	[LoggerMessage(Level = LogLevel.Warning, Message = "Inventor {ProcessId} is blocked, but no dialog of its process was found.")]
 	private partial void LogBlockedWithoutDialog(int processId);

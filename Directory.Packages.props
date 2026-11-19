@@ -8,6 +8,8 @@
 		<PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.14.0" />
 		<PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.15" />
 		<PackageVersion Include="ModelContextProtocol" Version="2.4.0" />
+		<!-- Keep it the version of ModelContextProtocol: the add-in uses Core, the server uses the full package. -->
+		<PackageVersion Include="ModelContextProtocol.Core" Version="2.4.0" />
 		<PackageVersion Include="ModelContextProtocol.Extensions.Skills" Version="2.4.0" />
 		<PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
 		<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />

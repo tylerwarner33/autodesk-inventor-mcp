@@ -37,7 +37,6 @@ public sealed class LiveInstanceTests
 			SessionInfo session = await client.InvokeAsync<SessionInfo>(BridgeOperations.Session, null, Cancellation);
 
 			// Three sources of the process id must agree: the name, the pipe (GetNamedPipeServerProcessId) and the add-in.
-			Assert.Equal(BridgeProtocol.Version, session.BridgeVersion);
 			Assert.Equal(instance.ProcessId, session.ProcessId);
 			Assert.Equal(instance.ProcessId, client.InventorProcessId);
 			Assert.Equal(instance.ReleaseYear, session.ReleaseYear);

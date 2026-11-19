@@ -42,6 +42,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
+		<!-- The bridge is an MCP session. Its assemblies load in the isolated context, beside any copy of another add-in. -->
+		<PackageReference Include="ModelContextProtocol.Core" />
 	</ItemGroup>
 
 	<ItemGroup>

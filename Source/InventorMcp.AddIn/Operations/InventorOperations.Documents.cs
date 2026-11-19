@@ -21,7 +21,6 @@ internal sealed partial class InventorOperations
 			_inventor.SoftwareVersion.Major + 1996,
 			// Fully qualified: Inventor.Environment is the ribbon environment type, so the name collides.
 			System.Environment.ProcessId,
-			BridgeProtocol.Version,
 			active,
 			_inventor.Documents.Count,
 			// Ready is false while Inventor is starting, running a command, or showing a modal dialog.

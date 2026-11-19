@@ -195,13 +195,13 @@ public sealed class ConnectionDiagnosisTests
 	{
 		RecordingLogger logger = new();
 		await using TestBridge bridge = new(processRuns: _ => processRuns, logger: logger);
-		(Task<string> call, TestConnection first, _) = await bridge.StartPingAsync();
+		(Task<string> call, TestConnection first, _) = await bridge.StartCallAsync();
 
 		Task<TestConnection> accept = bridge.Server.AcceptAsync();
 		first.Disconnect();
 
 		TestConnection second = await accept;
-		BridgeRequest retry = await second.ReadRequestAsync();
+		TestRequest retry = await second.ReadRequestAsync();
 		await second.RespondAsync(retry.Id, "fresh");
 
 		Assert.Equal("fresh", await call);

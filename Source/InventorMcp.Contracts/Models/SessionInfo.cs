@@ -12,9 +12,6 @@ namespace InventorMcp.Contracts.Models;
 /// <param name="ProcessId">
 /// 	Process identifier of the host Inventor.exe.
 /// </param>
-/// <param name="BridgeVersion">
-/// 	Protocol version the add-in speaks. Compared against <see cref="BridgeProtocol.Version"/>.
-/// </param>
 /// <param name="ActiveDocument">
 /// 	The document currently in focus, or null when no document is open.
 /// </param>
@@ -28,7 +25,6 @@ public sealed record SessionInfo(
 	string Version,
 	int ReleaseYear,
 	int ProcessId,
-	int BridgeVersion,
 	DocumentInfo? ActiveDocument,
 	int OpenDocumentCount,
 	bool IsBusy);
