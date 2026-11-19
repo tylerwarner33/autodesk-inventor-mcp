@@ -154,6 +154,23 @@ public sealed class ToolPipelineTests
 	}
 
 	[Theory]
+	[InlineData("inventor_session", """{"error":"inventor-not-running"}""", false)]
+	[InlineData("inventor_dialogs", """{"error":"inventor-not-running"}""", false)]
+	[InlineData("inventor_start", """{"error":"inventor-starting-or-no-bridge"}""", false)]
+	[InlineData("inventor_start", """{"error":"version-required"}""", false)]
+	[InlineData("inventor_start", """{"error":"start-failed"}""", true)]
+	[InlineData("inventor_parameters", """{"error":"inventor-not-running"}""", true)]
+	[InlineData("inventor_session", """{"error":"release-required"}""", true)]
+	[InlineData("inventor_set_parameters", """{"error":"no-parameter-set","results":[{"ok":false}]}""", true)]
+	[InlineData("inventor_set_parameters", """{"succeeded":1,"failed":1,"results":[{"ok":true},{"ok":false,"error":"x"}]}""", false)]
+	public void AnAnswerOfAToolIsNotAFailure(string tool, string text, bool failure)
+	{
+		CallToolResult result = ToolPipeline.MarkFailure(new CallToolResult { Content = [new TextContentBlock { Text = text }] }, tool);
+
+		Assert.Equal(failure, result.IsError is true);
+	}
+
+	[Theory]
 	[InlineData("inventor_dialog_click", "{}", true)]
 	[InlineData("inventor_close_documents", "{}", true)]
 	[InlineData("inventor_eval_csharp", """{"code":"return 1;","allowUnsavedChanges":true}""", true)]

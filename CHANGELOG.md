@@ -6,6 +6,13 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.12] - 2026-11-19
+
+### Changed
+- A call that only reports that Inventor cannot be reached is no longer marked as an error: `inventor_session` and `inventor_dialogs` with `inventor-not-running`, and `inventor_start` with `inventor-starting-or-no-bridge` or `version-required`. The result tells the model what to do next, and is not a failure of the call.
+- `inventor_set_parameters` now gives the counts `requested`, `succeeded` and `failed`. When no parameter was set, the result has the error `no-parameter-set`. A batch with some successes is not an error.
+- The line of each tool call in the server log now says if the result was an error (`Result ok`, `error` or `exception`).
+
 ## [0.4.11] - 2026-11-19
 
 ### Changed

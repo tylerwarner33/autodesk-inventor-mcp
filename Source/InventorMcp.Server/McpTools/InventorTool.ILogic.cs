@@ -263,6 +263,9 @@ internal static partial class InventorTool
 		With suppressRules, iLogic rules do not run for each change: the rules are turned off for the batch and turned
 		back on in a finally block, even when a write fails. runRuleAfter then runs one rule once. RulesEnabled is a
 		setting of the whole Inventor session, not of one document.
+
+		The result has one entry in results for each parameter, and the counts requested, succeeded and failed. When no
+		parameter was set, the result has error 'no-parameter-set'. When some were set, send only the failed ones again.
 		""")]
 	public static Task<object> SetParametersAsync(
 		BridgeClient bridge,
@@ -319,6 +322,8 @@ internal static partial class InventorTool
 			dynamic? automation = {{(suppressRules || runRuleAfter is not null ? "ILogicAutomation()" : "null")}};
 			bool? rulesWereEnabled = null;
 			List<object> results = new();
+			int succeededCount = 0;
+			int failedCount = 0;
 			System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
 			if ({{(suppressRules ? "true" : "false")}})
@@ -343,11 +348,13 @@ internal static partial class InventorTool
 						{
 							if (!{{(createIfMissing ? "true" : "false")}})
 							{
+								failedCount++;
 								results.Add(new { name, ok = false, error = "No parameter has this name. Pass createIfMissing to add a user parameter." });
 								continue;
 							}
 
 							UserParameter created = all.UserParameters.AddByExpression(name, value, UnitsTypeEnum.kDefaultDisplayLengthUnits);
+							succeededCount++;
 							results.Add(new { name, ok = true, created = true, expression = created.Expression });
 							continue;
 						}
@@ -360,10 +367,12 @@ internal static partial class InventorTool
 						else
 							parameter.Expression = value;
 
+						succeededCount++;
 						results.Add(new { name, ok = true, created = false, expression = parameter.Expression });
 					}
 					catch (Exception exception)
 					{
+						failedCount++;
 						results.Add(new { name, ok = false, error = exception.Message });
 					}
 				}
@@ -385,19 +394,30 @@ internal static partial class InventorTool
 				catch (Exception exception) { ruleError = exception.Message; }
 			}
 
-			string json = System.Text.Json.JsonSerializer.Serialize(new
+			Dictionary<string, object?> summary = new()
 			{
-				document = document.FullFileName.Length > 0 ? document.FullFileName : document.DisplayName,
-				results,
-				rulesSuppressed = rulesWereEnabled is not null,
-				rulesEnabledNow = automation is null ? (bool?)null : (bool)automation.RulesEnabled,
-				writeMilliseconds,
-				ruleRunAfter = ruleAfter,
-				ruleError,
-				totalMilliseconds = stopwatch.ElapsedMilliseconds
-			});
+				["document"] = document.FullFileName.Length > 0 ? document.FullFileName : document.DisplayName,
+				["requested"] = writes.Length,
+				["succeeded"] = succeededCount,
+				["failed"] = failedCount,
+				["results"] = results,
+				["rulesSuppressed"] = rulesWereEnabled is not null,
+				["rulesEnabledNow"] = automation is null ? (bool?)null : (bool)automation.RulesEnabled,
+				["writeMilliseconds"] = writeMilliseconds,
+				["ruleRunAfter"] = ruleAfter,
+				["ruleError"] = ruleError,
+				["totalMilliseconds"] = stopwatch.ElapsedMilliseconds
+			};
 
-			return json;
+			// The server marks the call as failed only when no item succeeded: a flag on a partial result would
+			// invite a repeat of the whole batch, and a parameter write is not idempotent.
+			if (succeededCount == 0 && failedCount > 0)
+			{
+				summary["error"] = "no-parameter-set";
+				summary["message"] = "No parameter was set. Read results for the reason of each item.";
+			}
+
+			return System.Text.Json.JsonSerializer.Serialize(summary);
 			""";
 	}
 

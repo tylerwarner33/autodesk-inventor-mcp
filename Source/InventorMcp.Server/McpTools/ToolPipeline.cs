@@ -33,6 +33,21 @@ internal static class ToolPipeline
 	private static readonly HashSet<string> _confirmedTools = new(StringComparer.Ordinal) { "inventor_dialog_click", "inventor_close_documents" };
 
 	/// <summary>
+	/// 	The pairs of tool and error code that answer the question of the tool, so they are not failures.
+	/// </summary>
+	/// <remarks>
+	/// 	<c>inventor_session</c> and <c>inventor_dialogs</c> report that Inventor cannot be reached, and
+	/// 	<c>inventor_start</c> tells the model to wait or to ask the user. See <c>Docs/Architecture.md</c>.
+	/// </remarks>
+	private static readonly HashSet<(string Tool, string Code)> _answers =
+	[
+		("inventor_session", "inventor-not-running"),
+		("inventor_dialogs", "inventor-not-running"),
+		("inventor_start", "inventor-starting-or-no-bridge"),
+		("inventor_start", "version-required")
+	];
+
+	/// <summary>
 	/// 	The argument that removes the guard for unsaved changes.
 	/// </summary>
 	private const string AllowUnsavedChangesArgument = "allowUnsavedChanges";
@@ -130,7 +145,8 @@ internal static class ToolPipeline
 	/// 	The limits from the environment.
 	/// </param>
 	/// <param name="finished">
-	/// 	Called after each call with the tool name, the release and how the session chose it, for the server log.
+	/// 	Called after each call with the tool name, the outcome (<c>ok</c>, <c>error</c> or <c>exception</c>), the release
+	/// 	and how the session chose it, for the server log.
 	/// </param>
 	/// <returns>
 	/// 	The same builder.
@@ -138,7 +154,7 @@ internal static class ToolPipeline
 	public static IMcpServerBuilder WithInventorCallFilter(
 		this IMcpServerBuilder builder,
 		SafetySettings settings,
-		Action<string?, string, string>? finished = null) =>
+		Action<string?, string, string, string>? finished = null) =>
 		builder.WithRequestFilters(filters => filters.AddCallToolFilter(next => async (context, cancellationToken) =>
 		{
 			BridgeClient bridge = context.Services!.GetRequiredService<BridgeClient>();
@@ -147,6 +163,8 @@ internal static class ToolPipeline
 			if (bridge.ClientName is null && context.Server.ClientInfo is { } client)
 				bridge.ClientName = ExecutionAuditLog.OneLine($"{client.Name} {client.Version}").Trim();
 
+			// Stays "exception" when the call throws before a result exists.
+			string outcome = "exception";
 			try
 			{
 				// The client writes the name. A name that matched no tool is not exported.
@@ -157,12 +175,15 @@ internal static class ToolPipeline
 					context.MatchedPrimitive is null ? null : context.Params?.Name,
 					() => (bridge.ReleaseYear, bridge.ClientName, selection.Source)).ConfigureAwait(false);
 
-				return MarkFailure(result);
+				CallToolResult marked = MarkFailure(result, context.Params?.Name);
+				outcome = marked.IsError is true ? "error" : "ok";
+				return marked;
 			}
 			finally
 			{
 				finished?.Invoke(
 					context.Params?.Name,
+					outcome,
 					bridge.ReleaseYear?.ToString(CultureInfo.InvariantCulture) ?? "not connected",
 					selection.Source);
 			}
@@ -178,12 +199,15 @@ internal static class ToolPipeline
 	/// <param name="result">
 	/// 	The result of a tool.
 	/// </param>
+	/// <param name="toolName">
+	/// 	The name of the tool, for the pairs of tool and code that are an answer and not a failure. Null for none.
+	/// </param>
 	/// <returns>
 	/// 	The same result.
 	/// </returns>
-	internal static CallToolResult MarkFailure(CallToolResult result)
+	internal static CallToolResult MarkFailure(CallToolResult result, string? toolName = null)
 	{
-		if (result.IsError is not true && ReportsFailure(result))
+		if (result.IsError is not true && ReportsFailure(result, toolName))
 			result.IsError = true;
 
 		return result;
@@ -196,7 +220,7 @@ internal static class ToolPipeline
 	/// 	An <c>error</c> inside a list item is part of a result that worked, ex. one file of several, so only the top
 	/// 	level counts. A result with <c>blockingDialogs</c> holds the result of the tool one level down, in <c>result</c>.
 	/// </remarks>
-	internal static bool ReportsFailure(CallToolResult result)
+	internal static bool ReportsFailure(CallToolResult result, string? toolName = null)
 	{
 		foreach (ContentBlock block in result.Content)
 		{
@@ -208,7 +232,7 @@ internal static class ToolPipeline
 				using JsonDocument document = JsonDocument.Parse(text);
 				JsonElement root = document.RootElement;
 
-				if (IsFailure(root) || (root.TryGetProperty("result", out JsonElement inner) && inner.ValueKind is JsonValueKind.Object && IsFailure(inner)))
+				if (IsFailure(root, toolName) || (root.TryGetProperty("result", out JsonElement inner) && inner.ValueKind is JsonValueKind.Object && IsFailure(inner, toolName)))
 					return true;
 			}
 			catch (JsonException)
@@ -220,8 +244,9 @@ internal static class ToolPipeline
 		return false;
 	}
 
-	private static bool IsFailure(JsonElement payload) =>
-		(payload.TryGetProperty("error", out JsonElement error) && error.ValueKind is JsonValueKind.String)
+	private static bool IsFailure(JsonElement payload, string? toolName) =>
+		(payload.TryGetProperty("error", out JsonElement error) && error.ValueKind is JsonValueKind.String
+			&& (toolName is null || _answers.Contains((toolName, error.GetString() ?? string.Empty)) is false))
 		|| (payload.TryGetProperty("succeeded", out JsonElement succeeded) && succeeded.ValueKind is JsonValueKind.False)
 		// The spelling when a tool gives the result of the add-in with no change.
 		|| (payload.TryGetProperty("Succeeded", out JsonElement succeededPascal) && succeededPascal.ValueKind is JsonValueKind.False);
