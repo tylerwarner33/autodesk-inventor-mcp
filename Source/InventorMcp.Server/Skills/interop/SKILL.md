@@ -14,6 +14,11 @@ error for a missing member carries a `HINT` with the near members: read it befor
 - Keep each call under 10 s. Split a loop over several calls, and guard it with `StartDeadline()`. See the
   `split-long-work` skill.
 - `Document` is the target document, or null. `Application` is always there.
+- To make several writes one Undo step, wrap them in `InTransaction(document, "MCP: Name", () => { ... })`. It starts
+  the step on that document, ends it, and aborts it when the action throws. A rule that runs inside joins the step.
+  Put `document.Update()` inside, because an `Update` after the step makes a second one.
+- A user parameter cannot take a name that is a unit (ex. `A` for ampere, `T` for tesla). `AddByExpression` then
+  fails with only a COM error.
 
 ## Members typed as object
 

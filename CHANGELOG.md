@@ -6,7 +6,7 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
-## [1.0.0] - 2026-11-16
+## [1.0.0] - 2026-11-19
 
 ### Breaking
 - The add-in and the server use bridge protocol version 3. Close Inventor, build and deploy the add-in again for each release (see the README), start Inventor, and restart the MCP client. A new add-in with an old server, or an old add-in with a new server, does not connect: the old server reports `inventor-not-running`, and the new server reports `bridge-outdated`.
@@ -24,7 +24,42 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 - After an unload and a load of the add-in in one Inventor, the bridge tries to claim its pipe name 5 times before it stops.
 - The `untrusted-bridge-host` message for a refused account also names a server that runs with a network logon (ex. through SSH or WinRM).
 
-## [0.4.8] - 2026-11-16
+## [0.5.0] - 2026-11-19
+
+### Added
+- `InTransaction(document, name, () => { ... })` for `inventor_eval_csharp` snippets. It runs the action as one Undo step on that document, and aborts the step if the action throws.
+
+### Changed
+- `inventor_set_parameters` now makes one Undo step in Inventor, named `MCP: Set Parameters`. Before, each parameter made its own step. A failure outside the loop over the parameters (ex. in the rebuild) reverts the document. A batch with failed entries keeps the parameters that were written.
+- `inventor_set_parameter` now uses the same path. A numeric expression that Inventor cannot parse gives `invalid-expression`, and an unknown name gives `not-found`. The result has `valueKind`, `expression`, `internalValue`, `displayValue`, `units` and `transaction`, and no longer has `parameterType`, `isDriven`, `isKey` and `comment`: read them with `inventor_parameters`.
+- When Inventor writes a parameter but cannot read it back, the entry is still a success, with `readBackError`. A repeat of the write is not necessary.
+- `runRuleAfter` of `inventor_set_parameters` now runs inside the Undo step, so one Undo reverts what the rule changed too.
+- The `interop` skill says that a user parameter cannot have the name of a unit (ex. `A` or `T`).
+
+## [0.4.13] - 2026-11-19
+
+### Changed
+- A result of `inventor_eval_csharp` over 40,000 characters (10,000 for a failed result) now keeps its start and its end, with a `[TRUNCATED: ...]` marker line between them. Before, it kept only the start and cut at 60,000 characters. The marker names a file in `%LOCALAPPDATA%\InventorMcp\Results` with the full text, because the audit log does not keep the output. The server deletes these files after 14 days.
+- The limit now covers the whole JSON text of the result, in place of each of the output lines and the return value. It counts the characters after escaping, and the diagnostics and the exception message are in it. A line longer than 30 % of the limit is cut to it, so the last line keeps its end.
+- A result that was cut has `outputTruncated`, `returnValueTruncated` and `fullTextFile`.
+- Tool results now write a quote in a string as `\"` and keep characters that are not ASCII, in place of `"` and `\uXXXX`. A result is shorter, and its JSON is the same.
+- `inventor_assembly_tree` now uses the same limit of 40,000 characters, in place of 60,000.
+- A result with more than 50 diagnostics keeps the first 50 and gives the number that was left out.
+
+## [0.4.12] - 2026-11-19
+
+### Changed
+- A call that only reports that Inventor cannot be reached is no longer marked as an error: `inventor_session` and `inventor_dialogs` with `inventor-not-running`, and `inventor_start` with `inventor-starting-or-no-bridge` or `version-required`. The result tells the model what to do next, and is not a failure of the call.
+- `inventor_set_parameters` now gives the counts `requested`, `succeeded` and `failed`. When no parameter was set, the result has the error `no-parameter-set`. A batch with some successes is not an error.
+- The line of each tool call in the server log now says if the result was an error (`Result ok`, `error` or `exception`).
+
+## [0.4.11] - 2026-11-19
+
+### Changed
+- Each tool that writes now says if a second call with the same arguments gives the same result (`idempotentHint`). Closing documents, setting an iProperty, rebuilding a document and reading a rule are idempotent. Parameter writes, rule writes, auto balloon, dialog clicks, test copies and the code execution tools are not.
+- `inventor_update` is no longer marked as destructive (`destructiveHint: false`). A rebuild changes no value that the user set.
+
+## [0.4.10] - 2026-11-19
 
 ### Changed
 - A connection that fails now gives the cause. A bridge with every connection in use gives the new code `bridge-connections-in-use`, and the message tells the model to ask the user to close an MCP client, not to wait and not to start Inventor.
@@ -32,6 +67,16 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 - A pipe that refuses the Windows account now gives `untrusted-bridge-host`, not an unreadable error.
 - `inventor_start` now returns a readable result when the connection fails during its wait.
 - The server log now says if the process of a dropped connection still runs.
+
+## [0.4.9] - 2026-11-19
+
+### Changed
+- Update the NuGet package `Microsoft.Extensions.Hosting` from 10.0.14 to 10.0.15. ([PR #35](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/35))
+
+## [0.4.8] - 2026-11-19
+
+### Changed
+- Dependabot no longer opens pull requests for the .NET SDK version in `global.json`. A patch update changes nothing, because `rollForward` `latestFeature` already uses the newest .NET 10 SDK. Change `global.json` by hand when the target framework moves.
 
 ## [0.4.7] - 2026-11-16
 

@@ -123,6 +123,37 @@ bool TryGetUserParameter(object document, string name, out UserParameter paramet
 	return false;
 }
 
+// ---- Transactions --------------------------------------------------------------------------------------------------
+
+// Runs an action as one Undo step on a document, and aborts the step when the action throws.
+// Checked in a live Inventor 2025 session: a nested transaction joins the outer one (one step, named after the outer
+// one), so no check of CurrentTransaction is needed. Update inside the action stays in the step, and Update after it
+// makes a second step. A rule that runs inside, ex. through RunILogicRule, joins the step. A document with no window,
+// or one that is not active, gets the step too. Start the step on the document that is written, not on the active one.
+// Abort fails when the step is not the current one (ex. the action left a nested step open), so a failure of Abort is
+// logged and the first exception is thrown again.
+T InTransaction<T>(object document, string name, Func<T> action)
+{
+	Transaction transaction = Application.TransactionManager.StartTransaction((_Document)document, name);
+
+	try
+	{
+		T result = action();
+		transaction.End();
+		return result;
+	}
+	catch (Exception)
+	{
+		try { transaction.Abort(); }
+		catch (Exception abortProblem) { Log($"Could not abort the transaction '{name}': {abortProblem.Message}"); }
+
+		throw;
+	}
+}
+
+void InTransaction(object document, string name, Action action) =>
+	InTransaction<object?>(document, name, () => { action(); return null; });
+
 // ---- Time guard ----------------------------------------------------------------------------------------------------
 
 // A limit for a loop, so the snippet returns before it holds the main thread too long: if (deadline.Passed) break;
