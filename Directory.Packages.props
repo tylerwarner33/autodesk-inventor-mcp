@@ -11,7 +11,7 @@
 		<PackageVersion Include="ModelContextProtocol.Extensions.Skills" Version="2.4.0" />
 		<PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
 		<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
-		<PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
+		<PackageVersion Include="Serilog.Extensions.Logging" Version="11.0.0" />
 		<PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
 	</ItemGroup>
 

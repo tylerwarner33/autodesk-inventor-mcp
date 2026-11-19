@@ -24,6 +24,11 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 - After an unload and a load of the add-in in one Inventor, the bridge tries to claim its pipe name 5 times before it stops.
 - The `untrusted-bridge-host` message for a refused account also names a server that runs with a network logon (ex. through SSH or WinRM).
 
+## [0.5.1] - 2026-11-19
+
+### Changed
+- Update the NuGet package `Serilog.Extensions.Logging` from 10.0.0 to 11.0.0. ([PR #43](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/43))
+
 ## [0.5.0] - 2026-11-19
 
 ### Added
