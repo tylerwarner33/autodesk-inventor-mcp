@@ -38,7 +38,7 @@ internal static partial class InventorTool
 		};
 	}
 
-	[McpServerTool(Name = "inventor_dialog_click", Title = "Click a dialog button", ReadOnly = false, Destructive = true, OpenWorld = false)]
+	[McpServerTool(Name = "inventor_dialog_click", Title = "Click a dialog button", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
 	[Description("Clicks one visible, enabled button of a dialog that blocks Inventor. A click is a user decision: never click a button of a dialog that asks a question (ex. Save changes?) until the user chose that button. Give the handle and the title from inventor_dialogs. Returns the new dialog state, because a rule can show a second dialog after the first.")]
 	public static async Task<object> DialogClickAsync(
 		BridgeClient bridge,
