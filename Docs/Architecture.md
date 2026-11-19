@@ -513,8 +513,10 @@ document is skipped when the agent's context is full. So each rule that a tool c
 	off or `info` until set, and a rule that a new version adds is then enforced too.
 - `global.json` keeps the build on the .NET 10 SDK (`rollForward` `latestFeature`). `AnalysisLevel` `latest` takes its
 	rules from the SDK that compiles, and with no `sdk` section that is the newest SDK on the machine. A runner image
-	with the .NET 11 SDK then added CA2026 as a build error to code that had not changed. Dependabot updates the
-	version, so a new SDK and its rules come as a pull request.
+	with the .NET 11 SDK then added CA2026 as a build error to code that had not changed. The `version` is the lowest
+	SDK that can build, and `latestFeature` uses the newest .NET 10 SDK that is installed. Dependabot does not update
+	the file: a patch update changes nothing, because `latestFeature` already uses it. Change `global.json` by hand in
+	the pull request that moves the target framework.
 
 Measured on 2026-10-18 with the code as it was then, as unique findings:
 

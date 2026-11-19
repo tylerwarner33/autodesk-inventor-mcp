@@ -6,7 +6,7 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
-## [0.4.8] - 2026-11-16
+## [0.4.10] - 2026-11-19
 
 ### Changed
 - A connection that fails now gives the cause. A bridge with every connection in use gives the new code `bridge-connections-in-use`, and the message tells the model to ask the user to close an MCP client, not to wait and not to start Inventor.
@@ -14,6 +14,16 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 - A pipe that refuses the Windows account now gives `untrusted-bridge-host`, not an unreadable error.
 - `inventor_start` now returns a readable result when the connection fails during its wait.
 - The server log now says if the process of a dropped connection still runs.
+
+## [0.4.9] - 2026-11-19
+
+### Changed
+- Update the NuGet package `Microsoft.Extensions.Hosting` from 10.0.14 to 10.0.15. ([PR #35](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/35))
+
+## [0.4.8] - 2026-11-19
+
+### Changed
+- Dependabot no longer opens pull requests for the .NET SDK version in `global.json`. A patch update changes nothing, because `rollForward` `latestFeature` already uses the newest .NET 10 SDK. Change `global.json` by hand when the target framework moves.
 
 ## [0.4.7] - 2026-11-16
 
