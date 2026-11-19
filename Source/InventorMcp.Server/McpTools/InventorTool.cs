@@ -82,7 +82,14 @@ internal static partial class InventorTool
 				_ => raw!
 			};
 
-			if (result is Contracts.Models.ExecutionResult executed && ToolOutcome.Current is { } outcome)
+			Contracts.Models.ExecutionResult? executed = result switch
+			{
+				Contracts.Models.ExecutionResult execution => execution,
+				TruncatedExecutionResult truncated => truncated.Execution,
+				_ => null
+			};
+
+			if (executed is not null && ToolOutcome.Current is { } outcome)
 			{
 				outcome.MainThreadMilliseconds = executed.ElapsedMilliseconds;
 
@@ -90,7 +97,7 @@ internal static partial class InventorTool
 					_ = outcome.Fail(TelemetryTags.OutcomeCodeFailed, TelemetryTags.ExceptionTypeValue(executed.ExceptionType));
 			}
 
-			if (result is Contracts.Models.ExecutionResult { Succeeded: false } failed)
+			if (executed is { Succeeded: false } failed)
 			{
 				LogCodeFailed(
 					ResultLogger,
@@ -124,13 +131,25 @@ internal static partial class InventorTool
 		}
 	}
 
-	private static Contracts.Models.ExecutionResult Complete(Contracts.Models.ExecutionResult execution, long wallClockMilliseconds, bool warnOnLongExecution)
+	/// <summary>
+	/// 	Applies the size limit, the wall clock time and the long execution warning to an execution result.
+	/// </summary>
+	/// <remarks>
+	/// 	The warning is added after the limit, so it is never cut. The limit keeps space for it.
+	/// </remarks>
+	/// <returns>
+	/// 	An <see cref="Contracts.Models.ExecutionResult"/>, or a <see cref="TruncatedExecutionResult"/> when the limit cut
+	/// 	the text.
+	/// </returns>
+	internal static object Complete(Contracts.Models.ExecutionResult execution, long wallClockMilliseconds, bool warnOnLongExecution)
 	{
-		Contracts.Models.ExecutionResult timed = OutputLimit.Apply(DiagnosticHints.WithoutVersionWarnings(execution)) with { WallClockMilliseconds = wallClockMilliseconds };
+		LimitedExecution limited = OutputLimit.Apply(DiagnosticHints.WithoutVersionWarnings(execution));
+		Contracts.Models.ExecutionResult timed = limited.Result with { WallClockMilliseconds = wallClockMilliseconds };
 
-		return warnOnLongExecution && execution.ElapsedMilliseconds > _longExecutionWarningThreshold.TotalMilliseconds
-			? timed with { Output = [.. timed.Output, LongExecutionWarning(execution.ElapsedMilliseconds)] }
-			: timed;
+		if (warnOnLongExecution && execution.ElapsedMilliseconds > _longExecutionWarningThreshold.TotalMilliseconds)
+			timed = timed with { Output = [.. timed.Output, LongExecutionWarning(execution.ElapsedMilliseconds)] };
+
+		return (limited with { Result = timed }).ToToolResult();
 	}
 
 	private static string LongExecutionWarning(long elapsedMilliseconds) =>

@@ -67,9 +67,29 @@ failed at once with "All pipe instances are busy", and the loop retried with no 
 `inventor-not-running`, which told the model to start Inventor although it was running. After the fix, 16
 connections each connected in about 40 ms, the 17th and 18th got a readable message, and the loop wrote no lines.
 
-A server that cannot connect within 3 s keeps the code `inventor-not-running`, because `inventor_start` and
-`inventor_session` with `waitSeconds` poll on it while Inventor loads. When an Inventor process of the selected release is running, the message says so and tells
-the model not to call `inventor_start`.
+A connect that times out gives the same `TimeoutException` for a pipe with every instance in use and for a pipe that
+does not exist. So `ConnectionDiagnosis` examines the machine after the 3 s wait, not before, because the pipe can
+appear during the wait. It reads the pipe list (never `File.Exists` on a pipe name: it connects, and uses an
+instance), the Inventor processes of the release, and the manifest of the add-in:
+
+| Pipe of the release | Inventor of the release | Cause | Code |
+| --- | --- | --- | --- |
+| Exists | Any | Every connection is in use | `bridge-connections-in-use` |
+| No | None | Inventor does not run | `inventor-not-running` |
+| No | Runs, no manifest | The add-in is not deployed | `inventor-not-running` |
+| No | Runs, newest process under 120 s old | The add-in is loading | `inventor-not-running` |
+| No | Runs, each process over 120 s old | The add-in is not loaded | `inventor-not-running` |
+
+Only a full pipe has its own code, because a wait cannot free a connection, and a log can count the case. The other
+causes keep `inventor-not-running`, because `inventor_start` and `inventor_session` with `waitSeconds` poll on it while
+Inventor loads. Each message tells the model the next step, and none but "Inventor does not run" lets it call
+`inventor_start`. The 120 s separates "loading" from "not loaded": the measured starts took 34 s to 92 s. A process
+with no start time counts as old. A pipe whose ACL refuses the account (ex. the pipe of a different Windows user)
+throws `UnauthorizedAccessException` at once, and the result is `untrusted-bridge-host`.
+
+When a connected pipe drops, the client reads the process id before the close (the close clears it), and the log says
+if the process still runs (the add-in stopped serving, or the connection broke) or not (Inventor closed or crashed).
+The retry does not change.
 
 Which release a server uses (`ReleaseSelection`), in order:
 
@@ -565,6 +585,37 @@ Not used: NuGet lock files (`RestorePackagesWithLockFile`). The add-in's target 
 `AutodeskVersion`, so one lock file cannot serve every release. Central package management already keeps each
 version in one file. `xunit.analyzers` is not added, because `xunit.v3` brings it.
 
+### Parameter writes are one Undo step
+
+`inventor_set_parameters` and `inventor_set_parameter` run one composed snippet (`ComposeSetParametersSnippet`), and
+the snippet groups its writes in one Inventor transaction, named `MCP: Set Parameters`. One Undo in Inventor reverts
+the call, and the activity feed shows the name. Before, ten parameters gave ten steps or more, and a write that failed
+halfway left the document half changed. The rules come from live checks, in `Docs/Research/Write-Transactions-Checks.md`:
+
+- The step starts on the document that is written, not on the active document. A document with no window, or one
+  that is not active, gets the step too.
+- `document.Update()` and `runRuleAfter` are inside the step. A rule that runs inside joins it, and an `Update` after
+  the step would make a second one. A nested transaction joins the outer one, so no check of the current transaction
+  is needed.
+- A batch with failed entries keeps the successes and ends the step, because the model repeats only the failed
+  entries. An exception outside the loop (ex. from `Update`) aborts the step, and the document goes back.
+  `Abort` fails when the step is not the current one, so a failure of `Abort` is logged and the first exception is
+  thrown again.
+- The restore of `RulesEnabled` is after the step, in a `finally` block. It is a setting of the session, and an abort
+  does not restore it.
+- `inventor_set_parameter` uses the same snippet in every case, so there is one write path, no add-in build, and the
+  same checks (a numeric expression is parsed before it is written). Its result has the kind, expression, internal
+  value, display value and units of the parameter, and the add-in operation `parameters.set` has no caller. The
+  bridge version 3 work removes it.
+- A model that wants one Undo step for its own snippet calls the prelude helper
+  `InTransaction(document, "MCP: Name", () => { ... })`. There is no `transactionName` parameter on
+  `inventor_eval_csharp`, because a wrapper around the code of the model breaks a snippet that declares a method or
+  returns at the top level.
+- Not wrapped: `inventor_auto_balloon` (it has its own transaction, and its abort after the time limit is part of its
+  logic), tools that make one change (`inventor_set_property`, `inventor_update`), and tools that save, close or copy
+  (a save inside a transaction is proven only for a file outside a Vault project, by a rule that `runRuleAfter` runs.
+  See `Docs/Research/Write-Transactions-Checks.md`).
+
 ## Behaviours worth knowing
 
 ### The activity feed is a pull, not a push
@@ -692,15 +743,38 @@ Code execution inside a CAD process is the most dangerous capability here, and i
 	specification reads a tool as destructive and open to the world, so a client asks more than necessary for a read,
 	and cannot tell a read from a write. `ToolPipelineTests` compares the tool list with a snapshot, because a name, a
 	hint or a parameter is the public API of the server.
+	A tool that writes also sets `idempotentHint`, and `EveryToolSaysWhatItCanChange` enforces it. A parameter write is
+	not idempotent, because a write can run iLogic rules again. `inventor_ilogic_rule_get` is not read-only, because
+	`outputFolder` makes it write files, and a client can run a read-only tool with no approval.
 - A result that reports a failure has `isError`. The tools still return a failure as a normal payload with a code and
 	a message, so a model can read it. `ToolPipeline.MarkFailure` sets the flag in one place, for a top level `error`
-	and for code that did not succeed.
+	and for code that did not succeed. Four pairs of tool and code answer the question of the tool, so they are not
+	failures: `inventor-not-running` from `inventor_session` and `inventor_dialogs`, and
+	`inventor-starting-or-no-bridge` and `version-required` from `inventor_start`. A batch with some failed items is not
+	a failure either, because a flag on a partial result invites a repeat of the whole batch, and a parameter write is
+	not idempotent. `inventor_set_parameters` adds `error: "no-parameter-set"` only when no item succeeded.
 - `INVENTORMCP_TOOLS=read-only` removes each tool that has no `readOnlyHint`, apart from the two that select and start
 	a session. `INVENTORMCP_CONFIRM_RISKY_CALLS=true` asks the user, through elicitation, before a call that removes
 	the guard for unsaved changes, answers a dialog or closes documents. The question shows the tool name and fixed
 	text only, never an argument. Both are read one time at start, and a value that is not known selects the stricter
 	setting. They are a limit on the model, not a sandbox.
-- The text of an execution result is cut at 60,000 characters for the return value and for the output, in the server.
+- The text of an execution result is cut in the server, at 40,000 characters for the whole JSON text of the result,
+	and at 10,000 for a result that failed. The text keeps its start (70 %) and its end (30 %), because a snippet
+	writes its summary last, with one marker line between them. A line longer than 30 % is cut to it, so the last line
+	keeps its end. Claude Code moves a text result above 50,000 characters to a file, and keeps only the first and the
+	last 5,000 characters of an error result above about 11,000, so both limits are below those numbers. No number was
+	found for the other clients.
+	The limit counts the characters after JSON escaping, because the client measures that text. The diagnostics and
+	the exception message each keep at most a quarter of the limit, and a part of the limit stays free for the member
+	names and the long execution warning. The tools serialize their results with the relaxed encoder
+	(`ToolPipeline.ResultSerializerOptions`): the default encoder writes a quote as `"`, so a JSON return value
+	became up to six times longer in the text than the string that was counted.
+	A result that was cut has `outputTruncated`, `returnValueTruncated` and `fullTextFile`, because cut JSON does not
+	parse. `ExecutionResult` is shared with the add-in, so these members are on a server type.
+	The audit log keeps the snippet and one result line, not the output. So the cut text goes to
+	`%LOCALAPPDATA%\InventorMcp\Results` first, and the marker names the file: a second run would repeat a write.
+	The server deletes a file after 14 days, the same age as the server logs. `inventor_assembly_tree` uses the same
+	40,000 characters. The list tools have no paging, because no measured result of them was over a client limit.
 - `inventor_test_copy` sends its script to Windows PowerShell through standard input, so no script file exists that
 	another process can change before it runs.
 

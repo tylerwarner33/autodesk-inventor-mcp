@@ -91,9 +91,10 @@ _ = builder.Services
 		static exception => Log.Warning(exception, "The Skills over MCP extension is off. inventor_skill still serves the skills."))
 	.WithInventorCallFilter(
 		safety,
-		static (tool, release, selection) => Log.Information(
-			"Tool {Tool} finished. Release {Release}, selection {Selection}.",
+		static (tool, outcome, release, selection) => Log.Information(
+			"Tool {Tool} finished. Result {Outcome}, release {Release}, selection {Selection}.",
 			tool,
+			outcome,
 			release,
 			selection));
 

@@ -48,6 +48,10 @@ public sealed class StartingDialogTests
 		// The new Inventor is examined through the process list, not the closed one through the old pipe.
 		BlockState? state = await bridge.Client.GetStartingBlockStateAsync(TestContext.Current.CancellationToken);
 		Assert.Equal(4242, state?.ProcessId);
+
+		// The pipe of a closed Inventor is gone. A fake pipe that stays would be a full pipe, which has its own code.
+		await bridge.Server.DisposeAsync();
+
 		Assert.False(await bridge.Client.TryConnectAsync(TestContext.Current.CancellationToken));
 		Assert.Null(bridge.Client.InventorProcessId);
 	}

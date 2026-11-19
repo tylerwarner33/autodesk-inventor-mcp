@@ -19,7 +19,7 @@ namespace InventorMcp.Server.McpTools;
 /// </remarks>
 internal static partial class InventorTool
 {
-	[McpServerTool(Name = "inventor_close_documents", Title = "Close documents", ReadOnly = false, Destructive = true, OpenWorld = false)]
+	[McpServerTool(Name = "inventor_close_documents", Title = "Close documents", ReadOnly = false, Destructive = true, Idempotent = true, OpenWorld = false)]
 	[Description("""
 		Closes the open documents under a folder, with no save: drawings first, then presentations, assemblies and parts,
 		the same order as inventor_run_plugin. A document outside the folder is never closed.
@@ -236,7 +236,7 @@ internal static partial class InventorTool
 	/// </summary>
 	private static readonly TimeSpan _testCopyTimeout = TimeSpan.FromMinutes(10);
 
-	[McpServerTool(Name = "inventor_test_copy", Title = "Make a test copy of a design", ReadOnly = false, Destructive = true, OpenWorld = false)]
+	[McpServerTool(Name = "inventor_test_copy", Title = "Make a test copy of a design", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
 	[Description("""
 		Copies a document tree to a new folder for a test, so a test never changes the masters. Every file of the tree
 		under the source folder (also in folders below it, and also suppressed components) is copied, the read-only
