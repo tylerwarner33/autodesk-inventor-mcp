@@ -65,9 +65,13 @@ public sealed class ToolPipelineTests
 			Assert.True(annotations?.ReadOnlyHint is not null, $"{tool.Name} does not set ReadOnly.");
 			Assert.True(annotations?.OpenWorldHint is not null, $"{tool.Name} does not set OpenWorld.");
 
-			// The specification reads a missing hint on a tool that writes as destructive, so the tool says it.
+			// The specification reads a missing hint on a tool that writes as destructive and not idempotent, so the tool
+			// says both. Destructive and Idempotent mean nothing for a tool that only reads.
 			if (annotations?.ReadOnlyHint is false)
+			{
 				Assert.True(annotations.DestructiveHint is not null, $"{tool.Name} writes and does not set Destructive.");
+				Assert.True(annotations.IdempotentHint is not null, $"{tool.Name} writes and does not set Idempotent.");
+			}
 		}
 	}
 
