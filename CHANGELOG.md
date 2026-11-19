@@ -6,6 +6,11 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [0.4.8] - 2026-11-19
+
+### Changed
+- Dependabot no longer opens pull requests for the .NET SDK version in `global.json`. A patch update changes nothing, because `rollForward` `latestFeature` already uses the newest .NET 10 SDK. Change `global.json` by hand when the target framework moves.
+
 ## [0.4.7] - 2026-11-16
 
 ### Changed
