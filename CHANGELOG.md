@@ -9,7 +9,7 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 ## [1.1.0] - 2026-11-20
 
 ### Added
-- The dialog type `vaultDownloadProgress` (the Vault "Download progress", ex. after a project switch) with the new value `"Wait"`, the default. A call waits until the dialog closes by itself, for up to 10 minutes, in place of `blocked-by-dialog`. The server never clicks its `Cancel`, which stops the download. The result lists the dialog in `blockingDialogs`.
+- The dialog type `vaultDownloadProgress` (the Vault "Download progress", ex. after a project switch) with the new value `"Wait"`, the default. A call waits until the dialog closes by itself, for up to 10 minutes, in place of `blocked-by-dialog`. The server never clicks its `Cancel`, which stops the download. The result lists the dialog in `blockingDialogs`. ([PR #45](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/45))
 
 ## [1.0.1] - 2026-11-19
 
