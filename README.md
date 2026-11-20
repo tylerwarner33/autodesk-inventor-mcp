@@ -590,8 +590,8 @@ A modal dialog stops every tool except `inventor_activity`. The server answers a
 or leaves it open for you.
 
 **Edit `Source/InventorMcp.Server/DialogSettings.json` to choose the answer to each dialog.** It is the one place
-that sets this. Each entry is a dialog type, and its value is the button that the server clicks, or `"Ask"` to leave
-the dialog for you. The comment above each entry lists the values it accepts. A change needs a build, because the
+that sets this. Each entry is a dialog type, and its value is the button that the server clicks, `"Wait"` to wait
+until a progress dialog closes by itself, or `"Ask"` to leave the dialog for you. The comment above each entry lists the values it accepts. A change needs a build, because the
 server embeds the file.
 
 | Entry | Dialog | Default | Other values |
@@ -604,6 +604,7 @@ server embeds the file.
 | `iLogicSecurityAlert` | "Security Alert", "iLogic has disabled a potentially harmful rule." | `"Ask"` | `"Run the rule"`, `"Don't run the rule"` |
 | `iLogicSecurityAdvisor` | "iLogic Security Advisor", which comes after "Run the rule" | `"Ask"` | `"OK"` |
 | `vaultLogIn` | The Vault "Log In", which can hold Inventor while it starts | `"Ask"` | None: the server never signs in for you |
+| `vaultDownloadProgress` | The Vault "Download progress", ex. after a project switch. It closes by itself | `"Wait"` (up to 10 min) | `"Ask"`. The server never clicks Cancel, which stops the download |
 
 <details>
 <summary><b>Before you change a default</b> (what each click does)</summary>
@@ -655,6 +656,9 @@ writes it to the server log, and answers it as the dialog settings say:
 
 - A dialog type with a button in the settings gets that button. The call then continues, and the result lists the
 	dialog and the click in `blockingDialogs`.
+- A progress dialog set to `"Wait"` (the Vault "Download progress") gets no click. The call waits until the dialog
+	closes by itself, for up to 10 minutes, and the result lists the dialog in `blockingDialogs`. A request that is not
+	sent yet waits too. After 10 minutes, the dialog needs a person.
 - A dialog type set to `"Ask"`, a dialog that is not in the settings, or a dialog with a button that the server has
 	not seen before stays open. The call stops with `blocked-by-dialog`, the dialog text and its buttons.
 	`inventor_dialogs` reads it, and `inventor_dialog_click` clicks the button that the user chose.
@@ -676,7 +680,8 @@ was read. Otherwise it stays open, whatever the settings say:
 - The buttons. The iLogic error, the compile error and the message box have only `OK`. For the other types, each
 	required button is present, and every other visible button is on the allowed list (ex. `Help` on
 	the migration dialog, `Details` on the .NET error, `Show details` on the Security Alert). A dialog with a button
-	that a later release adds (ex. `Quit`) stays open.
+	that a later release adds (ex. `Quit`) stays open. The Vault "Download progress" has only `Cancel`, which the
+	server never clicks: the buttons decide only whether the server waits.
 - For the Security Advisor, the selected option is "Assume that this external rule is safe". A dialog with no option
 	read stays open.
 

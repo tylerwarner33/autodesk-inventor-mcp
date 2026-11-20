@@ -15,6 +15,9 @@ open document `isModifiable`, `readOnlyFile` and `library`.
   and the other gives the same error.
 - To edit library files, a user usually changes to an editing project that has only a workspace path. Do not change
   the active project for the user.
+- A switch to a project with a Vault workspace (`DesignProject.Activate`) can start a Vault download with a
+  "Download progress" dialog. By default the server waits until it closes (up to 10 minutes), and lists it in
+  `blockingDialogs`. Never click its `Cancel`, which stops the download.
 - Never check files in or out of Vault for the user. Do not check test copies into Vault.
 
 ## Saved versions

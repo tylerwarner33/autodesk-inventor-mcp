@@ -1,6 +1,7 @@
 // How the server answers each dialog that blocks Inventor while one of its tool calls waits.
 //
-// Each value is the button that the server clicks, or "Ask" to leave the dialog open for a person.
+// Each value is the button that the server clicks, "Wait" to wait until a progress dialog closes by itself, or "Ask" to
+// leave the dialog open for a person.
 // The comment above each entry lists the values it accepts. A value that is not in that list counts as "Ask".
 // A dialog that is not in this file is always left open, and the call stops with blocked-by-dialog.
 // The server never answers a dialog that comes after a person's own action, only one that blocks its own call.
@@ -58,5 +59,11 @@
 	// The Vault "Log In" dialog, which can hold Inventor while it starts, before the MCP bridge add-in loads.
 	// It asks for a password, so the server never answers it.
 	// Values: "Ask".
-	"vaultLogIn": "Ask"
+	"vaultLogIn": "Ask",
+
+	// The Vault "Download progress" dialog, ex. after a project switch starts a workspace download. Its only button is
+	// Cancel, which stops the download, so the server never clicks it.
+	// "Wait" keeps the call waiting until the dialog closes by itself, for up to 10 minutes. After that, it needs a person.
+	// Values: "Wait", "Ask".
+	"vaultDownloadProgress": "Wait"
 }

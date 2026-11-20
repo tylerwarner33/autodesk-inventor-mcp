@@ -563,6 +563,47 @@ dead pipe as the new bridge and returned `started` in 62 ms, without a wait, and
 closed process. The server now checks that the host process still runs before it uses a pipe
 (`BridgeClient.HasLiveConnection`).
 
+## The Vault "Download progress" dialog
+
+Read on Inventor 2025.4 on 2026-11-20, from the server log. An `inventor_eval_csharp` snippet called
+`DesignProject.Activate(true)` to switch to a project with a Vault workspace. The Vault add-in then started a workspace
+download inside the API call.
+
+```
+A dialog blocks Inventor 9320: 'Download progress' (WinForm, not in the catalog,
+class WindowsForms10.Window.8.app.0.6fbc03_r3_ad1). Buttons: Cancel. Action: left open for a person.
+Text: Preparing Files
+```
+
+- The call stopped with `blocked-by-dialog` after 3.1 s, at the first check of the watchdog.
+- The dialog closed by itself when the download ended. An `inventor_session` with `waitSeconds` 45 then found no block,
+	and the project switch had completed.
+- **It is not a question, so neither a click nor "Ask" fits.** Its only button, Cancel, stops the download and can
+	leave an incomplete workspace. "Ask" stops the call, although the call completes with no person.
+- The type is `vaultDownloadProgress`: the title `Download progress` and the WinForms class. The text is not part of
+	the match, because it changes while the download runs.
+- It accepts `"Wait"` (the default) and `"Ask"`. With `"Wait"`, the watchdog keeps the call waiting while the dialog
+	is open, and the check before a call holds the request until the dialog closes. The server clicks nothing.
+	`DialogPolicy.ShouldWait` also requires that Cancel is the only button, so a changed dialog needs a person.
+- `BridgeClient.ProgressDialogWaitLimit` (10 min) limits the wait of one call. After it, the dialog needs a person, so
+	a download that does not end cannot hold the call with no message.
+- The tool result lists the dialog in `blockingDialogs` one time, with the action "waited on until it closes by itself".
+
+### Live test of "Wait"
+
+Inventor 2025.4, a new process with no document open, the server from the local feed with this change:
+
+| Step | Result |
+| --- | --- |
+| Switch to a project without a Vault download | 148 ms. No dialog. |
+| Switch to the project with the Vault workspace, as above | The call returned its result after 3.9 s, with the new project active. |
+| `blockingDialogs` of that result | `Download progress`, type `vaultDownloadProgress`, buttons `Cancel`, action "waited on until it closes by itself". |
+| Server log | `'Download progress' (WinForm, vaultDownloadProgress, ...) Buttons: Cancel. Action: waited on until it closes by itself. Text: Reading Local Files` |
+
+- The text was "Reading Local Files" this time, and "Preparing Files" before. This confirms that the match must not use
+	the text.
+- Only a switch to the project whose workspace Vault manages showed the dialog.
+
 ## Risks and limits
 
 - **A click is a user decision.** A dialog can ask to save or discard data. Only an information dialog with one

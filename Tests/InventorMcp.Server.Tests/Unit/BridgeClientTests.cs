@@ -27,6 +27,14 @@ public sealed class BridgeClientTests
 			"Object name: 'DevExpress.XtraTab.XtraTabPage'.",
 		[new DialogButton("Details", true, true), new DialogButton("Continue", true, true)]);
 
+	private static readonly DialogSnapshot _downloadProgress = new(
+		0x2468,
+		"Download progress",
+		"WindowsForms10.Window.8.app.0.6fbc03_r3_ad1",
+		"WinForm",
+		"Preparing Files",
+		[new DialogButton("Cancel", true, true)]);
+
 	private static readonly DialogSnapshot _question = new(
 		0x5678,
 		"Autodesk Inventor",
@@ -293,6 +301,68 @@ public sealed class BridgeClientTests
 
 		Assert.Equal("done", await call);
 		Assert.Equal(1, bridge.Dialogs.ClickCalls);
+	}
+
+	[Fact]
+	public async Task ProgressDialogKeepsTheWaitWithoutAClick()
+	{
+		await using TestBridge bridge = new();
+		List<DialogReport> reports = DialogReports.Begin();
+		(Task<string> call, TestConnection connection, TestRequest request) = await bridge.StartCallAsync();
+		bridge.Dialogs.Dialogs = [_downloadProgress];
+
+		await bridge.AdvanceAsync(BridgeClient.FirstDialogCheck + (BridgeClient.DialogCheckInterval * 3));
+		Assert.False(call.IsCompleted);
+
+		// The download ends, the dialog closes by itself, and the call then answers.
+		bridge.Dialogs.Dialogs = null;
+		await connection.RespondAsync(request.Id, "done");
+
+		Assert.Equal("done", await call);
+		Assert.Equal(0, bridge.Dialogs.ClickCalls);
+		DialogReport report = Assert.Single(reports);
+		Assert.Equal("vaultDownloadProgress", report.Type);
+		Assert.Equal("waited on until it closes by itself", report.Action);
+	}
+
+	[Fact]
+	public async Task ProgressDialogNeedsAPersonAfterTheLimit()
+	{
+		await using TestBridge bridge = new();
+		(Task<string> call, _, _) = await bridge.StartCallAsync();
+		bridge.Dialogs.Dialogs = [_downloadProgress];
+
+		await bridge.AdvanceAsync(BridgeClient.FirstDialogCheck);
+		bridge.Time.Advance(BridgeClient.ProgressDialogWaitLimit);
+		await bridge.AdvanceAsync(BridgeClient.DialogCheckInterval * 2);
+
+		InventorBridgeException exception = await Assert.ThrowsAsync<InventorBridgeException>(() => call.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+		Assert.Equal(BridgeErrorCodes.BlockedByDialog, exception.Code);
+		Assert.Equal(0, bridge.Dialogs.ClickCalls);
+	}
+
+	[Fact]
+	public async Task NothingIsSentUntilAProgressDialogCloses()
+	{
+		await using TestBridge bridge = new();
+		Task<TestConnection> accept = bridge.Server.AcceptAsync();
+		Assert.True(await bridge.Client.TryConnectAsync(TestContext.Current.CancellationToken));
+		TestConnection connection = await accept;
+		bridge.Dialogs.Dialogs = [_downloadProgress];
+
+		Task<string> call = bridge.Client.InvokeAsync<string>(BridgeOperations.Session, null, TestContext.Current.CancellationToken);
+		await bridge.AdvanceAsync(BridgeClient.DialogCheckInterval * 2);
+		await TestBridge.WaitUntilAsync(() => bridge.Dialogs.DetectCalls >= 2);
+		Assert.Equal(0, connection.QueuedRequests);
+		Assert.False(call.IsCompleted);
+
+		bridge.Dialogs.Dialogs = null;
+		await bridge.AdvanceAsync(BridgeClient.DialogCheckInterval * 2);
+		TestRequest request = await connection.ReadRequestAsync();
+		await connection.RespondAsync(request.Id, "done");
+
+		Assert.Equal("done", await call);
+		Assert.Equal(0, bridge.Dialogs.ClickCalls);
 	}
 
 	[Fact]

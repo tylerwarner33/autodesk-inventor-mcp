@@ -125,6 +125,15 @@ internal sealed class TestConnection : IAsyncDisposable
 	/// </summary>
 	public ConcurrentQueue<string> Cancelled { get; } = [];
 
+	/// <summary>
+	/// 	The requests that arrived and were not read yet.
+	/// </summary>
+	/// <remarks>
+	/// 	Use it to show that nothing was sent. A <see cref="ReadRequestAsync"/> that times out leaves its read pending, and
+	/// 	that read then takes the next request.
+	/// </remarks>
+	public int QueuedRequests => _requests.Reader.Count;
+
 	public async Task<TestRequest> ReadRequestAsync(TimeSpan? timeout = null) =>
 		await _requests.Reader.ReadAsync(TestContext.Current.CancellationToken)
 			.AsTask()

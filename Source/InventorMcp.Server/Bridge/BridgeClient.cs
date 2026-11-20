@@ -82,6 +82,14 @@ internal sealed partial class BridgeClient(
 	/// </summary>
 	public static readonly TimeSpan DialogCheckInterval = TimeSpan.FromSeconds(2);
 
+	/// <summary>
+	/// 	The longest time that one call waits on a progress dialog (ex. the Vault "Download progress").
+	/// </summary>
+	/// <remarks>
+	/// 	After this time, the dialog needs a person, so a download that does not end cannot hold the call with no message.
+	/// </remarks>
+	public static readonly TimeSpan ProgressDialogWaitLimit = TimeSpan.FromMinutes(10);
+
 	private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(3);
 
 	/// <summary>
@@ -408,8 +416,12 @@ internal sealed partial class BridgeClient(
 		// A dialog's modal loop still runs the add-in's work, so a call sent now would run nested inside the call that
 		// opened the dialog (ex. inside a waiting iLogic rule). So the dialog is handled first, and nothing is sent while
 		// one needs a person. An operation without the main thread runs nothing in that loop.
+		// A progress dialog closes by itself, so the request waits until it closes.
 		if (usesMainThread)
-			await HandleDialogsAsync(watch, cancellationToken).ConfigureAwait(false);
+		{
+			while (await HandleDialogsAsync(watch, cancellationToken).ConfigureAwait(false))
+				await Task.Delay(DialogCheckInterval, _timeProvider, cancellationToken).ConfigureAwait(false);
+		}
 
 		// The token of the call goes to the SDK, which then sends the cancel to the add-in. A stop of the wait on a dialog
 		// does not cancel the request: the call that opened the dialog already runs.
@@ -463,7 +475,8 @@ internal sealed partial class BridgeClient(
 
 			wait = DialogCheckInterval;
 
-			await HandleDialogsAsync(watch, cancellationToken).ConfigureAwait(false);
+			// A progress dialog keeps the wait going. The response comes after it closes.
+			_ = await HandleDialogsAsync(watch, cancellationToken).ConfigureAwait(false);
 		}
 	}
 
@@ -498,25 +511,28 @@ internal sealed partial class BridgeClient(
 	}
 
 	/// <summary>
-	/// 	Closes an information dialog, or stops the wait on a dialog that needs a person.
+	/// 	Closes an information dialog, waits on a progress dialog, or stops the wait on a dialog that needs a person.
 	/// </summary>
-	private async Task HandleDialogsAsync(DialogWatch watch, CancellationToken cancellationToken)
+	/// <returns>
+	/// 	True when a progress dialog is open, and the call waits until it closes.
+	/// </returns>
+	private async Task<bool> HandleDialogsAsync(DialogWatch watch, CancellationToken cancellationToken)
 	{
 		if (InventorProcessId is not int processId)
-			return;
+			return false;
 
 		BlockState state = await Task.Run(() => _dialogs.Detect(processId), cancellationToken).ConfigureAwait(false);
 
 		if (state.Blocked is false)
 		{
 			watch.ChecksWithoutDialog = 0;
-			return;
+			return false;
 		}
 
 		if (state.Dialogs.Count == 0)
 		{
 			if (++watch.ChecksWithoutDialog < ChecksBeforeBlockWithoutDialog)
-				return;
+				return false;
 
 			LogBlockedWithoutDialog(processId);
 
@@ -532,9 +548,28 @@ internal sealed partial class BridgeClient(
 			LogDialogSettingsProblem(problem);
 
 		List<DialogSnapshot> needPerson = [];
+		bool waiting = false;
 
 		foreach (DialogSnapshot dialog in state.Dialogs)
 		{
+			if (DialogPolicy.ShouldWait(dialog, settings))
+			{
+				watch.WaitStarted ??= _timeProvider.GetTimestamp();
+
+				if (_timeProvider.GetElapsedTime(watch.WaitStarted.Value) >= ProgressDialogWaitLimit)
+				{
+					needPerson.Add(dialog);
+					continue;
+				}
+
+				// One report for each dialog, not one for each check.
+				if (watch.Waited.Add((dialog.Handle, dialog.Title)))
+					Report(processId, dialog, "waited on until it closes by itself", TelemetryTags.DialogWaited);
+
+				waiting = true;
+				continue;
+			}
+
 			// A dialog that is still open after the server clicked it needs a person.
 			string? button = watch.Clicked.Contains((dialog.Handle, dialog.Title)) ? null : DialogPolicy.ButtonToClick(dialog, settings);
 
@@ -567,7 +602,7 @@ internal sealed partial class BridgeClient(
 		}
 
 		if (needPerson.Count == 0)
-			return;
+			return waiting;
 
 		foreach (DialogSnapshot dialog in needPerson)
 			Report(processId, dialog, "left open for a person", TelemetryTags.DialogNeedsPerson);
@@ -900,6 +935,16 @@ internal sealed partial class BridgeClient(
 		public HashSet<(long Handle, string Title)> Clicked { get; } = [];
 
 		public int ChecksWithoutDialog { get; set; }
+
+		/// <summary>
+		/// 	The progress dialogs that were reported as waited on.
+		/// </summary>
+		public HashSet<(long Handle, string Title)> Waited { get; } = [];
+
+		/// <summary>
+		/// 	The timestamp of the first check that saw a progress dialog, or null.
+		/// </summary>
+		public long? WaitStarted { get; set; }
 	}
 }
 

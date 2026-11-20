@@ -164,6 +164,8 @@ one as its dialog settings say:
 
 - By default it closes an information dialog that has only `OK` (an iLogic error, a rule compile error or a message
 	box), and gives Claude its text.
+- By default it waits on the Vault **Download progress** dialog, ex. after a project switch, until it closes by
+	itself (up to 10 minutes). It never clicks `Cancel`, which stops the download.
 - By default it leaves every other dialog open, ex. "Save changes?", the iLogic **Security Alert**, and **Data Format
 	Has Changed** (`OK` there saves the files in a format that earlier releases cannot open). Claude then tells you
 	what the dialog says, and clicks a button only after you chose it.

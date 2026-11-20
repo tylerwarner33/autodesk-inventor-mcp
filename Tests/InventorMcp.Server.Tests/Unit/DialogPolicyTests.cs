@@ -236,6 +236,46 @@ public sealed class DialogPolicyTests
 	}
 
 	[Fact]
+	public void DownloadProgressIsClassified() =>
+		Assert.Equal(DialogPolicy.VaultDownloadProgressType, DialogPolicy.Classify(DownloadProgress()));
+
+	[Fact]
+	public void DownloadProgressWaitsByDefaultWithNoClick()
+	{
+		Assert.True(DialogPolicy.ShouldWait(DownloadProgress(), _defaults));
+		Assert.Null(DialogPolicy.ButtonToClick(DownloadProgress(), _defaults));
+	}
+
+	[Fact]
+	public void DownloadProgressSetToAskNeedsAPerson()
+	{
+		DialogSettings settings = WithUserFile("""{ "vaultDownloadProgress": "Ask" }""");
+
+		Assert.False(DialogPolicy.ShouldWait(DownloadProgress(), settings));
+		Assert.Null(DialogPolicy.ButtonToClick(DownloadProgress(), settings));
+	}
+
+	[Fact]
+	public void DownloadProgressCannotBeSetToCancel()
+	{
+		DialogSettings settings = WithUserFile("""{ "vaultDownloadProgress": "Cancel" }""");
+
+		Assert.False(DialogPolicy.ShouldWait(DownloadProgress(), settings));
+		Assert.Null(DialogPolicy.ButtonToClick(DownloadProgress(), settings));
+		_ = Assert.Single(settings.Problems);
+	}
+
+	[Fact]
+	public void DownloadProgressWithAnotherButtonNeedsAPerson() =>
+		Assert.False(DialogPolicy.ShouldWait(DownloadProgress(Button("Cancel"), Button("Retry")), _defaults));
+
+	[Fact]
+	public void DownloadProgressStaysOpenWhenAutoCloseIsOff() =>
+		Assert.False(DialogPolicy.ShouldWait(
+			DownloadProgress(),
+			DialogSettings.Create(_defaultText, userText: null, autoCloseValue: "false", acceptMigrationValue: null)));
+
+	[Fact]
 	public void LogInWithoutAVaultFieldIsNotVault() =>
 		Assert.Null(DialogPolicy.Classify(new DialogSnapshot(0x1234, "Log In", "WindowsForms10.Window.8.app.0.ffc8c_r3_ad1", "WinForm", "User Name:", [Button("OK")])));
 
@@ -360,4 +400,16 @@ public sealed class DialogPolicyTests
 		"WinForm",
 		"User Name:\r\n---\r\nPassword:\r\n---\r\nServer:\r\n---\r\nVault:\r\n---\r\n[password field]\r\n---\r\nAuthentication:",
 		[Button("Open"), Button("<<"), Button("Help"), Button("Cancel")]);
+
+	/// <summary>
+	/// 	The dialog as the server log recorded it on Inventor 2025.4, after a project switch.
+	/// 	See Docs/Research/Blocking-Dialog-Detection.md.
+	/// </summary>
+	private static DialogSnapshot DownloadProgress(params DialogButton[] buttons) => new(
+		0x1234,
+		"Download progress",
+		"WindowsForms10.Window.8.app.0.6fbc03_r3_ad1",
+		"WinForm",
+		"Preparing Files",
+		buttons is [] ? [Button("Cancel")] : buttons);
 }

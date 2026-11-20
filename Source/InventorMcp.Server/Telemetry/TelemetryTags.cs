@@ -53,6 +53,7 @@ internal static class TelemetryTags
 	public const string DialogClosedElsewhere = "closed-elsewhere";
 	public const string DialogClickFailed = "click-failed";
 	public const string DialogNeedsPerson = "needs-person";
+	public const string DialogWaited = "waited";
 
 	/// <summary>
 	/// 	The value of <see cref="Release"/> with no connection, and of <see cref="DialogType"/> for a type that is not in
