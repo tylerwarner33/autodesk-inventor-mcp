@@ -6,6 +6,11 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [1.1.0] - 2026-11-20
+
+### Added
+- The dialog type `vaultDownloadProgress` (the Vault "Download progress", ex. after a project switch) with the new value `"Wait"`, the default. A call waits until the dialog closes by itself, for up to 10 minutes, in place of `blocked-by-dialog`. The server never clicks its `Cancel`, which stops the download. The result lists the dialog in `blockingDialogs`. ([PR #45](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/45))
+
 ## [1.0.1] - 2026-11-19
 
 ### Changed

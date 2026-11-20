@@ -67,6 +67,18 @@ internal static partial class DialogPolicy
 	public const string VaultLogInType = "vaultLogIn";
 
 	/// <summary>
+	/// 	The Vault "Download progress" dialog, ex. after a project switch starts a workspace download.
+	/// 	It closes by itself when the download ends, and its only button is Cancel.
+	/// </summary>
+	public const string VaultDownloadProgressType = "vaultDownloadProgress";
+
+	/// <summary>
+	/// 	The value of <c>DialogSettings.json</c> that keeps the call waiting until the dialog closes by itself.
+	/// 	It is not a button, so the server clicks nothing.
+	/// </summary>
+	public const string WaitValue = "Wait";
+
+	/// <summary>
 	/// 	The OK button.
 	/// </summary>
 	public const string OkButton = "OK";
@@ -100,6 +112,8 @@ internal static partial class DialogPolicy
 	private const string TrustThisRuleOption = "Assume that this external rule is safe";
 	private const string VaultLogInTitle = "Log In";
 	private const string VaultLogInField = "Vault:";
+	private const string VaultDownloadProgressTitle = "Download progress";
+	private const string CancelButton = "Cancel";
 
 	private static readonly string[] _securityAlertDetailsButtons = ["Show details", "Hide details"];
 
@@ -121,7 +135,9 @@ internal static partial class DialogPolicy
 		[SecurityAlertType] = [RunRuleButton, DontRunRuleButton],
 		[SecurityAdvisorType] = [OkButton],
 		// No button: the server never signs in for the user.
-		[VaultLogInType] = []
+		[VaultLogInType] = [],
+		// Not a button: the server waits, and never clicks Cancel, which stops the download.
+		[VaultDownloadProgressType] = [WaitValue]
 	};
 
 	/// <summary>
@@ -154,6 +170,10 @@ internal static partial class DialogPolicy
 		if (isWinForms && dialog.Title == VaultLogInTitle && dialog.Text.Contains(VaultLogInField, StringComparison.Ordinal))
 			return VaultLogInType;
 
+		// The text changes while the download runs (ex. "Preparing Files"), so only the title matches.
+		if (isWinForms && dialog.Title == VaultDownloadProgressTitle)
+			return VaultDownloadProgressType;
+
 		if (isWin32 && dialog.Title == MigrationTitle)
 			return MigrationType;
 
@@ -184,6 +204,9 @@ internal static partial class DialogPolicy
 		if (dialog.ReadError is not null || Classify(dialog) is not string type || settings.ButtonFor(type) is not string button)
 			return null;
 
+		if (button == WaitValue)
+			return null;
+
 		IReadOnlyList<string> buttons = dialog.ClickableButtons;
 
 		bool asRead = type switch
@@ -203,6 +226,26 @@ internal static partial class DialogPolicy
 	/// 	True when the server clicks a button of the dialog.
 	/// </summary>
 	public static bool ShouldClose(DialogSnapshot dialog, DialogSettings settings) => ButtonToClick(dialog, settings) is not null;
+
+	/// <summary>
+	/// 	True when the server keeps the call waiting until the dialog closes by itself.
+	/// </summary>
+	/// <remarks>
+	/// 	Only a progress dialog of the catalog, set to <see cref="WaitValue"/>, with only the Cancel button of the
+	/// 	example that was read.
+	/// 	Any other button makes it a dialog the server has not read, so it needs a person.
+	/// </remarks>
+	/// <param name="dialog">
+	/// 	The dialog.
+	/// </param>
+	/// <param name="settings">
+	/// 	The settings, normally <see cref="DialogSettings.Load"/>.
+	/// </param>
+	public static bool ShouldWait(DialogSnapshot dialog, DialogSettings settings) =>
+		dialog.ReadError is null
+		&& Classify(dialog) is VaultDownloadProgressType
+		&& settings.ButtonFor(VaultDownloadProgressType) == WaitValue
+		&& dialog.ClickableButtons is [CancelButton];
 
 	/// <summary>
 	/// 	What a click changed, for the tool result, or an empty text when it only closed the dialog.
