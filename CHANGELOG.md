@@ -6,6 +6,11 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [1.1.2] - 2026-11-23
+
+### Changed
+- Update the workflow action `actions/create-github-app-token` from 3.3.0 to 3.4.0. ([PR #46](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/46))
+
 ## [1.1.1] - 2026-11-23
 
 ### Changed
