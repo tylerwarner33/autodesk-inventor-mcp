@@ -6,6 +6,13 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [1.1.1] - 2026-11-23
+
+### Changed
+- Update the NuGet package `Meziantou.Analyzer` from 3.0.341 to 3.0.342. ([PR #47](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/47))
+- Update the NuGet package `Microsoft.Extensions.TimeProvider.Testing` from 10.11.0 to 10.11.1. ([PR #47](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/47))
+- Update the NuGet package `SonarAnalyzer.CSharp` from 10.36.0.15337 to 10.37.0.15768. ([PR #47](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/47))
+
 ## [1.1.0] - 2026-11-20
 
 ### Added
