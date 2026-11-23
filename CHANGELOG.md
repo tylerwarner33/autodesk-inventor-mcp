@@ -9,15 +9,15 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 ## [2.0.0] - 2026-11-23
 
 ### Breaking
-- The Inventor API facts moved out of the server's skills into Claude plugins, so they also work with other Inventor MCP servers, add-ins and plugins. The server no longer serves the skills `interop`, `modeling`, `drawings`, `ilogic` and `projects-and-files`. To keep the facts, install the plugins `inventor-api`, `inventor-ilogic` and `inventor-data` from the marketplace `tylerwarner-autodesk` ([tylerwarner33/autodesk-agent-skills](https://github.com/tylerwarner33/autodesk-agent-skills)):
+- The Inventor API facts moved out of the server's skills into Claude plugins, so they also work with other Inventor MCP servers, add-ins and plugins. The server no longer serves the skills `interop`, `modeling`, `drawings`, `ilogic` and `projects-and-files`. To keep the facts, install the plugins `inventor-api`, `inventor-ilogic` and `inventor-data` from the marketplace `tylerwarner-autodesk` ([tylerwarner33/autodesk-agent-skills](https://github.com/tylerwarner33/autodesk-agent-skills)): ([PR #48](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/48))
   - `claude plugin marketplace add tylerwarner33/autodesk-agent-skills`
   - `claude plugin install inventor-api@tylerwarner-autodesk`, and the same for `inventor-ilogic` and `inventor-data`.
 
 ### Added
-- The skills `snippets`, `verify-a-write`, `drawing-checks`, `ilogic-tools` and `file-tools`. They keep the steps with this server's tools from the moved skills: the snippet host and its helpers, the checks after a write, the drawing tools, the iLogic tools and dialogs, and the file tools.
+- The skills `snippets`, `verify-a-write`, `drawing-checks`, `ilogic-tools` and `file-tools`. They keep the steps with this server's tools from the moved skills: the snippet host and its helpers, the checks after a write, the drawing tools, the iLogic tools and dialogs, and the file tools. ([PR #48](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/48))
 
 ### Changed
-- The server instructions and the description of `inventor_eval_csharp` tell a model to read `snippets` before its first snippet, and `inventor-api-traps` when the client has the plugin.
+- The server instructions and the description of `inventor_eval_csharp` tell a model to read `snippets` before its first snippet, and `inventor-api-traps` when the client has the plugin. ([PR #48](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/48))
 
 ## [1.1.2] - 2026-11-23
 
