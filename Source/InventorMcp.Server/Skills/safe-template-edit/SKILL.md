@@ -24,7 +24,7 @@ A template edit that goes wrong can break every model made from it, so test on c
    again each time. Compare with the baseline.
 7. **Show the user.** Report what changed and the measurements. Ask before you change the masters.
 8. **Change the masters.** Make the same change on the masters, then open them visibly for the user to review.
-   Do not save a master that an older Inventor release must read without asking (see the `projects-and-files`
+   Do not save a master that an older Inventor release must read without asking (see the `file-tools`
    skill). Never check files in or out of Vault: the user does that.
 9. **Clean up.** Close the copies with `inventor_close_documents`. Tell the user where the copies are. Delete them
    only when the user agrees, and never check them into Vault.

@@ -15,14 +15,50 @@ public sealed partial class SkillCatalogTests
 {
 	private static readonly SkillCatalog _embedded = new();
 
+	/// <summary>
+	/// 	The skills of the plugins in the marketplace <c>tylerwarner-autodesk</c>, by name, with their plugin.
+	/// </summary>
+	/// <remarks>
+	/// 	The Inventor API facts live there, so a skill of this server can name them. They are not embedded, so a client
+	/// 	without the plugins does not have them.
+	/// 	See <c>.agents/rules/inventor-interop.md</c>, "Where the facts live".
+	/// </remarks>
+	private static readonly Dictionary<string, string> _pluginSkills = new(StringComparer.Ordinal)
+	{
+		["inventor-api-traps"] = "inventor-api",
+		["inventor-modeling"] = "inventor-api",
+		["inventor-drawings"] = "inventor-api",
+		["inventor-ilogic"] = "inventor-ilogic",
+		["inventor-projects-and-files"] = "inventor-data"
+	};
+
 	[Fact]
 	public void EveryPlannedSkillIsEmbedded() =>
 		Assert.Equal(
 			[
-				"drawings", "ilogic", "ilogic-rule-edit", "interop", "modeling", "plugin-loop-cycle", "probe-project-code",
-				"projects-and-files", "read-back-after-failed-write", "safe-template-edit", "split-long-work"
+				"drawing-checks", "file-tools", "ilogic-rule-edit", "ilogic-tools", "plugin-loop-cycle", "probe-project-code",
+				"read-back-after-failed-write", "safe-template-edit", "snippets", "split-long-work", "verify-a-write"
 			],
 			_embedded.Skills.Select(static skill => skill.Name));
+
+	[Fact]
+	public void NoEmbeddedSkillHasTheNameOfAPluginSkill() =>
+		Assert.DoesNotContain(_embedded.Skills, static skill => _pluginSkills.ContainsKey(skill.Name));
+
+	[Fact]
+	public void ASkillThatNamesAPluginSkillAlsoNamesItsPlugin()
+	{
+		foreach (SkillSummary skill in _embedded.Skills)
+		{
+			string text = _embedded.Read(skill.Name)!;
+
+			foreach (Match match in SkillReference().Matches(text))
+			{
+				if (_pluginSkills.TryGetValue(match.Groups["name"].Value, out string? plugin))
+					Assert.True(text.Contains($"`{plugin}` plugin", StringComparison.Ordinal), $"Skill '{skill.Name}' names the plugin skill '{match.Groups["name"].Value}', but not its plugin '{plugin}'.");
+			}
+		}
+	}
 
 	[Fact]
 	public void NamesAndDescriptionsKeepTheFormat()
@@ -55,7 +91,7 @@ public sealed partial class SkillCatalogTests
 	[Fact]
 	public void EverySkillThatASkillNamesExists()
 	{
-		HashSet<string> names = [.. _embedded.Skills.Select(static skill => skill.Name)];
+		HashSet<string> names = [.. _embedded.Skills.Select(static skill => skill.Name), .. _pluginSkills.Keys];
 
 		foreach (SkillSummary skill in _embedded.Skills)
 		{

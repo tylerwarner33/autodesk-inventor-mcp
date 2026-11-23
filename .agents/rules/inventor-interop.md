@@ -1,6 +1,6 @@
 ---
 name: Inventor Interop
-description: Non-obvious facts about the Inventor COM interop for the add-in code, the long snippet limit, and where the snippet facts live
+description: Non-obvious facts about the Inventor COM interop for the add-in code, the long snippet limit, and where the Inventor API facts and the snippet facts live
 triggers:
   - Editing add-in code under Source/InventorMcp.AddIn/Operations
   - Writing a snippet that reads or writes Parameters, UnitsOfMeasure, HealthStatus, ErrorManager, or transactions
@@ -9,17 +9,24 @@ globs:
   - "Source/InventorMcp.AddIn/**"
 ---
 
-## The snippet facts are in the server's skills
+## Where the facts live
 
-The API facts that a snippet needs apply to every model that uses the server, so they live in the skills that the
-server serves through `inventor_skill`. Read them before you write a snippet, and change them there:
+The Inventor API facts apply to any code that drives Inventor, not only to this server, so they live in the plugins of
+the [autodesk-agent-skills](https://github.com/tylerwarner33/autodesk-agent-skills) repository (marketplace
+`tylerwarner-autodesk`). Install the plugins, or read the files there, before you write a snippet. Change a fact
+there, with a pull request to that repository:
 
-- `Source/InventorMcp.Server/Skills/interop/SKILL.md`: members typed as `object`, non-numeric parameters, casts,
-  members that must be called as methods, names that collide with `System`, and the causes of E_FAIL and
-  E_INVALIDARG.
-- `Source/InventorMcp.Server/Skills/ilogic/SKILL.md`: iLogic through `dynamic`, triggers, `RulesEnabled`.
-- `Source/InventorMcp.Server/Skills/modeling/SKILL.md`: units and the document's `UnitsOfMeasure`.
-- `Source/InventorMcp.Server/Skills/drawings/SKILL.md` and `projects-and-files/SKILL.md`.
+- `inventor-api-traps` (plugin `inventor-api`): members typed as `object`, non-numeric parameters, casts, members that
+  must be called as methods, names that collide with `System`, and the causes of E_FAIL and E_INVALIDARG.
+- `inventor-modeling` (plugin `inventor-api`): units, named faces, extent direction, and how to verify a write.
+- `inventor-drawings` (plugin `inventor-api`): sheets, views, balloons, styles, and images.
+- `inventor-ilogic` (plugin `inventor-ilogic`): iLogic through `dynamic`, triggers, `RulesEnabled`.
+- `inventor-projects-and-files` (plugin `inventor-data`): projects, Vault, saved versions, model states, copies.
+
+The facts that belong to this server stay in the skills that it serves through `inventor_skill`
+(`Source/InventorMcp.Server/Skills/`): the snippet host and its helpers in `snippets`, and the tools for each topic in
+`verify-a-write`, `drawing-checks`, `ilogic-tools` and `file-tools`. A skill of this server names only the API facts
+that its steps need, and points to the plugin skill for the rest.
 
 This rule keeps what only this repository's code needs.
 
@@ -33,8 +40,8 @@ Fully qualify the `System` one inside the add-in.
 ### Some COM members cannot be C# properties
 
 When the COM getter and setter have different types, the language cannot form a property and the accessor must be
-called directly (ex. `parameter.get_Units()`). The compiler error names the accessor to use. The skill `interop`
-lists the known cases.
+called directly (ex. `parameter.get_Units()`). The compiler error names the accessor to use. The skill
+`inventor-api-traps` of the plugin `inventor-api` lists the known cases.
 
 ### Facts behind the add-in operations
 

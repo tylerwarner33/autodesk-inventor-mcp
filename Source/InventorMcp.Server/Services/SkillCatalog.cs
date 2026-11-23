@@ -134,7 +134,7 @@ internal sealed class SkillCatalog
 	/// 	The skill name.
 	/// </param>
 	/// <returns>
-	/// 	The URI, ex. <c>skill://inventor/interop/SKILL.md</c>.
+	/// 	The URI, ex. <c>skill://inventor/snippets/SKILL.md</c>.
 	/// </returns>
 	public static string SkillUri(string skill) => $"{UriPrefix}{skill}/{SkillFile}";
 

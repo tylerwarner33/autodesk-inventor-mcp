@@ -17,8 +17,10 @@ internal static partial class InventorTool
 		every member of the Inventor API, so use it for anything the other tools do not cover, such as creating sketches,
 		features, or geometry.
 
-		Before your first snippet, read the 'interop' skill: inventor_skill with action 'read' and name 'interop'. It
-		lists the API traps that make most snippets fail, ex. how to tell a text or boolean parameter from a numeric one.
+		Before your first snippet, read the 'snippets' skill: inventor_skill with action 'read' and name 'snippets'. It
+		gives the snippet host and its helpers. The Inventor API traps that make most snippets fail, ex. how to tell a
+		text or boolean parameter from a numeric one, are in the 'inventor-api-traps' skill of the 'inventor-api'
+		plugin. Read it too when your client has it.
 
 		The snippet is Roslyn script code, not a full class. 'Application' and 'Document' are already in scope, and
 		System, System.Collections.Generic, System.Linq and Inventor are imported. Call Log(...) to report progress,
