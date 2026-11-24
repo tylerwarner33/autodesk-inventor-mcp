@@ -123,7 +123,7 @@ internal sealed class TestConnection : IAsyncDisposable
 	/// <summary>
 	/// 	The ids of the requests whose cancel reached the fake add-in.
 	/// </summary>
-	public ConcurrentQueue<string> Cancelled { get; } = [];
+	public ConcurrentQueue<string> Canceled { get; } = [];
 
 	/// <summary>
 	/// 	The requests that arrived and were not read yet.
@@ -192,7 +192,7 @@ internal sealed class TestConnection : IAsyncDisposable
 
 		await using (cancellationToken.Register(() =>
 		{
-			Cancelled.Enqueue(id);
+			Canceled.Enqueue(id);
 			_ = answer.TrySetCanceled(cancellationToken);
 		}))
 		{

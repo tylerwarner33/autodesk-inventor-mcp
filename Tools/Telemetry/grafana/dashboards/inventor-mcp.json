@@ -464,7 +464,7 @@
 		{
 			"type": "table",
 			"title": "Skill reads and snippets, by session",
-			"description": "Each server process is one session (service.instance.id). Sort by the session, then by the start time, to see whether interop was read before the first inventor_eval_csharp.",
+			"description": "Each server process is one session (service.instance.id). Sort by the session, then by the start time. An inventor_skill row with no skill name is a list call: each session should have one, before its first task. Then see whether snippets was read before the first inventor_eval_csharp.",
 			"id": 13,
 			"datasource": {
 				"type": "tempo",
@@ -479,7 +479,7 @@
 			"targets": [
 				{
 					"queryType": "traceql",
-					"query": "{ resource.service.name = \"InventorMcp.Server\" && (span.inventor.skill.name != nil || span.gen_ai.tool.name = \"inventor_eval_csharp\") } | select(resource.service.instance.id, span.inventor.skill.name, span.gen_ai.tool.name)",
+					"query": "{ resource.service.name = \"InventorMcp.Server\" && (span.inventor.skill.name != nil || span.gen_ai.tool.name = \"inventor_skill\" || span.gen_ai.tool.name = \"inventor_eval_csharp\") } | select(resource.service.instance.id, span.inventor.skill.name, span.gen_ai.tool.name)",
 					"limit": 100,
 					"tableType": "traces",
 					"refId": "A",

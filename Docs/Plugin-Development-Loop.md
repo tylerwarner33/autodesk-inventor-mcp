@@ -52,7 +52,7 @@ with the loop's copy, but their log lines mix, so turn off "Load Automatically" 
 5. **Call.** For an instance method, the object is built with a constructor that takes only an `InventorServer`, an
 	`Application` or defaults. A plugin exception is reported with its own type and message.
 6. **Clean up.** The context is unloaded. The lines the plugin wrote to its log during the call, when a log is given,
-	are summarised. With `closeDocumentsUnder`, the documents the run opened there are closed, unless
+	are summarized. With `closeDocumentsUnder`, the documents the run opened there are closed, unless
 	`keepDocumentsOpen` is set.
 
 `closeDocumentsUnder` also protects your work: the call refuses to run while any document under that folder has
@@ -257,12 +257,12 @@ The reference plugin's balloon spacing went from 0.4 to 0.3 in this way.
 
 - the sheet, border and every view
 - every dimension's text box, and every parts list, custom table and title block
-- balloons grouped by the view their leader reaches, with the closest centre spacing and the group's extent
+- balloons grouped by the view their leader reaches, with the closest center spacing and the group's extent
 
 It flags as `ISSUE`: overlapping balloons, crossing leaders, a balloon or dimension overlapping another annotation or
 a table, and anything outside the border.
 
-A balloon has no range box in the API. Its centre is `Balloon.Position`. A style that scales to its text has no
+A balloon has no range box in the API. Its center is `Balloon.Position`. A style that scales to its text has no
 stored diameter, so it is estimated at 3 times the text height. That matched the rendered PDF for the reference
 plugin's style, 0.24 in circles on 0.08 in text. Pass `balloonDiameterInches` when another style needs a better value.
 

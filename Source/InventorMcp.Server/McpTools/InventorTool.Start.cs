@@ -136,7 +136,7 @@ internal static partial class InventorTool
 		if (TryReadChosenRelease(context.Params, out ElicitResult? answer))
 		{
 			if (answer.IsAccepted is false)
-				return new { status = "cancelled", message = "The user did not choose a release. Nothing was started." };
+				return new { status = "canceled", message = "The user did not choose a release. Nothing was started." };
 
 			if (ReadChosenYear(answer) is not int chosenYear || deployed.Find(candidate => candidate.Year == chosenYear) is not InventorRelease chosen)
 			{

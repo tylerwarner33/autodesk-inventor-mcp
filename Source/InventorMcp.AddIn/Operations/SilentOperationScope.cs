@@ -11,7 +11,7 @@ namespace InventorMcp.AddIn.Operations;
 /// 	every bridge request until a human clicks it.
 /// 	A style conflict or a locked design view representation is enough to trigger that.
 ///
-/// 	Inventor answers a suppressed dialog with its own default, which is a real behaviour change rather than a
+/// 	Inventor answers a suppressed dialog with its own default, which is a real behavior change rather than a
 /// 	cosmetic one. A dialog whose default is wrong for the document now takes that wrong default silently.
 /// 	So this is applied only around writes and executions, never around reads, and the previous value is always
 /// 	restored.

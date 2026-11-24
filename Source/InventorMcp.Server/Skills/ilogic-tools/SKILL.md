@@ -17,9 +17,12 @@ A rule runs again when a parameter that it uses changes, and one run can take mo
 - To change several parameters, use `inventor_set_parameters` with `suppressRules: true`, and `runRuleAfter` with the
   top level rule. The rules then run once.
 - `inventor_set_parameter` and `inventor_eval_csharp` also take `suppressRules`.
-- `RulesEnabled` is a setting of the whole Inventor session. The tools restore it in a `finally` block. If a result
-  says that the restore failed, tell the user, and restore it when Inventor answers. `inventor_session` gives
-  `iLogicRulesEnabled`.
+- With `suppressRules`, the result lists in `rulesNotRun` the active rules that did not run on the new values. Do not
+  report the work as done until you ran the rule that the workflow needs, or told the user that the rules did not run.
+- `RulesEnabled` is a setting of the whole Inventor session. The tools restore it after the call. If a dialog stops
+  the restore, the result says that the rules are still off, and the server turns them on before its next call to
+  Inventor: tell the user. `inventor_session` gives `iLogicRulesEnabled`.
+- iLogic `Parameter("Name")` uses the document's units, not centimeters. Write an expression with its unit.
 - The read tools of this server open files with the rules off. An on-open rule can still run when another tool opens a
   document: check `inventor_documents` before a retry.
 

@@ -142,8 +142,8 @@ document the same way").
 	(`AddWithOptions` and a full document name), the Content Center trap from the usage research, and
 	representations.
 2. Run each example in a live session before it is written. An example that was not run is a new trap.
-3. Add the skill name to the line in `ServerInstructions.md` that lists the skills, and to `SkillCatalogTests.cs`
-	if it lists the names.
+3. Add the skill name to `EveryPlannedSkillIsEmbedded` in `SkillCatalogTests.cs`. Do not add it to
+	`ServerInstructions.md`: the description in its `SKILL.md` says when to read it.
 
 ## Phases
 

@@ -21,7 +21,7 @@ internal static partial class InventorTool
 		UnitsOfMeasure __units = document.UnitsOfMeasure;
 		string LengthUnit() => __units.GetStringFromType(__units.LengthUnits);
 		// + 0.0 turns -0 into 0.
-		double Length(double centimetres) => Math.Round((double)__units.ConvertUnits(centimetres, UnitsTypeEnum.kCentimeterLengthUnits, __units.LengthUnits), 6) + 0.0;
+		double Length(double centimeters) => Math.Round((double)__units.ConvertUnits(centimeters, UnitsTypeEnum.kCentimeterLengthUnits, __units.LengthUnits), 6) + 0.0;
 
 		""";
 
@@ -287,7 +287,7 @@ internal static partial class InventorTool
 					Box range = face.Evaluator.RangeBox;
 					double[] middle = { (range.MinPoint.X + range.MaxPoint.X) / 2, (range.MinPoint.Y + range.MaxPoint.Y) / 2, (range.MinPoint.Z + range.MaxPoint.Z) / 2 };
 					double t = (middle[0] - origin[0]) * axis[0] + (middle[1] - origin[1]) * axis[1] + (middle[2] - origin[2]) * axis[2];
-					double[] centre = { origin[0] + t * axis[0], origin[1] + t * axis[1], origin[2] + t * axis[2] };
+					double[] center = { origin[0] + t * axis[0], origin[1] + t * axis[1], origin[2] + t * axis[2] };
 
 					int same = holes.FindIndex(hole =>
 					{
@@ -296,7 +296,7 @@ internal static partial class InventorTool
 						double dot = Math.Abs(hole.Axis[0] * axis[0] + hole.Axis[1] * axis[1] + hole.Axis[2] * axis[2]);
 						if (dot < 1 - 1e-6)
 							return false;
-						double[] d = { centre[0] - hole.Point[0], centre[1] - hole.Point[1], centre[2] - hole.Point[2] };
+						double[] d = { center[0] - hole.Point[0], center[1] - hole.Point[1], center[2] - hole.Point[2] };
 						double lengthAlong = d[0] * axis[0] + d[1] * axis[1] + d[2] * axis[2];
 						double off = Math.Sqrt(Math.Max(0, d[0] * d[0] + d[1] * d[1] + d[2] * d[2] - lengthAlong * lengthAlong));
 						return off < tolerance;
@@ -306,7 +306,7 @@ internal static partial class InventorTool
 					if (same >= 0)
 						holes[same] = (holes[same].Radius, holes[same].Axis, holes[same].Point, holes[same].Faces + 1, holes[same].Sweep + sweep);
 					else
-						holes.Add((cylinder.Radius, axis, centre, 1, sweep));
+						holes.Add((cylinder.Radius, axis, center, 1, sweep));
 				}
 			}
 

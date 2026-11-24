@@ -4,7 +4,7 @@ namespace InventorMcp.Contracts.Models;
 /// 	One Inventor parameter, reported in both internal and display form.
 /// </summary>
 /// <remarks>
-/// 	Inventor stores every length in centimetres and every angle in radians, whatever the document displays.
+/// 	Inventor stores every length in centimeters and every angle in radians, whatever the document displays.
 /// 	Both forms are returned so a caller never has to guess which one it received.
 /// </remarks>
 /// <param name="Name">
@@ -22,7 +22,7 @@ namespace InventorMcp.Contracts.Models;
 /// 	A text parameter's expression is returned with its surrounding quotation marks removed.
 /// </param>
 /// <param name="InternalValue">
-/// 	The stored value in Inventor internal units: centimetres for length, radians for angle.
+/// 	The stored value in Inventor internal units: centimeters for length, radians for angle.
 /// 	Null for a text or boolean parameter, which has no numeric value.
 /// </param>
 /// <param name="DisplayValue">

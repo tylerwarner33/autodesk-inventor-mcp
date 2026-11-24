@@ -125,6 +125,21 @@ public sealed class ParameterWriteTests
 		Assert.Equal(failure.GetRawText(), JsonSerializer.SerializeToElement(InventorTool.ShapeSingleParameter(failure)).GetRawText());
 	}
 
+	[Fact]
+	public void AWriteWithSuppressRulesNamesTheRulesThatDidNotRun()
+	{
+		string snippet = Compose(suppressRules: true, runRuleAfter: "Top");
+
+		int restore = snippet.IndexOf("automation!.RulesEnabled = previous;", StringComparison.Ordinal);
+		int list = snippet.IndexOf("ILogicRuleNames(document)", StringComparison.Ordinal);
+
+		// The list is read after the restore, and leaves out the rule that ran after the writes.
+		Assert.InRange(list, restore + 1, int.MaxValue);
+		Assert.Contains("rule.IsActive && rule.Name != ruleAfter", snippet, StringComparison.Ordinal);
+		Assert.Contains("summary[\"rulesNotRun\"] = rulesNotRun;", snippet, StringComparison.Ordinal);
+		Assert.Contains(CSharpLiteral.String(InventorTool.RulesNotRunNote), snippet, StringComparison.Ordinal);
+	}
+
 	private static string Compose(bool suppressRules = false, string? runRuleAfter = null) =>
 		ParameterSnippet(new Dictionary<string, string>(StringComparer.Ordinal) { ["Width"] = "50 mm" }, suppressRules, runRuleAfter);
 

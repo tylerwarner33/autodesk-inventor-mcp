@@ -50,7 +50,7 @@ called directly (ex. `parameter.get_Units()`). The compiler error names the acce
 - `ErrorManager` exposes no entry collection. It offers `AllMessages` as one text blob plus `HasErrors` and
 	`HasWarnings`, so there is no genuine per entry severity.
 	So `inventor_health` reports which features are sick, but not why.
-- `Transaction.DisplayName` carries the command name behind each modelling operation, which is what makes the
+- `Transaction.DisplayName` carries the command name behind each modeling operation, which is what makes the
 	activity feed readable.
 - `PartFeature` carries no failure text, only `HealthStatus`. The server adds an explanation for a status whose
 	cause is measured (`AddHealthHints`), so far only `DriverLost`.

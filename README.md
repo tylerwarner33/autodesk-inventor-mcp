@@ -123,7 +123,7 @@ Both setups need the Inventor add-in installed for each release in use. See "Ins
 
 No team feed and no release pipeline exist yet. The "Using the server" examples show where the team feed goes.
 `<team feed>` is its path or URL, ex. `\\server\share\InventorMcp` or
-`https://pkgs.dev.azure.com/<organisation>/_packaging/<feed>/nuget/v3/index.json`. A feed that needs a sign-in also
+`https://pkgs.dev.azure.com/<organization>/_packaging/<feed>/nuget/v3/index.json`. A feed that needs a sign-in also
 needs a NuGet credential provider on each machine.
 Write a UNC path with doubled backslashes inside JSON, ex. `\\\\server\\share\\InventorMcp`.
 
@@ -290,7 +290,7 @@ if it does not exist. Keep any servers already in it.
 - Trust the server when asked, then turn its tools on in the tools picker. Visual Studio adds them turned off.
 - After a server change, restart the server from the CodeLens in `%USERPROFILE%\.mcp.json`.
 - From 18.7, Visual Studio asks for trust again when the server's instructions or tools change.
-- If the tools picker shows no MCP servers, check the organisation policy "MCP servers in Copilot" first.
+- If the tools picker shows no MCP servers, check the organization policy "MCP servers in Copilot" first.
 - The log is in `%TEMP%\VSGitHubCopilotLogs\`. A failed start there quotes the server's stderr.
 
 </details>
@@ -382,7 +382,7 @@ with `DOTNET_NOLOGO=1` and `DOTNET_CLI_TELEMETRY_OPTOUT=1` in the environment.
 - `--yes` removes a confirmation prompt that nobody can answer, because the client owns stdin.
 - `DOTNET_NOLOGO` stops the first run banner, which `dotnet` writes to stdout and which would corrupt the protocol.
 
-The server sends the modelling rules (named faces, units, extent direction, health checks, call length) in its
+The server sends the modeling rules (named faces, units, extent direction, health checks, call length) in its
 `initialize` response, so every client gets them. The text is `Source/InventorMcp.Server/ServerInstructions.md`.
 
 </details>
@@ -577,7 +577,7 @@ server's own snippet in Inventor, and the server still answers the dialogs that 
 
 ### Units and parameter kinds
 
-Inventor stores every length in centimetres and every angle in radians, whatever a document displays.
+Inventor stores every length in centimeters and every angle in radians, whatever a document displays.
 Parameter results therefore carry `internalValue` in those units alongside `expression` and `displayValue`.
 
 Not every parameter is numeric.
@@ -647,7 +647,7 @@ A modal dialog owns Inventor's message pump, and the bridge posts its work to th
 So an unanswered dialog stalls every tool except `inventor_activity`, which reads plain managed memory.
 
 Write operations therefore run with `SilentOperation` set, and restore the previous value afterwards.
-Inventor answers a suppressed dialog with its own default, which is a real behaviour change, so reads never suppress anything.
+Inventor answers a suppressed dialog with its own default, which is a real behavior change, so reads never suppress anything.
 
 `SilentOperation` does not stop every dialog (ex. the iLogic error dialog). So the server watches from outside
 Inventor's process while a call waits. After 3 s, and then every 2 s, it checks whether the Inventor main window is
@@ -809,7 +809,7 @@ The interop has to resolve from Inventor itself, while the add-in's own packages
 | `Docs/Research/` | Maintainers: findings and measurements that tasks and decisions come from. Kept after the task is done. |
 | `Docs/Tasks/` | Outstanding work, one document per item. Absent when nothing is outstanding. |
 | `AGENTS.md` | Coding agents (ex. Claude Code, Copilot in Visual Studio Code): the working principles, and an index of the rules to open on demand |
-| `.agents/rules/` | Coding agents: the Inventor behaviours and repository rules, one topic per file |
+| `.agents/rules/` | Coding agents: the Inventor behaviors and repository rules, one topic per file |
 
 The specifications that the server uses:
 

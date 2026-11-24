@@ -230,7 +230,7 @@ internal sealed class BridgeServer(OperationDispatcher dispatcher, Action<string
 
 		try
 		{
-			// Not _shutdown.Token: it is already cancelled, and the loop still gets its time to end.
+			// Not _shutdown.Token: it is already canceled, and the loop still gets its time to end.
 			_ = _acceptLoop?.Wait(TimeSpan.FromSeconds(2), CancellationToken.None);
 		}
 		catch (AggregateException)

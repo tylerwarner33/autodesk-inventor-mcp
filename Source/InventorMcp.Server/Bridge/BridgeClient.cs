@@ -27,7 +27,7 @@ namespace InventorMcp.Server.Bridge;
 /// 	Requests that use Inventor's main thread go one at a time.
 /// 	Everything they reach lands on that single thread anyway, so overlapping them would only queue deeper.
 /// 	The add-in also runs the requests of one connection one at a time, because a cancel frees this gate before the
-/// 	cancelled request ends in the add-in. <see cref="BridgeOperations.RunsWithoutMainThread"/> skips both.
+/// 	canceled request ends in the add-in. <see cref="BridgeOperations.RunsWithoutMainThread"/> skips both.
 /// 	The SDK matches each response to its request by id, so a wait that stops early (ex. on a blocking dialog) leaves
 /// 	nothing behind for the next call.
 /// </remarks>
@@ -223,6 +223,37 @@ internal sealed partial class BridgeClient(
 	private McpClient? _client;
 
 	/// <summary>
+	/// 	The Inventor process whose iLogic rules a call turned off and could not turn back on, or 0 for none.
+	/// </summary>
+	private int _owedRulesRestoreProcess;
+
+	/// <summary>
+	/// 	The snippet that turns the iLogic rules on and returns <c>{"rulesEnabled": true}</c>.
+	/// </summary>
+	internal const string RestoreILogicRulesSnippet =
+		"dynamic automation = ILogicAutomation(); automation.RulesEnabled = true; " +
+		"return System.Text.Json.JsonSerializer.Serialize(new { rulesEnabled = (bool)automation.RulesEnabled });";
+
+	/// <summary>
+	/// 	True while the bridge owes a restore of the iLogic rules.
+	/// </summary>
+	internal bool OwesILogicRulesRestore => Volatile.Read(ref _owedRulesRestoreProcess) != 0;
+
+	/// <summary>
+	/// 	Makes the next call that uses the main thread turn the iLogic rules on first.
+	/// </summary>
+	/// <remarks>
+	/// 	For a call that turned the rules off and was stopped before it could turn them on, ex. by a dialog that blocks
+	/// 	Inventor. The rules are a setting of the whole session, so without this a person's later edits run no rule.
+	/// 	The restore goes only to the same Inventor process.
+	/// </remarks>
+	internal void OweILogicRulesRestore()
+	{
+		if (InventorProcessId is int processId)
+			Volatile.Write(ref _owedRulesRestoreProcess, processId);
+	}
+
+	/// <summary>
 	/// 	Sends one operation and returns its typed result.
 	/// </summary>
 	/// <typeparam name="TResult">
@@ -238,7 +269,7 @@ internal sealed partial class BridgeClient(
 	/// 	Cancels the call.
 	/// </param>
 	/// <returns>
-	/// 	The deserialised result.
+	/// 	The deserialized result.
 	/// </returns>
 	/// <exception cref="InventorBridgeException">
 	/// 	The add-in reported a failure, or a dialog that needs a person blocks Inventor
@@ -267,6 +298,9 @@ internal sealed partial class BridgeClient(
 
 		try
 		{
+			if (usesMainThread && OwesILogicRulesRestore)
+				await RunOwedILogicRulesRestoreAsync(cancellationToken).ConfigureAwait(false);
+
 			// A dropped pipe surfaces only on use, so one reconnect and retry is expected rather than exceptional.
 			TResult result;
 
@@ -313,6 +347,49 @@ internal sealed partial class BridgeClient(
 
 			if (usesMainThread)
 				_ = _gate.Release();
+		}
+	}
+
+	/// <summary>
+	/// 	Turns the iLogic rules on before a call, after <see cref="OweILogicRulesRestore"/>.
+	/// </summary>
+	/// <remarks>
+	/// 	Runs inside the gate of the call. A dialog that still blocks Inventor stops it with no request sent, and the call
+	/// 	then reports that dialog itself, so a failure here is not reported. The restore is tried again before the next call.
+	/// </remarks>
+	private async Task RunOwedILogicRulesRestoreAsync(CancellationToken cancellationToken)
+	{
+		int owed = Volatile.Read(ref _owedRulesRestoreProcess);
+
+		try
+		{
+			_ = await EnsureConnectedAsync(retrying: false, cancellationToken).ConfigureAwait(false);
+
+			if (InventorProcessId != owed)
+			{
+				// Another Inventor: its rules were never turned off by this server.
+				Volatile.Write(ref _owedRulesRestoreProcess, 0);
+				LogILogicRulesRestoreDropped(InventorProcessId, owed);
+
+				return;
+			}
+
+			Contracts.Models.ExecutionResult restored = await SendAsync<Contracts.Models.ExecutionResult>(
+				BridgeOperations.EvalCSharp,
+				new ExecuteRequest(ScriptPrelude.Apply(RestoreILogicRulesSnippet), AllowUnsavedChanges: true, ClientName: ClientName),
+				usesMainThread: true,
+				retrying: false,
+				cancellationToken).ConfigureAwait(false);
+
+			if (restored.Succeeded)
+			{
+				Volatile.Write(ref _owedRulesRestoreProcess, 0);
+				LogILogicRulesRestored(owed);
+			}
+		}
+		catch (Exception exception) when (exception is InventorBridgeException or IOException)
+		{
+			// Still blocked or not reachable. The call that follows meets the same state and reports it.
 		}
 	}
 
@@ -539,7 +616,7 @@ internal sealed partial class BridgeClient(
 			throw new InventorBridgeException(
 				BridgeErrorCodes.BlockedByDialog,
 				"Inventor is blocked: its main window is disabled, but it has no dialog with a title. A window of a " +
-				"different process (ex. Vault or a licence service) can cause this. Ask the user to look at the screen.");
+				"different process (ex. Vault or a license service) can cause this. Ask the user to look at the screen.");
 		}
 
 		DialogSettings settings = _dialogSettings();
