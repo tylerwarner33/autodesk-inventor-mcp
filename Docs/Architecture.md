@@ -371,7 +371,7 @@ knowledge has a different context cost:
 
 | Place | Loaded | Holds |
 | --- | --- | --- |
-| `ServerInstructions.md` | In every session, by every client | Only rules whose violation gives a wrong model or a lost session, and one line that names the skills |
+| `ServerInstructions.md` | In every session, by every client | Only rules whose violation gives a wrong model or a lost session, and one line that sends the model to `inventor_skill` `list` |
 | A tool description | Claude Code loads a tool schema only when the tool is needed | A trap of that one tool, and the name of its skill |
 | A skill | Only when the model reads it | Everything else |
 
@@ -404,6 +404,20 @@ snippets. With the instruction and a tool description that named the skill, it r
 Claude Desktop (Opus 5.5) also read `interop` from the tool description. Visual Studio (Copilot, Sonnet 5) gave the
 correct answer with no visible skill read. See `Research/Usage-Findings-And-Knowledge-Delivery.md`, "Checks of the
 skill delivery".
+
+The instructions name no skill. They tell a model to call `inventor_skill` with `list` one time, before its first
+task, and to read the skills whose description fits each task. The description in each `SKILL.md` is then the only
+text that says when to read a skill. Before, the instructions also had a short trigger for each skill, which drifted
+from the descriptions: 4 of the 11 skills had a trigger in their description that the instructions did not have (ex.
+read `read-back-after-failed-write` after a failed write). A copy in the instructions also costs context in every
+session, and the `list` result costs it only in a session that uses the skills. `SkillCatalogTests` fails when the
+instructions name a skill.
+
+The plugin skills are in the `list` result too (`pluginSkills`, from `InventorTool.PluginSkills`), not in the
+instructions. The client loads them itself, and a model needs the pointer only when it works with the server skills.
+
+This line is an instruction to call a tool, not a list of names, so the measurement above does not cover it. Check it
+with the steps in `Telemetry.md`, "Check that a model lists the skills one time".
 
 ### The Inventor API facts live in plugins, and the server keeps its own steps
 
