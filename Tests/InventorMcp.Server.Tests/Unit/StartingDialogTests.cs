@@ -86,5 +86,32 @@ public sealed class StartingDialogTests
 		Assert.Equal(0, bridge.Dialogs.DetectCalls);
 	}
 
+	/// <summary>
+	/// 	A new instance that inventor_start started next to another Inventor of the release is the one examined.
+	/// </summary>
+	[Fact]
+	public async Task ChosenProcessAmongSeveralIsExamined()
+	{
+		await using TestBridge bridge = new(running: [Running(4242), Running(4343)]);
+		bridge.Dialogs.Dialogs = [_logIn];
+		bridge.Selection.ChooseProcess(2025, 4343);
+
+		BlockState? state = await bridge.Client.GetStartingBlockStateAsync(TestContext.Current.CancellationToken);
+
+		Assert.Equal(4343, state?.ProcessId);
+	}
+
+	[Fact]
+	public async Task ChosenProcessThatDoesNotRunIsNotExamined()
+	{
+		await using TestBridge bridge = new(running: [Running(4242)]);
+		bridge.Dialogs.Dialogs = [_logIn];
+		bridge.Selection.ChooseProcess(2025, 4343);
+
+		// The one Inventor that runs is not the chosen one, so it is not examined in its place.
+		Assert.Null(await bridge.Client.GetStartingBlockStateAsync(TestContext.Current.CancellationToken));
+		Assert.Equal(0, bridge.Dialogs.DetectCalls);
+	}
+
 	private static RunningInventor Running(int processId) => new(processId, null, null, HasMainWindow: true, ReleaseYear: 2025);
 }

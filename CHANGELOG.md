@@ -6,6 +6,18 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [2.2.0] - 2026-11-24
+
+### Added
+- `inventor_start` takes `newInstance`, which starts one more Inventor process of a release that already runs (ex. a second Inventor 2026). The session then uses the new process only. The Inventor processes that already run, and the sessions that use them, do not change. ([PR #51](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/51))
+
+### Changed
+- `inventor_start` is no longer marked idempotent, because a call with `newInstance` starts one more Inventor each time. ([PR #51](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/51))
+- While a session waits for an Inventor process that it chose, and more than one Inventor of the release runs, `inventor_start` and `inventor_session` with `waitSeconds` now find a dialog that holds that process at start (ex. the Vault "Log In"). ([PR #51](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/51))
+
+### Fixed
+- When the Inventor process that a session chose has no bridge, the result now tells if the process still loads or has closed. For a closed process, it lists the Inventor processes that host the bridge, so the model can call `inventor_use_release` at once. Before, it told the model to call `inventor_session`, which returned the same result and no list. ([PR #51](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/51))
+
 ## [2.1.1] - 2026-11-24
 
 ### Changed

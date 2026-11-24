@@ -10,7 +10,7 @@ What each tool does, how code execution is bounded, and how to limit what a mode
 | Tool | Purpose |
 | --- | --- |
 | `inventor_session` | Is Inventor reachable, which version, which document is active, the active project, and which open documents are modifiable. `waitSeconds` waits for an Inventor that is still starting |
-| `inventor_start` | Start an Inventor release when its bridge is not running, asking which release when several can, and use it |
+| `inventor_start` | Start an Inventor release when its bridge is not running, asking which release when several can, and use it. `newInstance` starts one more process of a release that runs |
 | `inventor_use_release` | Choose the Inventor release this session talks to, with no restart of the server |
 | `inventor_documents` | Every open document with path, type, and unsaved state |
 | `inventor_close_documents` | Close the open documents under a folder, drawings first, and never one outside it |

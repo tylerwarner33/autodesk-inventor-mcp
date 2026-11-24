@@ -39,7 +39,7 @@ internal static partial class InventorTool
 	/// </summary>
 	private static readonly TimeSpan _startPollInterval = TimeSpan.FromSeconds(2);
 
-	[McpServerTool(Name = "inventor_start", Title = "Start Inventor", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
+	[McpServerTool(Name = "inventor_start", Title = "Start Inventor", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
 	[Description("""
 		Starts one Autodesk Inventor release when its bridge is not running, and waits for the bridge add-in to load.
 		Several releases can run at the same time, each with its own bridge. This session then uses the release it
@@ -54,6 +54,10 @@ internal static partial class InventorTool
 		the user is asked to choose. When the client cannot ask, the result is version-required with the release names:
 		ask the user, then call again with version.
 
+		Set newInstance only when the user asks for one more Inventor of a release that already runs (ex. a second
+		Inventor 2026). It always starts a new process, and this session then uses that process only. The Inventor
+		processes that already run, and the sessions that use them, do not change.
+
 		On success, call inventor_session to confirm the session. Inventor can still be at a sign-in or recovery dialog.
 		On still-starting or inventor-starting-or-no-bridge, wait with inventor_session and waitSeconds. On
 		waiting-for-user, a dialog holds the start (ex. a Vault sign-in): tell the user, never answer it for them, and
@@ -66,56 +70,15 @@ internal static partial class InventorTool
 		RequestContext<CallToolRequestParams> context,
 		IProgress<ProgressNotificationValue> progress,
 		[Description("Release year to start, ex. 2025. Omit to start the release this session uses, or the only release with the add-in deployed, or to let the user choose.")] int? version = null,
+		[Description("True to start one more Inventor process even when the release already runs. Only when the user asks for it. Default false.")] bool newInstance = false,
 		CancellationToken cancellationToken = default)
 	{
 		// A release that is named, or already chosen, is the one that this call is about.
 		int? requested = version ?? selection.Chosen;
 
-		// A retry after the form runs every check again, because the state can change while the form is open.
-		if (requested is int requestedYear)
-		{
-			// Only the pipe of that release counts. A different release that runs is not "already running".
-			if (selection.RunningReleases().Contains(requestedYear))
-			{
-				selection.Choose(requestedYear);
-
-				try
-				{
-					return await AlreadyRunningAsync(bridge, cancellationToken).ConfigureAwait(false);
-				}
-				catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
-				{
-					// The release stopped since the pipe check, so it is started below.
-				}
-				catch (InventorBridgeException exception)
-				{
-					return new { error = exception.Code, message = exception.Message, detail = exception.Detail };
-				}
-			}
-		}
-		else
-		{
-			try
-			{
-				return await AlreadyRunningAsync(bridge, cancellationToken).ConfigureAwait(false);
-			}
-			catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
-			{
-				// No session runs, so one is started below.
-			}
-			catch (InventorBridgeException exception)
-			{
-				// Any other failure came from a session that is running, so starting a second Inventor cannot help.
-				return new
-				{
-					error = exception.Code,
-					message = exception.Code == BridgeErrorCodes.ReleaseRequired
-						? exception.Message + " To start a release that is not running, call inventor_start with version."
-						: exception.Message,
-					detail = exception.Detail
-				};
-			}
-		}
+		// A new instance skips this check, because one more process of a release that runs is what the user asked for.
+		if (newInstance is false && await ReportRunningBridgeAsync(bridge, selection, requested, cancellationToken).ConfigureAwait(false) is object bridgeRuns)
+			return bridgeRuns;
 
 		IReadOnlyList<InventorRelease> installed = installations.FindInstalled();
 
@@ -196,18 +159,22 @@ internal static partial class InventorTool
 		// Only a process of the target release can be the one that is still starting, or that has no bridge.
 		IReadOnlyList<RunningInventor> running = InventorInstallations.FindRunning(release.Year);
 
-		if (running.Count > 0)
+		if (running.Count > 0 && newInstance is false)
 		{
 			return new
 			{
 				error = "inventor-starting-or-no-bridge",
 				message = $"{release.DisplayName} is running, but it does not host the MCP bridge. Either it is still starting, " +
 					"or the add-in did not load. Nothing was started, because a second Inventor of the same release is seldom what the user wants. It would get its own bridge." +
+					" When the user asks for one more Inventor of this release, call inventor_start with newInstance." +
 					" A different release can be started with version. A process with no main window is a hidden " +
 					$"instance, ex. one started through COM. See the logs in %LOCALAPPDATA%\\InventorMcp\\{release.Year}.",
 				processes = running
 			};
 		}
+
+		// The processes that ran before the start. They are never the new instance, and the session never moves to one.
+		HashSet<int> existing = newInstance ? [.. running.Select(static inventor => inventor.ProcessId)] : [];
 
 		DetachedProcess process;
 
@@ -226,11 +193,73 @@ internal static partial class InventorTool
 		}
 
 		// The session uses the release that it started, so the wait and every later call reach its pipe only.
-		selection.Choose(release.Year);
+		// A new instance locks the session to its process at once, so the wait never takes the pipe of an Inventor that
+		// ran before.
+		if (newInstance)
+			selection.ChooseProcess(release.Year, process.Id);
+		else
+			selection.Choose(release.Year);
 
 		using (process)
 		{
-			return await WaitForBridgeAsync(bridge, release, process, progress, cancellationToken).ConfigureAwait(false);
+			return await WaitForBridgeAsync(bridge, selection, release, process, newInstance ? existing : null, progress, cancellationToken).ConfigureAwait(false);
+		}
+	}
+
+	/// <summary>
+	/// 	Reports the bridge of the release that this call is about, when one runs, so that nothing starts.
+	/// </summary>
+	/// <remarks>
+	/// 	A retry after the form runs this check again, because the state can change while the form is open.
+	/// </remarks>
+	/// <returns>
+	/// 	The result of the call, or null when the release must start.
+	/// </returns>
+	private static async Task<object?> ReportRunningBridgeAsync(BridgeClient bridge, ReleaseSelection selection, int? requested, CancellationToken cancellationToken)
+	{
+		if (requested is int requestedYear)
+		{
+			// Only the pipe of that release counts. A different release that runs is not "already running".
+			if (selection.RunningReleases().Contains(requestedYear) is false)
+				return null;
+
+			selection.Choose(requestedYear);
+
+			try
+			{
+				return await AlreadyRunningAsync(bridge, cancellationToken).ConfigureAwait(false);
+			}
+			catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
+			{
+				// The release stopped since the pipe check, so it is started.
+				return null;
+			}
+			catch (InventorBridgeException exception)
+			{
+				return new { error = exception.Code, message = exception.Message, detail = exception.Detail };
+			}
+		}
+
+		try
+		{
+			return await AlreadyRunningAsync(bridge, cancellationToken).ConfigureAwait(false);
+		}
+		catch (InventorBridgeException exception) when (exception.Code == BridgeErrorCodes.NotRunning)
+		{
+			// No session runs, so one is started.
+			return null;
+		}
+		catch (InventorBridgeException exception)
+		{
+			// Any other failure came from a session that is running, so starting a second Inventor cannot help.
+			return new
+			{
+				error = exception.Code,
+				message = exception.Code == BridgeErrorCodes.ReleaseRequired
+					? exception.Message + " To start a release that is not running, call inventor_start with version."
+					: exception.Message,
+				detail = exception.Detail
+			};
 		}
 	}
 
@@ -252,10 +281,18 @@ internal static partial class InventorTool
 		};
 	}
 
+	/// <summary>
+	/// 	Waits for the started Inventor to host the bridge, and reports the result.
+	/// </summary>
+	/// <param name="existing">
+	/// 	For a new instance, the Inventor processes of the release that ran before the start, else null.
+	/// </param>
 	private static async Task<object> WaitForBridgeAsync(
 		BridgeClient bridge,
+		ReleaseSelection selection,
 		InventorRelease release,
 		DetachedProcess process,
+		IReadOnlySet<int>? existing,
 		IProgress<ProgressNotificationValue> progress,
 		CancellationToken cancellationToken)
 	{
@@ -263,6 +300,13 @@ internal static partial class InventorTool
 
 		while (true)
 		{
+			// A launcher can hand the start over to a different process. The session then follows the one new process.
+			if (existing is not null && selection.ChosenProcessId == process.Id && process.HasExited
+				&& NewInventorProcesses(release.Year, existing) is [int handedOver])
+			{
+				selection.ChooseProcess(release.Year, handedOver);
+			}
+
 			progress.Report(new ProgressNotificationValue
 			{
 				Progress = (float)stopwatch.Elapsed.TotalSeconds,
@@ -283,14 +327,20 @@ internal static partial class InventorTool
 				return new { error = exception.Code, message = exception.Message, detail = exception.Detail };
 			}
 
+			int processId = existing is not null && selection.ChosenProcessId is int chosen ? chosen : process.Id;
+
 			if (answered)
 			{
 				return new
 				{
 					status = "started",
 					release = release.DisplayName,
-					processId = process.Id,
-					message = "Inventor started and the MCP bridge add-in answered. Call inventor_session to confirm the session. " +
+					processId,
+					newInstance = existing is not null,
+					message = (existing is not null
+						? $"A new Inventor process {processId} started next to the Inventor processes that ran, and this session uses it only. "
+						: string.Empty) +
+						"Inventor started and the MCP bridge add-in answered. Call inventor_session to confirm the session. " +
 						"Inventor can still be finishing its start, or waiting for the user at a sign-in or recovery dialog."
 				};
 			}
@@ -302,7 +352,7 @@ internal static partial class InventorTool
 				{
 					status = "waiting-for-user",
 					release = release.DisplayName,
-					processId = process.Id,
+					processId,
 					message = $"{release.DisplayName} is running, but a dialog waits for the user before the MCP bridge add-in can " +
 						"load. Tell the user, and never answer the dialog for them. Then call inventor_session with waitSeconds. " +
 						"Do not call inventor_start again.",
@@ -312,8 +362,8 @@ internal static partial class InventorTool
 			}
 
 			// A launcher that hands over to another Inventor process would look like an exit, so only an exit with no
-			// Inventor left is a failure.
-			if (process.HasExited && InventorInstallations.FindRunning(release.Year).Count == 0)
+			// Inventor left is a failure. For a new instance, an Inventor that ran before the start does not count.
+			if (process.HasExited && NewInventorProcesses(release.Year, existing).Length == 0)
 			{
 				return new
 				{
@@ -330,7 +380,7 @@ internal static partial class InventorTool
 				{
 					status = "still-starting",
 					release = release.DisplayName,
-					processId = process.Id,
+					processId,
 					message = $"{release.DisplayName} is running, but the MCP bridge did not answer within " +
 						$"{_startWaitLimit.TotalSeconds:0} s. Inventor may be waiting for the user at a sign-in or recovery dialog. " +
 						"Call inventor_session with waitSeconds to wait longer. Do not call inventor_start again."
@@ -340,6 +390,23 @@ internal static partial class InventorTool
 			await Task.Delay(_startPollInterval, cancellationToken).ConfigureAwait(false);
 		}
 	}
+
+	/// <summary>
+	/// 	Lists the Inventor processes of the release that did not run before the start.
+	/// </summary>
+	/// <param name="releaseYear">
+	/// 	The release that was started.
+	/// </param>
+	/// <param name="existing">
+	/// 	The processes that ran before the start, or null to count every process.
+	/// </param>
+	/// <returns>
+	/// 	The process ids.
+	/// </returns>
+	private static int[] NewInventorProcesses(int releaseYear, IReadOnlySet<int>? existing) =>
+		[.. InventorInstallations.FindRunning(releaseYear)
+			.Select(static inventor => inventor.ProcessId)
+			.Where(processId => existing?.Contains(processId) is not true)];
 
 	/// <summary>
 	/// 	True when the client can show a form for this request.
