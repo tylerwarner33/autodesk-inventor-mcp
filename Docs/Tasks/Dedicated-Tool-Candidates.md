@@ -94,7 +94,7 @@ document the same way").
 	with the index from the result.
 5. Tests: a unit test that the composed snippet has each argument as a C# literal. A `Live` test: select a face
 	with `SelectSet.Select`, call the tool, and check the type.
-6. Add the row to the tool table in `README.md`. `ToolPipelineTests.ToolListIsTheSameAsTheSnapshot`
+6. Add the row to the tool table in `Docs/Tools.md`. `ToolPipelineTests.ToolListIsTheSameAsTheSnapshot`
 	covers the hints.
 
 ## Plan for `inventor_save`
@@ -159,5 +159,5 @@ Each is one pull request with an `Added` entry in `CHANGELOG.md` (a minor versio
 
 ## When the plan is done
 
-- Update the tool table in `README.md`.
+- Update the tool table in `Docs/Tools.md`.
 - Delete this document.

@@ -6,6 +6,11 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
+## [2.0.2] - 2026-11-24
+
+### Changed
+- The README is now a quick start. The client setup, the tool list, the dialog settings, the release handling and the development notes moved to their own pages in `Docs/`, and the README links to each one.
+
 ## [2.0.0] - 2026-11-23
 
 ### Breaking

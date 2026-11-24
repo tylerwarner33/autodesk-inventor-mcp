@@ -41,7 +41,7 @@ graph LR
 
 ## Telemetry and the logs
 
-Telemetry does not replace the logs, and it does not change them. Every log file in `README.md`, "Logs", is written
+Telemetry does not replace the logs, and it does not change them. Every log file in `Docs/Setup-and-Usage-Guide.md`, "Logs", is written
 with or without telemetry. Telemetry has one effect on the logs: with it on, each line of `server-<date>.log` that is
 written during a tool call ends with the trace ID, so a line leads to its trace in Tempo.
 
@@ -79,8 +79,8 @@ endpoint is needed.
 
 The server reads the variables when it starts, so reconnect the client after a change.
 
-Add the endpoint to the `env` of the server's entry in each MCP client, after the values in `README.md`, "Connecting a
-client". Then reconnect the client (in Claude Code, `/mcp` and Reconnect).
+Add the endpoint to the `env` of the server's entry in each MCP client, after the values in `Docs/Connecting-a-Client.md`. Then reconnect
+the client (in Claude Code, `/mcp` and Reconnect).
 
 ```json
 "env": {
@@ -93,7 +93,7 @@ client". Then reconnect the client (in Claude Code, `/mcp` and Reconnect).
 - Write `127.0.0.1`, not `localhost`. The programs listen on IPv4 only, and with `localhost` the server sent nothing.
 - For Claude Code, run `claude mcp remove autodesk-inventor-mcp-server -s user`, then add the entry again with the
 	new `env`. Claude Code passes the `OTEL_*` values of an entry's own `env` to the server.
-- Claude Desktop, Visual Studio and Visual Studio Code: add the same line to `env` in the files that `README.md` names.
+- Claude Desktop, Visual Studio and Visual Studio Code: add the same line to `env` in the files that `Docs/Connecting-a-Client.md` names.
 - The server log says which state it started in: "Telemetry on, endpoint ..." or "Telemetry off.". With telemetry on,
 	each line written during a tool call ends with the trace ID, so a line leads to its trace in Tempo.
 

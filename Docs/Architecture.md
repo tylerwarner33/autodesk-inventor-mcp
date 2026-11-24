@@ -315,7 +315,7 @@ Considered and not selected:
 Every client is configured machine wide, in its own user file, and the repository holds no client configuration.
 Repository files (`.mcp.json`, `.vscode/mcp.json`) applied only with this repository open, served only people who
 build the server, and made Visual Studio Code and Claude Code see a second entry of the same name beside the user
-entry. So they were removed on 2026-09-23. `README.md`, "Connecting a client", holds a "Using the server" setup
+entry. So they were removed on 2026-09-23. `Docs/Connecting-a-Client.md` holds a "Using the server" setup
 against a team feed and a "Developing the server" setup against the local feed, for each client.
 
 A team feed names the same path on every machine, so its entries need no variable. The local feed is per user, and

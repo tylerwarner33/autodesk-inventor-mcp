@@ -5,7 +5,7 @@ namespace InventorMcp.Server.Services;
 /// </summary>
 /// <remarks>
 /// 	A model cannot change them, because the server reads them one time, at start.
-/// 	See <c>README.md</c>, "Limit what a model can do".
+/// 	See <c>Docs/Tools.md</c>, "Limit what a model can do".
 /// </remarks>
 /// <param name="ReadOnlyTools">
 /// 	True to offer only the tools that change no document.
