@@ -9,7 +9,7 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 ## [2.0.2] - 2026-11-24
 
 ### Changed
-- The README is now a quick start. The client setup, the tool list, the dialog settings, the release handling and the development notes moved to their own pages in `Docs/`, and the README links to each one.
+- The README is now a quick start. The client setup, the tool list, the dialog settings, the release handling and the development notes moved to their own pages in `Docs/`, and the README links to each one. ([PR #50](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/50))
 
 ## [2.0.0] - 2026-11-23
 
