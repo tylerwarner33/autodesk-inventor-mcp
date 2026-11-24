@@ -1,4 +1,4 @@
-# Connecting a client
+# Connecting clients
 
 How to add the Inventor MCP server to Claude Code, Claude Desktop, Visual Studio and Visual Studio Code.
 

@@ -65,7 +65,7 @@ Claude Code, Claude Desktop, and GitHub Copilot Chat in Visual Studio and in Vis
 Add the server once to each client's own user configuration. It is then available in every folder, repository and
 solution. Each client starts it from a package feed with `dotnet tool exec`.
 
-There are two setups, and `Docs/Connecting-a-Client.md`, has the full entry for each client in both:
+There are two setups, and `Docs/Connecting-Clients.md` has the full entry for each client in both:
 
 - **Using the server** starts it from a team feed. You need no copy of the repository.
 - **Developing the server** starts it from `%LOCALAPPDATA%\InventorMcp\Feed`, which each Debug build fills.

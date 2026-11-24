@@ -108,7 +108,7 @@ version, `<version>-dev.<UTC yyyyMMddHHmmss>`, where the version is `<Version>` 
 	deleted. Windows refuses the rename while a server runs from it, so a folder in use stays until a later build.
 - A running session keeps its version. Restart the server in the client to run a new build.
 - The repository holds no client configuration. Each client has one machine wide entry, listed in
-	`Docs/Connecting-a-Client.md`. An entry anywhere that still runs `bin\Debug\InventorMcp.Server.exe` locks the build again.
+	`Docs/Connecting-Clients.md`. An entry anywhere that still runs `bin\Debug\InventorMcp.Server.exe` locks the build again.
 - The build touches `obj\Debug\LocalFeed.stamp` only after the package exists. A Visual Studio Code workspace file
 	can watch it with `dev.watch` (relative path only) to restart the server on each build.
 

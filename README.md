@@ -26,7 +26,7 @@ graph LR
 ## Documentation
 
 - **[Setup and Usage Guide](Docs/Setup-and-Usage-Guide.md)** - install, connect Claude, what to ask for, troubleshooting, logs
-- **[Connecting a Client](Docs/Connecting-a-Client.md)** - the entry for Claude Code, Claude Desktop, Visual Studio and Visual Studio Code
+- **[Connecting Clients](Docs/Connecting-Clients.md)** - the entry for Claude Code, Claude Desktop, Visual Studio and Visual Studio Code
 - **[Starting Inventor and Releases](Docs/Inventor-Releases.md)** - start Inventor from Claude, and use Inventor 2025, 2026 and 2027 together
 - **[Tools and Code Execution](Docs/Tools.md)** - every tool, the safeguards on code execution, and how to limit what a model can do
 - **[Dialog Settings](Docs/Dialog-Settings.md)** - how the server answers each Inventor dialog that blocks a call
@@ -59,7 +59,7 @@ claude mcp add-json autodesk-inventor-mcp-server -s user '{"type":"stdio","comma
 ```
 
 This is the setup for working on the server: it starts the server from `%LOCALAPPDATA%\InventorMcp\Feed`, which each
-Debug build fills. `Docs/Connecting-a-Client.md` has the setup for a team feed, and the entry for the other clients.
+Debug build fills. `Docs/Connecting-Clients.md` has the setup for a team feed, and the entry for the other clients.
 
 **3. Ask Claude about your Inventor session.** If Inventor is closed, Claude asks before it starts it.
 
