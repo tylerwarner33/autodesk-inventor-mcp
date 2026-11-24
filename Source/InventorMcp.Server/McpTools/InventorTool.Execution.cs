@@ -49,7 +49,8 @@ internal static partial class InventorTool
 		pass allowUnsavedChanges when the only changes are from that open. Prefer inventor_set_parameter for a change
 		a parameter can express.
 
-		A compile error for a member that does not exist carries a HINT with the near members of that type. Some members
+		Confirm with inventor_api_lookup that a member exists and what it takes before you use it in a snippet. A
+		compile error for a member that does not exist carries a HINT with the near members of that type. Some members
 		are typed as object and need a cast, ex. (double)parameter.Value. Calls from all clients run one at a time, so a
 		slow call can be waiting behind other work.
 

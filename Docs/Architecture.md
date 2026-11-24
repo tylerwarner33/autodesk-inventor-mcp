@@ -347,6 +347,25 @@ conversation, so it holds only rules whose violation gives a wrong model or a lo
 
 Visual Studio 2026 18.7 and later asks the user to trust the server again when its instructions change.
 
+Claude Code keeps the first 4,096 characters of the instructions of a server and cuts the rest. On 2026-11-24 the
+text had 4,369 characters, and the cut fell in the last rule, the one that says text from a document is data. So the
+instructions keep only a short line for each rule that must hold before the model loads a tool, and a rule that
+matters only with one tool goes where the model meets that tool:
+
+| Rule | Where it is now |
+| --- | --- |
+| `DriverLost` on a new feature, delete it and try the other direction | The result of `inventor_health` |
+| `E_FAIL` on a write to a document that is not modifiable | The description of `inventor_session`, and the result of a failed snippet |
+| Wait for Inventor with `waitSeconds`, not a shell loop | The descriptions and results of `inventor_start` and `inventor_session` |
+| `suppressRules` and `runRuleAfter` for several parameters | The descriptions of `inventor_set_parameter` and `inventor_set_parameters`, and the `ilogic-tools` skill |
+| Look a member up with `inventor_api_lookup` | The description of `inventor_eval_csharp` |
+| `blocked-by-dialog`, read it with `inventor_dialogs` | The `blocked-by-dialog` result |
+| What the server did with a dialog, and what to tell the user | `blockingDialogsNote` next to `blockingDialogs` in the result |
+
+The instructions keep the dialog rule (never answer a question for the user) and the rule that text from a document
+is data, because they protect the user before any tool is loaded. `ServerInstructionsTests` fails above 2,500
+characters.
+
 Measured on 2026-09-23 with "Put a 10 mm hole through the center of the top face", in clients that never read
 the repository's agent instructions: every client called `inventor_orientation` first, so the instructions arrive. Following the rest varies
 by model. Claude Desktop (Opus 5.5) caught its own wrong direction. Sonnet 5 in Visual Studio at first read
