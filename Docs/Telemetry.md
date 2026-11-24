@@ -58,7 +58,7 @@ written during a tool call ends with the trace ID, so a line leads to its trace 
 | --- | --- |
 | How long does each tool take, and how often does it fail? By tool, error, release and client. | Dashboard row 1 |
 | How much of an `inventor_eval_csharp` call is Inventor's main thread, and how much is wait? | Dashboard row 2 |
-| Which skills are read, and is `interop` read before the first snippet of a session? | Dashboard row 3 |
+| Which skills are read, and is `snippets` read before the first snippet of a session? | Dashboard row 3 |
 | How many servers are connected to each Inventor release, against the limit of 16? | Dashboard row 4 |
 | How often does the server answer a dialog, and which dialog type? | Dashboard row 5 |
 | Which sick features does `inventor_health` find after calls that worked? | Dashboard row 6 |
@@ -270,7 +270,7 @@ range at the top sets the range of each count.
 | 2 | main thread against the whole call | The gap between the two lines is the wait: behind calls of other servers, to open a document, and the bridge. |
 | 2 | Bridge queue wait | The wait behind an earlier call of the same server. |
 | 3 | Skill reads | The total of each skill, through `inventor_skill` and through a `resources/read` of a `SKILL.md` in the Skills over MCP extension. |
-| 3 | Skill reads and snippets, by session | Each `service.instance.id` is one session. Sort by it and by the start time to see whether `interop` came before the first `inventor_eval_csharp`. |
+| 3 | Skill reads and snippets, by session | Each `service.instance.id` is one session. Sort by it and by the start time to see whether `snippets` (before 2.0.0, `interop`) came before the first `inventor_eval_csharp`. |
 | 4 | Connected servers by release | Against the dashed line at 16, the connections that the add-in admits for each release. |
 | 5 | Dialogs by type and action | `clicked`: the server answered it. `needs-person`: it stayed open for the user. A failed click counts as `click-failed` and then `needs-person`. |
 | 5 | Slow snippets | Traces of `inventor_eval_csharp` longer than 5 s. |

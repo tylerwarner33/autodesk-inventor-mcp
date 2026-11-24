@@ -364,9 +364,10 @@ restarted by hand like the other clients.
 
 ### Longer knowledge travels as skills, and a tool description names its skill
 
-Text that a model needs only for some tasks (API traps, iLogic, drawings, projects and files, and workflows such as a
-safe template edit) is in `Source/InventorMcp.Server/Skills/<name>/SKILL.md`, in the Agent Skills format. Each place
-that holds knowledge has a different context cost:
+Text that a model needs only for some tasks (the snippet host, the tools for iLogic, drawings and files, and workflows
+such as a safe template edit) is in `Source/InventorMcp.Server/Skills/<name>/SKILL.md`, in the Agent Skills format.
+The Inventor API facts are not here: see "The Inventor API facts live in plugins" below. Each place that holds
+knowledge has a different context cost:
 
 | Place | Loaded | Holds |
 | --- | --- | --- |
@@ -374,9 +375,9 @@ that holds knowledge has a different context cost:
 | A tool description | Claude Code loads a tool schema only when the tool is needed | A trap of that one tool, and the name of its skill |
 | A skill | Only when the model reads it | Everything else |
 
-So the `Parameter.Value` cast and "calls run one at a time" are in tool descriptions or the `interop` skill, not in
-the instructions. The descriptions of `inventor_eval_csharp`, `inventor_ilogic_rule_set`, `inventor_test_copy`,
-`inventor_run_plugin` and `inventor_drawing_layout` name their skill.
+So the `Parameter.Value` cast and "calls run one at a time" are in tool descriptions or a skill, not in the
+instructions. The descriptions of `inventor_eval_csharp`, `inventor_ilogic_rule_set`, `inventor_test_copy`,
+`inventor_run_plugin`, `inventor_drawing_layout` and `inventor_auto_balloon` name their skill.
 
 The skills are embedded resources with a `LogicalName` that keeps the path, so they travel in the tool package with no
 step to install for each client. Two routes serve the same bytes, which `SkillCatalog` reads once:
@@ -393,15 +394,49 @@ suppresses the diagnostic for that file only. A read of a `SKILL.md` through eit
 `inventor.skill.reads`. `inventor_skill` stays because no client of this server supports the extension on the client
 matrix of 2026-11-09. `Docs/Tasks/Skills-Over-Mcp-Plan.md` holds the step that removes it.
 
-The skills own the Inventor API facts. `.agents/rules/inventor-interop.md` and `inventor-modeling.md` keep only the
-facts about this repository and point to the skills, so no two copies drift apart.
+`.agents/rules/inventor-interop.md` and `inventor-modeling.md` keep only the facts about this repository and point to
+the skills, so no two copies drift apart.
 
-The instructions tell a model to read `interop` before its first snippet, because a list of the skills alone did not
-make a client read one. Measured on 2026-09-25 in Claude Code sessions outside this repository: with only the list, a
-snippet task read no skill and took 3 snippets. With the instruction and a tool description that named the skill, it
-read `interop` and took 1 snippet. Claude Desktop (Opus 5.5) also read `interop` from the tool description. Visual
-Studio (Copilot, Sonnet 5) gave the correct answer with no visible skill read. See
-`Research/Usage-Findings-And-Knowledge-Delivery.md`, "Checks of the skill delivery".
+The instructions tell a model to read `snippets` before its first snippet, because a list of the skills alone did not
+make a client read one. Measured on 2026-09-25 in Claude Code sessions outside this repository, with the skill that
+was then named `interop` and held the API traps: with only the list, a snippet task read no skill and took 3
+snippets. With the instruction and a tool description that named the skill, it read `interop` and took 1 snippet.
+Claude Desktop (Opus 5.5) also read `interop` from the tool description. Visual Studio (Copilot, Sonnet 5) gave the
+correct answer with no visible skill read. See `Research/Usage-Findings-And-Knowledge-Delivery.md`, "Checks of the
+skill delivery".
+
+### The Inventor API facts live in plugins, and the server keeps its own steps
+
+The topic skills `interop`, `modeling`, `drawings`, `ilogic` and `projects-and-files` held two kinds of text: facts of
+the Inventor API, which are true for any code that drives Inventor, and steps with this server's tools. From version
+2.0.0 the facts are in the plugins of the [autodesk-agent-skills](https://github.com/tylerwarner33/autodesk-agent-skills)
+repository (marketplace `tylerwarner-autodesk`), and only the steps stay here:
+
+| Was | Facts, in a plugin | Steps, in this server |
+| --- | --- | --- |
+| `interop` | `inventor-api-traps` (`inventor-api`) | `snippets` |
+| `modeling` | `inventor-modeling` (`inventor-api`) | `verify-a-write` |
+| `drawings` | `inventor-drawings` (`inventor-api`) | `drawing-checks` |
+| `ilogic` | `inventor-ilogic` (`inventor-ilogic`) | `ilogic-tools` |
+| `projects-and-files` | `inventor-projects-and-files` (`inventor-data`) | `file-tools` |
+
+Why:
+
+- The facts then work with any Inventor MCP server, an add-in, or a Design Automation plugin, and not only through this
+	server. A test in the plugin repository fails when a plugin skill names a tool or a script helper of this server.
+- Claude reads a plugin skill from the local disk, with no approval per skill, and on every Claude surface.
+
+The cost, accepted with the change:
+
+- A client without the plugins does not get the API facts. Claude plugins do not reach Visual Studio or Visual Studio
+	Code with Copilot. The instructions and the `inventor_eval_csharp` description still name `inventor-api-traps`, so a
+	client with the plugins reads it, and `snippets` keeps the server facts that every client needs.
+- `inventor.skill.reads` counts only the skills that this server serves. A read of a plugin skill happens in the
+	client, so the server cannot see it. The dashboard shows the new names from 2.0.0, and the old names before.
+- The facts and the server can change at different times. A server skill names only the API facts that its steps need.
+
+`SkillCatalogTests` lists the plugin skills that a server skill can name, and fails when a server skill names one
+without its plugin.
 
 ### The add-in stays thin
 

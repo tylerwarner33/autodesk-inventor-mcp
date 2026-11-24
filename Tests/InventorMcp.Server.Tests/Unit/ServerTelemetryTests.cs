@@ -153,9 +153,9 @@ public sealed class ServerTelemetryTests
 	{
 		using TelemetryCapture capture = new();
 
-		ServerTelemetry.RecordSkillRead("interop");
+		ServerTelemetry.RecordSkillRead("snippets");
 
-		Assert.Contains(capture.Measurements("inventor.skill.reads"), measurement => measurement.Tag(TelemetryTags.SkillName) == "interop");
+		Assert.Contains(capture.Measurements("inventor.skill.reads"), measurement => measurement.Tag(TelemetryTags.SkillName) == "snippets");
 	}
 
 	[Fact]

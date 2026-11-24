@@ -41,11 +41,11 @@ Counts are snippets in the audit logs that match a text pattern, of 4,437. Each 
 | Occurrence state: suppress, visible, grounded | 163 | Frequent, no trap | Example in a new skill `assemblies` |
 | Place a component | 35 | Trap, with many options | Example in the skill `assemblies` |
 | Representations and model states | 86 | Read-only for the list | Example in the skill. `inventor_file_info` reads them |
-| Set the camera | 72 | | Example in the `modeling` skill |
+| Set the camera | 72 | | Example in the `inventor-modeling` skill of the `inventor-api` plugin |
 | iPart and iAssembly tables | 9 | Trap, rare | Later, when a session needs it |
 | Material and appearance search | 5 | Read-only, rare | Later |
 | Document settings | 4 | Read-only, rare | Later |
-| iLogic event triggers | 1 | Trap, rare | Later, in the `ilogic` skill |
+| iLogic event triggers | 1 | Trap, rare | Later, in the `inventor-ilogic` skill of the `inventor-ilogic` plugin |
 | Delete a parameter or a property | 1 | Guard, rare | Later |
 
 ## Patterns for a tool that changes several items
@@ -123,7 +123,7 @@ document the same way").
 3. Change the line about saving in `ServerInstructions.md` to name the tool. This removes a rule that the model
 	had to follow by hand. Visual Studio asks the user to trust the server again when this text changes, so put
 	the change in the same release as other changes of that file.
-4. Update `Skills/projects-and-files/SKILL.md`.
+4. Update `Skills/file-tools/SKILL.md`.
 5. Tests: a unit test of the composed snippet, and a `Live` test with a new part: a save, a second save
 	(idempotent), and a refusal for a document that was never saved.
 
@@ -132,7 +132,7 @@ document the same way").
 1. Add `ExportPdf(object drawing, string fullFileName, bool allSheets = true)` to `ScriptPrelude.csx` and to
 	`ScriptPrelude.HelperNames`. Confirm each member with `inventor_api_lookup` first (the translator add-in, its
 	options map, and the data medium). It refuses a path that exists.
-2. Add it to the helper list in the description of `inventor_eval_csharp` and to `Skills/drawings/SKILL.md`.
+2. Add it to the helper list in the description of `inventor_eval_csharp` and to the helper table in `Skills/snippets/SKILL.md`.
 3. A `Live` test with a new drawing.
 
 ## Plan for the skill `assemblies`

@@ -18,14 +18,14 @@ internal static partial class InventorTool
 	[McpServerTool(Name = "inventor_skill", Title = "Read the server guides", ReadOnly = true, Idempotent = true, OpenWorld = false)]
 	[Description("""
 		Lists or reads the guides for this server, in the Agent Skills format. Each skill is short and covers one topic
-		or one workflow, ex. the API traps for snippets, iLogic, drawings, projects and files, or a safe template edit.
+		or one workflow, ex. the snippet host, the iLogic tools, drawing checks, file tools, or a safe template edit.
 		Call it with action 'list' to see each skill's description, then 'read' the skills that fit the task before you
 		write a snippet or start the work. Works with Inventor closed.
 		""")]
 	public static object Skill(
 		SkillCatalog skills,
 		[Description("'list' for the name, description and files of each skill, or 'read' for one file of one skill.")] string action = "list",
-		[Description("The skill to read, ex. 'interop'.")] string? name = null,
+		[Description("The skill to read, ex. 'snippets'.")] string? name = null,
 		[Description("The file to read in the skill folder. Default SKILL.md.")] string? file = null)
 	{
 		if (string.Equals(action, "list", StringComparison.OrdinalIgnoreCase))

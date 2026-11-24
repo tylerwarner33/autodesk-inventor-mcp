@@ -43,7 +43,7 @@ Copilot) support the Skills extension on the
 [client matrix](https://modelcontextprotocol.io/extensions/client-matrix), or in a check by hand.
 
 - [ ] Remove `inventor_skill` (`McpTools/InventorTool.Skills.cs`) and the tests that call it.
-- [ ] Replace its line in `ServerInstructions.md` with a line that tells a model to read the `interop` skill before the
+- [ ] Replace its line in `ServerInstructions.md` with a line that tells a model to read the `snippets` skill before the
 	first snippet. The instruction is still necessary, because a list of skills alone did not make a client read one.
 - [ ] Change the tool descriptions that name `inventor_skill`, so they name the skill only.
 - [ ] Remove the text API of `SkillCatalog` (`Read`) if nothing else uses it.

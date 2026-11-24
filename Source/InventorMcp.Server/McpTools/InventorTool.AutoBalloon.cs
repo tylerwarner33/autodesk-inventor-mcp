@@ -546,7 +546,7 @@ internal static partial class InventorTool
 		each view. The drawing stays open and is not saved.
 
 		After it, check the sheet with inventor_drawing_layout and look at it with inventor_export_sheet_image. The
-		'drawings' skill (inventor_skill) has the facts about balloons.
+		'drawing-checks' skill (inventor_skill) has the steps for balloons.
 		""")]
 	public static Task<object> AutoBalloonAsync(
 		BridgeClient bridge,
