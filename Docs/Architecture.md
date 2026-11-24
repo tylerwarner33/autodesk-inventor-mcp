@@ -581,6 +581,26 @@ reaches it. `explorer.exe "<path>"` escapes both but returns no process ID or ex
 Verified on 2026-09-22: Inventor 2025 started this way had Explorer as its parent, survived the server's normal exit,
 and survived `taskkill /T /F` of the server.
 
+### The server closes only an Inventor that it started
+
+`inventor_stop` closes an Inventor, only on an explicit call. A start cannot lose work, but a close can, and one
+Inventor can serve up to 16 client connections. So the tool is limited to what the server knows for certain:
+
+- `StartedInventors` records each process that `inventor_start` started, with its start time, for the life of the
+	server process. Windows can give the id of a process that ended to a new process, so an id with a different start
+	time is not the started process. After a launcher hand-over, the new process counts only when the started process
+	exited, because an Inventor that the user opened during the wait must not count.
+- The process must be the one that this session uses, because the check for unsaved changes runs through the bridge
+	of the session. A canned snippet lists the documents with `Dirty`, so the check needs no add-in rebuild. The
+	snippet must have run in that process, or nothing closes.
+- The close is `Process.CloseMainWindow`, the `WM_CLOSE` of a click on the close button. Inventor runs its own
+	shutdown, and the add-in closes its pipe. `TerminateProcess` would skip both, so there is no force option.
+- The tool is in the set that `INVENTORMCP_CONFIRM_RISKY_CALLS` confirms, and not in the read-only tool set.
+
+Not selected: a close through `Application.Quit()` over the bridge, because the call would end the add-in that must
+send the answer. A count of the other client connections before the close would need a new bridge operation, so the
+description tells the model to ask the user, and the other sessions get the "has closed" result on their next call.
+
 ### The server waits for Inventor, not the model
 
 `inventor_start` waits up to 45 s, and a start with a sign-in or recovery dialog takes longer. So `inventor_session`

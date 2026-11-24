@@ -93,6 +93,8 @@ public sealed class ToolPipelineTests
 		Assert.DoesNotContain("inventor_set_parameter", names);
 		Assert.DoesNotContain("inventor_dialog_click", names);
 		Assert.DoesNotContain("inventor_close_documents", names);
+		// It starts nothing, but it ends an Inventor, so the read-only set does not keep it next to inventor_start.
+		Assert.DoesNotContain("inventor_stop", names);
 	}
 
 	[Fact]
@@ -190,6 +192,7 @@ public sealed class ToolPipelineTests
 	[Theory]
 	[InlineData("inventor_dialog_click", "{}", true)]
 	[InlineData("inventor_close_documents", "{}", true)]
+	[InlineData("inventor_stop", """{"processId":4242}""", true)]
 	[InlineData("inventor_eval_csharp", """{"code":"return 1;","allowUnsavedChanges":true}""", true)]
 	[InlineData("inventor_eval_csharp", """{"code":"return 1;","allowUnsavedChanges":false}""", false)]
 	[InlineData("inventor_eval_csharp", """{"code":"return 1;"}""", false)]

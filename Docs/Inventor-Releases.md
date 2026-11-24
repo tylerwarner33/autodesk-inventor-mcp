@@ -40,6 +40,31 @@ Set `INVENTOR_MCP_RELEASES` (ex. `2025`) on the server to limit the releases it 
 </details>
 
 <details>
+<summary><b>Closing an Inventor from Claude</b></summary>
+
+`inventor_stop` closes an Inventor, only when you ask for it, and only one that `inventor_start` started in the same
+server. An Inventor that you opened yourself, or that another Claude session started, is never closed. Close those
+yourself.
+
+- It closes only the Inventor that this session uses now, and you give its process id.
+- A document with unsaved changes stops the close, and the result lists the documents. Save or close them first.
+- The close is the same as a click on the close button of the window. It is never forced.
+- Other Claude sessions that use the same Inventor lose it. Their next call tells them that the process has closed.
+- When `INVENTORMCP_CONFIRM_RISKY_CALLS` is set, you confirm each call.
+- The server forgets which Inventors it started when the MCP client restarts it. Close those Inventors yourself.
+
+| Result | Meaning |
+| --- | --- |
+| `closed` | The process ended. The session uses no Inventor until `inventor_use_release` or `inventor_start`. |
+| `waiting-for-user` | A dialog holds the close. Answer it in Inventor. |
+| `still-closing` | The process did not end within 30 s. |
+| `unsaved-changes` | Nothing was closed. The result lists the documents. |
+| `not-started-here` | This server did not start that process. Nothing was closed. |
+| `not-this-session` | The process is not the one this session uses. Choose it with `inventor_use_release` first. |
+
+</details>
+
+<details>
 <summary><b>More than one Inventor release</b></summary>
 
 Inventor 2025, 2026 and 2027 can run at the same time. Each add-in listens on its own pipe, and each Claude session

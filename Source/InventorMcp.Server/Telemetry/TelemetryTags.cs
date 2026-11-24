@@ -117,8 +117,8 @@ internal static class TelemetryTags
 		StringComparer.Ordinal,
 		"addin-not-deployed", "anchor-not-unique", "confirmation-not-supported", "copy-failed", "declined-by-user",
 		"invalid-arguments", "invalid-handle", "inventor-exited", "inventor-not-installed", "inventor-starting-or-no-bridge",
-		"rule-changed", "start-failed", "target-exists", "too-slow", "version-not-installed", "version-not-offered",
-		"version-not-supported", "version-required");
+		"no-main-window", "not-started-here", "not-this-session", "rule-changed", "start-failed", "target-exists", "too-slow",
+		"unsaved-changes-unknown", "version-not-installed", "version-not-offered", "version-not-supported", "version-required");
 
 	/// <summary>
 	/// 	The health statuses of a feature, as the add-in names them in <c>InventorOperations.Health.cs</c>.

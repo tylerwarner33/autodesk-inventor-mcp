@@ -67,6 +67,7 @@ internal static partial class InventorTool
 		BridgeClient bridge,
 		ReleaseSelection selection,
 		InventorInstallations installations,
+		StartedInventors started,
 		RequestContext<CallToolRequestParams> context,
 		IProgress<ProgressNotificationValue> progress,
 		[Description("Release year to start, ex. 2025. Omit to start the release this session uses, or the only release with the add-in deployed, or to let the user choose.")] int? version = null,
@@ -192,6 +193,9 @@ internal static partial class InventorTool
 			};
 		}
 
+		// Only a process that this server started can be closed with inventor_stop.
+		started.Add(process.Id);
+
 		// The session uses the release that it started, so the wait and every later call reach its pipe only.
 		// A new instance locks the session to its process at once, so the wait never takes the pipe of an Inventor that
 		// ran before.
@@ -202,7 +206,7 @@ internal static partial class InventorTool
 
 		using (process)
 		{
-			return await WaitForBridgeAsync(bridge, selection, release, process, newInstance ? existing : null, progress, cancellationToken).ConfigureAwait(false);
+			return await WaitForBridgeAsync(bridge, selection, started, release, process, newInstance ? existing : null, progress, cancellationToken).ConfigureAwait(false);
 		}
 	}
 
@@ -290,9 +294,10 @@ internal static partial class InventorTool
 	private static async Task<object> WaitForBridgeAsync(
 		BridgeClient bridge,
 		ReleaseSelection selection,
+		StartedInventors started,
 		InventorRelease release,
 		DetachedProcess process,
-		IReadOnlySet<int>? existing,
+		HashSet<int>? existing,
 		IProgress<ProgressNotificationValue> progress,
 		CancellationToken cancellationToken)
 	{
@@ -305,6 +310,7 @@ internal static partial class InventorTool
 				&& NewInventorProcesses(release.Year, existing) is [int handedOver])
 			{
 				selection.ChooseProcess(release.Year, handedOver);
+				started.Add(handedOver);
 			}
 
 			progress.Report(new ProgressNotificationValue
@@ -331,6 +337,11 @@ internal static partial class InventorTool
 
 			if (answered)
 			{
+				// After a launcher hand-over, the process that hosts the bridge is not the one that was started. It counts as
+				// started only when the started process exited. Else it can be an Inventor that the user opened meanwhile.
+				if (bridge.InventorProcessId is int hosting && hosting != process.Id && process.HasExited && existing?.Contains(hosting) is not true)
+					started.Add(hosting);
+
 				return new
 				{
 					status = "started",
@@ -403,7 +414,7 @@ internal static partial class InventorTool
 	/// <returns>
 	/// 	The process ids.
 	/// </returns>
-	private static int[] NewInventorProcesses(int releaseYear, IReadOnlySet<int>? existing) =>
+	private static int[] NewInventorProcesses(int releaseYear, HashSet<int>? existing) =>
 		[.. InventorInstallations.FindRunning(releaseYear)
 			.Select(static inventor => inventor.ProcessId)
 			.Where(processId => existing?.Contains(processId) is not true)];

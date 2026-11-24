@@ -11,6 +11,7 @@ What each tool does, how code execution is bounded, and how to limit what a mode
 | --- | --- |
 | `inventor_session` | Is Inventor reachable, which version, which document is active, the active project, and which open documents are modifiable. `waitSeconds` waits for an Inventor that is still starting |
 | `inventor_start` | Start an Inventor release when its bridge is not running, asking which release when several can, and use it. `newInstance` starts one more process of a release that runs |
+| `inventor_stop` | Close an Inventor that `inventor_start` started in this server, and that this session uses. It refuses when a document has unsaved changes, and never forces the close |
 | `inventor_use_release` | Choose the Inventor release this session talks to, with no restart of the server |
 | `inventor_documents` | Every open document with path, type, and unsaved state |
 | `inventor_close_documents` | Close the open documents under a folder, drawings first, and never one outside it |
@@ -96,7 +97,7 @@ the MCP entry add limits that a model cannot change, because the server reads th
 | Variable | Value | Effect |
 | --- | --- | --- |
 | `INVENTORMCP_TOOLS` | `read-only` | The server offers only the tools that change no document, and `inventor_start` and `inventor_use_release`. There is no `inventor_eval_csharp`, `inventor_run_ilogic`, `inventor_run_plugin`, `inventor_dialog_click` and no tool that sets a value. The default is `all`. |
-| `INVENTORMCP_CONFIRM_RISKY_CALLS` | `true` | The client asks you before `inventor_dialog_click`, before `inventor_close_documents`, and before each call with `allowUnsavedChanges`. If you decline, or if the client cannot show a question, the call does not run. The default is `false`. |
+| `INVENTORMCP_CONFIRM_RISKY_CALLS` | `true` | The client asks you before `inventor_dialog_click`, before `inventor_close_documents`, before `inventor_stop`, and before each call with `allowUnsavedChanges`. If you decline, or if the client cannot show a question, the call does not run. The default is `false`. |
 
 A value that the server does not know selects the stricter setting, and the server log has a warning.
 
