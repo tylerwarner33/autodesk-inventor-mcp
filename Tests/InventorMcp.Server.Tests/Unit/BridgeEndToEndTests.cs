@@ -201,11 +201,11 @@ public sealed class BridgeEndToEndTests
 	public async Task ACancelReachesARunningHandler()
 	{
 		TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
-		TaskCompletionSource cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+		TaskCompletionSource canceled = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
 		await using Listener listener = await Listener.StartAsync(dispatcher => dispatcher.Register(BridgeOperations.Session, async (_, cancellationToken) =>
 		{
-			await using (cancellationToken.Register(cancelled.SetResult))
+			await using (cancellationToken.Register(canceled.SetResult))
 			{
 				started.SetResult();
 				await Task.Delay(Timeout.Infinite, cancellationToken);
@@ -221,11 +221,11 @@ public sealed class BridgeEndToEndTests
 		await cancel.CancelAsync();
 
 		_ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
-		await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+		await canceled.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 	}
 
 	[Fact]
-	public async Task ACancelledRequestThatWaitsInTheQueueNeverRuns()
+	public async Task ACanceledRequestThatWaitsInTheQueueNeverRuns()
 	{
 		TaskCompletionSource firstStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
 		TaskCompletionSource releaseFirst = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -251,14 +251,14 @@ public sealed class BridgeEndToEndTests
 		await firstStarted.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 		Task<JsonRpcResponse> second = raw.SendRequestAsync(Request("second"), cancelSecond.Token);
 
-		// The SDK does not send a request whose token is already cancelled, so the second request must reach the queue
+		// The SDK does not send a request whose token is already canceled, so the second request must reach the queue
 		// first. Nothing reports that it waits there, and a local pipe takes far less than this.
 		await Task.Delay(500, TestContext.Current.CancellationToken);
 		await cancelSecond.CancelAsync();
 		_ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
 
 		// The dispatcher logs the cancel when it reaches the queue, so the first request is released only after it.
-		await TestBridge.WaitUntilAsync(() => listener.Log.Any(static line => line.Contains("cancelled before it started", StringComparison.Ordinal)));
+		await TestBridge.WaitUntilAsync(() => listener.Log.Any(static line => line.Contains("canceled before it started", StringComparison.Ordinal)));
 		releaseFirst.SetResult();
 		_ = await first;
 

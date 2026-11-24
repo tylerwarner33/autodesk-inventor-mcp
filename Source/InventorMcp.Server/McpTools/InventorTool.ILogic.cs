@@ -286,6 +286,20 @@ internal static partial class InventorTool
 	}
 
 	/// <summary>
+	/// 	Sent with <c>rulesNotRun</c> after a write with <c>suppressRules</c>: the active rules of the document, apart from
+	/// 	<c>runRuleAfter</c>.
+	/// </summary>
+	/// <remarks>
+	/// 	Without it, a model that set parameters with suppressRules and no runRuleAfter reported "no rule on this part"
+	/// 	while the part had a rule that never ran on the new values. See <c>Docs/Architecture.md</c>, "suppressRules says
+	/// 	which rules did not run".
+	/// </remarks>
+	internal const string RulesNotRunNote =
+		"suppressRules turned the iLogic rules off for this write, so these active rules of the document did not run on " +
+		"the new values. A rule can set other parameters or properties from them. Run the rule that the user's workflow " +
+		"needs (inventor_run_ilogic with ruleName), or tell the user that the rules did not run.";
+
+	/// <summary>
 	/// 	Composes the snippet of <see cref="SetParameters"/>, also used by <c>inventor_set_parameter</c> with suppressRules.
 	/// </summary>
 	/// <remarks>
@@ -458,6 +472,14 @@ internal static partial class InventorTool
 					automation!.RulesEnabled = previous;
 			}
 
+			// The rules that would have run on these values and did not, so a model does not report the work as done.
+			List<string>? rulesNotRun = null;
+			if (rulesWereEnabled == true && succeededCount > 0)
+			{
+				try { rulesNotRun = ILogicRuleNames(document).Where(rule => rule.IsActive && rule.Name != ruleAfter).Select(rule => rule.Name).ToList(); }
+				catch (Exception) { }
+			}
+
 			Dictionary<string, object?> summary = new()
 			{
 				["document"] = document.FullFileName.Length > 0 ? document.FullFileName : document.DisplayName,
@@ -473,6 +495,12 @@ internal static partial class InventorTool
 				["ruleError"] = ruleError,
 				["totalMilliseconds"] = stopwatch.ElapsedMilliseconds
 			};
+
+			if (rulesNotRun is { Count: > 0 })
+			{
+				summary["rulesNotRun"] = rulesNotRun;
+				summary["rulesNote"] = {{CSharpLiteral.String(RulesNotRunNote)}};
+			}
 
 			// The server marks the call as failed only when no item succeeded: a flag on a partial result would
 			// invite a repeat of the whole batch, and a parameter write is not idempotent.

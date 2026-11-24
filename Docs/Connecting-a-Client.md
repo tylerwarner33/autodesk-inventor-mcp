@@ -25,7 +25,7 @@ Both setups need the Inventor add-in installed for each release in use. See `Doc
 
 No team feed and no release pipeline exist yet. The "Using the server" examples show where the team feed goes.
 `<team feed>` is its path or URL, ex. `\\server\share\InventorMcp` or
-`https://pkgs.dev.azure.com/<organisation>/_packaging/<feed>/nuget/v3/index.json`. A feed that needs a sign-in also
+`https://pkgs.dev.azure.com/<organization>/_packaging/<feed>/nuget/v3/index.json`. A feed that needs a sign-in also
 needs a NuGet credential provider on each machine.
 Write a UNC path with doubled backslashes inside JSON, ex. `\\\\server\\share\\InventorMcp`.
 
@@ -192,7 +192,7 @@ if it does not exist. Keep any servers already in it.
 - Trust the server when asked, then turn its tools on in the tools picker. Visual Studio adds them turned off.
 - After a server change, restart the server from the CodeLens in `%USERPROFILE%\.mcp.json`.
 - From 18.7, Visual Studio asks for trust again when the server's instructions or tools change.
-- If the tools picker shows no MCP servers, check the organisation policy "MCP servers in Copilot" first.
+- If the tools picker shows no MCP servers, check the organization policy "MCP servers in Copilot" first.
 - The log is in `%TEMP%\VSGitHubCopilotLogs\`. A failed start there quotes the server's stderr.
 
 </details>
@@ -284,7 +284,7 @@ with `DOTNET_NOLOGO=1` and `DOTNET_CLI_TELEMETRY_OPTOUT=1` in the environment.
 - `--yes` removes a confirmation prompt that nobody can answer, because the client owns stdin.
 - `DOTNET_NOLOGO` stops the first run banner, which `dotnet` writes to stdout and which would corrupt the protocol.
 
-The server sends the modelling rules (named faces, units, extent direction, health checks, call length) in its
+The server sends the modeling rules (named faces, units, extent direction, health checks, call length) in its
 `initialize` response, so every client gets them. The text is `Source/InventorMcp.Server/ServerInstructions.md`.
 
 </details>

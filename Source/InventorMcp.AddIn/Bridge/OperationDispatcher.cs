@@ -81,7 +81,7 @@ internal sealed class OperationDispatcher(Action<string> log)
 	/// 	in order.
 	/// </param>
 	/// <remarks>
-	/// 	The SDK runs the requests of one connection at the same time. Without the queue, a call that the server cancelled
+	/// 	The SDK runs the requests of one connection at the same time. Without the queue, a call that the server canceled
 	/// 	and the next call could run together, and the next call could run nested in the modal loop of a dialog that the
 	/// 	first call opened.
 	/// </remarks>
@@ -110,7 +110,7 @@ internal sealed class OperationDispatcher(Action<string> log)
 	/// 	The params of the request.
 	/// </param>
 	/// <param name="cancellationToken">
-	/// 	Cancelled when the server cancels the request or the connection ends.
+	/// 	Canceled when the server cancels the request or the connection ends.
 	/// </param>
 	/// <returns>
 	/// 	The result object.
@@ -126,7 +126,7 @@ internal sealed class OperationDispatcher(Action<string> log)
 		}
 		catch (OperationCanceledException)
 		{
-			throw Logged(operation, Failure(BridgeErrorCodes.Busy, "The request was cancelled before it started."));
+			throw Logged(operation, Failure(BridgeErrorCodes.Busy, "The request was canceled before it started."));
 		}
 
 		try
@@ -184,7 +184,7 @@ internal sealed class OperationDispatcher(Action<string> log)
 		}
 		catch (OperationCanceledException)
 		{
-			throw Logged(operation, Failure(BridgeErrorCodes.Busy, "The request was cancelled before Inventor's main thread could run it."));
+			throw Logged(operation, Failure(BridgeErrorCodes.Busy, "The request was canceled before Inventor's main thread could run it."));
 		}
 		catch (Exception exception)
 		{

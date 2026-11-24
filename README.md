@@ -67,7 +67,8 @@ Debug build fills. `Docs/Connecting-a-Client.md` has the setup for a team feed, 
 
 - Inventor must be open with the add-in loaded. With Inventor closed, the server still starts and every tool returns a
   readable `inventor-not-running` result. See `Docs/Inventor-Releases.md`.
-- Inventor stores lengths in centimeters and angles in radians, whatever a document displays. See `Docs/Tools.md`.
+- A number with no unit is in centimeters and radians in the API, in the document's units in iLogic `Parameter()`,
+  and in the parameter's units in an expression. See `Docs/Tools.md`.
 - To limit a model to read-only tools, set `INVENTORMCP_TOOLS=read-only` in the `env` of the client entry.
   See `Docs/Tools.md`, "Limit what a model can do".
 - `AGENTS.md` and `.agents/rules/` are for coding agents that work on this repository.

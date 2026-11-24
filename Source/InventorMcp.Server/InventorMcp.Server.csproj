@@ -51,12 +51,12 @@
 		<InternalsVisibleTo Include="InventorMcp.Server.Tests" />
 	</ItemGroup>
 
-	<!-- The modelling rules sent to every client in the initialize response. .agents/rules points here. -->
+	<!-- The modeling rules sent to every client in the initialize response. .agents/rules points here. -->
 	<ItemGroup>
 		<EmbeddedResource Include="ServerInstructions.md" LogicalName="InventorMcp.Server.ServerInstructions.md" />
 	</ItemGroup>
 
-	<!-- How the server answers each blocking dialog. Services/DialogSettings.cs reads it. README.md points here. -->
+	<!-- How the server answers each blocking dialog. Services/DialogSettings.cs reads it. Docs/Dialog-Settings.md points here. -->
 	<ItemGroup>
 		<EmbeddedResource Include="DialogSettings.json" LogicalName="InventorMcp.Server.DialogSettings.json" />
 	</ItemGroup>

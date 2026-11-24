@@ -81,7 +81,7 @@ There are two setups, and `Docs/Connecting-a-Client.md`, has the full entry for 
 In Visual Studio and Visual Studio Code, use Copilot Chat in **Agent** mode, trust the server when asked, and turn
 its tools on in the tools picker. Visual Studio needs an absolute feed path, because it does not expand variables.
 
-Every client gets the same modelling rules from the server, so each one asks Inventor which face is "top" before
+Every client gets the same modeling rules from the server, so each one asks Inventor which face is "top" before
 it draws on it.
 
 Several clients can be connected at once (up to 16 server connections, and Claude Desktop uses two). Their calls
@@ -152,7 +152,7 @@ ViewCube has been redefined for that document. Note that Inventor's vertical axi
 
 ## Units
 
-Inventor stores lengths in centimetres and angles in radians whatever the document displays, so a parameter showing
+Inventor stores lengths in centimeters and angles in radians whatever the document displays, so a parameter showing
 `2 in` is stored as `5.08`. Results report both forms, so you never have to work out which one you are looking at.
 
 ## Watching an automation run
@@ -177,7 +177,7 @@ To limit what a model can do (a read-only tool set, or a question before each ri
 `Docs/Tools.md`, "Limit what a model can do".
 
 Writes also suppress Inventor's dialogs for their duration, so a prompt cannot silently stall the session.
-Inventor answers a suppressed dialog with its default, which is a real behaviour change rather than a cosmetic one.
+Inventor answers a suppressed dialog with its default, which is a real behavior change rather than a cosmetic one.
 
 Some dialogs still open (ex. the iLogic error dialog). The server finds them while a call waits, and answers each
 one as its dialog settings say:
@@ -216,7 +216,7 @@ automatically, and `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true` clicks `OK` on Dat
 | Changes to the add-in do not take effect | Inventor must be closed to rebuild it. Unloading the add-in is not enough. |
 | The client cannot start the server | The feed is empty. Run `dotnet build` once. |
 | Changes to the server do not take effect | The session still runs the old version. Restart the server in the client. |
-| Copilot shows no MCP tools | Copilot Chat is in Ask mode, or the organisation policy "MCP servers in Copilot" is off. |
+| Copilot shows no MCP tools | Copilot Chat is in Ask mode, or the organization policy "MCP servers in Copilot" is off. |
 
 ## Logs
 

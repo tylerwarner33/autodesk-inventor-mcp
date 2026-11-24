@@ -61,7 +61,7 @@ A modal dialog owns Inventor's message pump, and the bridge posts its work to th
 So an unanswered dialog stalls every tool except `inventor_activity`, which reads plain managed memory.
 
 Write operations therefore run with `SilentOperation` set, and restore the previous value afterwards.
-Inventor answers a suppressed dialog with its own default, which is a real behaviour change, so reads never suppress anything.
+Inventor answers a suppressed dialog with its own default, which is a real behavior change, so reads never suppress anything.
 
 `SilentOperation` does not stop every dialog (ex. the iLogic error dialog). So the server watches from outside
 Inventor's process while a call waits. After 3 s, and then every 2 s, it checks whether the Inventor main window is

@@ -5,7 +5,7 @@ description: The tools to call before and after a write to a part or an assembly
 
 # Verify a write
 
-An API call can succeed while the model is wrong. The modeling facts (the ViewCube, centimetres and radians, the
+An API call can succeed while the model is wrong. The modeling facts (the ViewCube, centimeters and radians, the
 sketch-relative extent direction) are in the `inventor-modeling` skill of the `inventor-api` plugin (marketplace
 `tylerwarner-autodesk`). If your client has that plugin, read that skill too. This skill gives the tools that check
 each fact.
@@ -17,7 +17,7 @@ each fact.
    Top is +Y, not +Z. Never assume it.
 2. **Use the feature that the request names.** A hole is a `HoleFeature`, not an extrude cut, so the user can edit it
    as a hole.
-3. **Convert the units.** Inventor stores centimetres and radians. Use the unit helpers of the `snippets` skill, or
+3. **Convert the units.** Inventor stores centimeters and radians. Use the unit helpers of the `snippets` skill, or
    `UnitsOfMeasure.ConvertUnits`.
 
 ## After the write

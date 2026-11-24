@@ -32,8 +32,8 @@ This was the option "MCP over the pipe" of the bridge version 3 plan.
 | Invalid JSON on the pipe | No answer, and the session goes on: the next request gets its response |
 | **A handler that returns null** | **The response has no `result` and no `error`** (`{"id":"x","jsonrpc":"2.0"}`), which JSON-RPC 2.0 does not allow. **The SDK client never completes the call.** `JsonValue.Create((string?)null)` gives the same. Return an empty object instead |
 | Concurrency | The SDK runs two requests of one connection at the same time. The add-in must keep its own queue to the main thread (`MainThreadDispatcher` does) |
-| Cancel of a running handler | The handler's token is cancelled 4 ms after the client cancels. The session serves the next call |
-| Cancel of a call that waits for the main thread | Run alone, 8 of 8: the body never runs. With the other spike tests in parallel, 6 of 8: the body runs, because `notifications/cancelled` reaches the add-in after the main thread is free. The client already reports the call as cancelled |
+| Cancel of a running handler | The handler's token is canceled 4 ms after the client cancels. The session serves the next call |
+| Cancel of a call that waits for the main thread | Run alone, 8 of 8: the body never runs. With the other spike tests in parallel, 6 of 8: the body runs, because `notifications/canceled` reaches the add-in after the main thread is free. The client already reports the call as canceled |
 | `initialize` while the main thread is held | 90 ms. The handshake does not need the main thread. A call that needs it waits, and runs after the release |
 | Dropped pipe during a call | `IOException` "The server shut down unexpectedly." after 1 ms |
 | 4 clients on one listener | Works |
@@ -114,7 +114,7 @@ The SDK settings, from its source (2.4.0):
 
 - The option works for each check that does not need Inventor.
 - A bridge handler must never return null. Wrap each result, or return an empty object.
-- A cancel is a request, not a guarantee. A write that the client cancelled can still run. A tool must not report
+- A cancel is a request, not a guarantee. A write that the client canceled can still run. A tool must not report
 	"not done" after a cancel: read the model back, as for a dropped pipe.
 - Pin `ProtocolVersion` on both sides (`McpServerOptions`, `McpClientOptions`). Otherwise an add-in and a server built
 	on different SDK versions negotiate a version, and a method such as `ping` can appear or go away.

@@ -17,7 +17,7 @@ namespace InventorMcp.Server.McpTools;
 internal static partial class InventorTool
 {
 	[McpServerTool(Name = "inventor_parameters", Title = "Read parameters", ReadOnly = true, OpenWorld = false)]
-	[Description("Reads the parameters of an open part or assembly. Each parameter reports its kind, expression, display value, and internal value. Inventor stores lengths in centimetres and angles in radians, so always read internalValue with its units in mind. A text or boolean parameter has no internal value.")]
+	[Description("Reads the parameters of an open part or assembly. Each parameter reports its kind, expression, display value, and internal value. Inventor stores lengths in centimeters and angles in radians, so always read internalValue with its units in mind. A text or boolean parameter has no internal value.")]
 	public static Task<object> ParametersAsync(
 		BridgeClient bridge,
 		[Description("A display name, a full path, or a full document name (the path with the model state) of the open document. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,
@@ -29,7 +29,7 @@ internal static partial class InventorTool
 			cancellationToken));
 
 	[McpServerTool(Name = "inventor_set_parameter", Title = "Set a parameter", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = false)]
-	[Description("Sets one parameter and rebuilds the document. This changes the user's model. One Undo step in Inventor reverts the call. The accessor used depends on the parameter's kind: a numeric parameter takes an expression such as '50 mm', a text parameter takes plain text, and a boolean parameter takes 'true' or 'false'. Check the kind with inventor_parameters first, and check a numeric expression with inventor_evaluate_expression.")]
+	[Description("Sets one parameter and rebuilds the document. This changes the user's model. One Undo step in Inventor reverts the call. The accessor used depends on the parameter's kind: a numeric parameter takes an expression such as '50 mm', a text parameter takes plain text, and a boolean parameter takes 'true' or 'false'. Check the kind with inventor_parameters first, and check a numeric expression with inventor_evaluate_expression. A change can run iLogic rules again, and one run can take more than a minute: to change several parameters, use inventor_set_parameters with suppressRules and runRuleAfter, so the rules run once.")]
 	public static Task<object> SetParameterAsync(
 		BridgeClient bridge,
 		[Description("Parameter name.")] string name,

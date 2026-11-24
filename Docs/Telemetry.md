@@ -270,7 +270,7 @@ range at the top sets the range of each count.
 | 2 | main thread against the whole call | The gap between the two lines is the wait: behind calls of other servers, to open a document, and the bridge. |
 | 2 | Bridge queue wait | The wait behind an earlier call of the same server. |
 | 3 | Skill reads | The total of each skill, through `inventor_skill` and through a `resources/read` of a `SKILL.md` in the Skills over MCP extension. |
-| 3 | Skill reads and snippets, by session | Each `service.instance.id` is one session. Sort by it and by the start time to see whether `snippets` (before 2.0.0, `interop`) came before the first `inventor_eval_csharp`. |
+| 3 | Skill reads and snippets, by session | Each `service.instance.id` is one session. Sort by it and by the start time. An `inventor_skill` row with no skill name is a `list` call. See "Check that a model lists the skills one time". Then see whether `snippets` (before 2.0.0, `interop`) came before the first `inventor_eval_csharp`. |
 | 4 | Connected servers by release | Against the dashed line at 16, the connections that the add-in admits for each release. |
 | 5 | Dialogs by type and action | `clicked`: the server answered it. `needs-person`: it stayed open for the user. A failed click counts as `click-failed` and then `needs-person`. |
 | 5 | Slow snippets | Traces of `inventor_eval_csharp` longer than 5 s. |
@@ -281,6 +281,28 @@ to the ends of the range. A panel that shows a rate each second (ex. "Calls by t
 
 The MCP library records `mcp.server.operation.duration` too, but the server does not export it: it has the tool and
 the method name as the client wrote them. `inventor.tool.duration` gives the same durations.
+
+## Check that a model lists the skills one time
+
+The server instructions tell a model to call `inventor_skill` with `list` one time, before its first task. A unit test
+cannot prove that a model obeys, so check it in real sessions:
+
+1. Start the stack, and set `OTEL_EXPORTER_OTLP_ENDPOINT` in the client configuration of the server.
+2. In each client, start a new session outside this repository, so the agent reads only the server's own text. Give
+	it 2 tasks one after the other, ex. "Read the parameters of the active part", then "Add a 10 mm hole through the
+	center of the top face".
+3. In the panel "Skill reads and snippets, by session", find the session (`service.instance.id`). The result is
+	correct when:
+	- There is exactly one `inventor_skill` row with no skill name (the `list` call).
+	- It comes before the first call that reads or changes a document.
+	- The skill reads that follow fit the tasks (ex. `verify-a-write` before the hole), and `snippets` comes before
+		the first `inventor_eval_csharp`.
+4. Start one more session with a question that does not use Inventor (ex. "What is 2 + 2?"). It must have no
+	`inventor_skill` call.
+
+A session of a stdio server is one server process, so a second `list` row in the same `service.instance.id` is a
+second call in the same session. A client that restarts the server gets a new `service.instance.id`, and one more
+`list` there is correct.
 
 ## Other viewers
 

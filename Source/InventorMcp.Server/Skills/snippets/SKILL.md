@@ -43,7 +43,7 @@ The server adds a helper to the snippet only when the snippet calls it.
 | `CloseDocumentsOpenedHere()` | Closes only the documents that `OpenOrReuseDocument` opened, drawings first, with no save. |
 | `InTransaction(document, "MCP: Name", () => { ... })` | Runs the action as one Undo step on that document, and aborts the step when the action throws. A rule that runs inside joins the step. Put `document.Update()` inside. |
 | `ILogicAutomation()`, `ILogicRuleNames(document)`, `ILogicRuleText(document, name)`, `SetILogicRuleText(document, name, text)`, `RunILogicRule(document, name)` | The iLogic automation object and its rules, with the casts done for you. They take any document type. |
-| `ToInches`, `FromInches`, `ToMillimetres`, `FromMillimetres`, `ToDegrees`, `FromDegrees` | Unit conversions to and from centimetres and radians. Convert once at the top of a snippet. |
+| `ToInches`, `FromInches`, `ToMillimeters`, `FromMillimeters`, `ToDegrees`, `FromDegrees` | Unit conversions to and from centimeters and radians. Convert once at the top of a snippet. |
 | `TryGetUserParameter(document, name, out UserParameter parameter)` | Finds a user parameter in a part, assembly or drawing, with no exception when it does not exist. |
 | `StartDeadline(seconds = 8)` | A guard for a loop: `if (deadline.Passed) break;` |
 

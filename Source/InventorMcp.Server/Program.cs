@@ -80,7 +80,7 @@ Log.Information(
 if (safety.Problem is not null)
 	Log.Warning("Safety settings: {Problem}", safety.Problem);
 
-// The modelling rules go to every client in the initialize response, not only to agents that read .agents/rules.
+// The modeling rules go to every client in the initialize response, not only to agents that read .agents/rules.
 _ = builder.Services
 	.AddMcpServer(static options => options.ServerInstructions = ReadServerInstructions())
 	.WithStdioServerTransport()

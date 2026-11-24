@@ -126,11 +126,11 @@ void RunILogicRule(object document, string ruleName) => ILogicAutomation().RunRu
 
 // ---- Units ---------------------------------------------------------------------------------------------------------
 
-// Inventor stores lengths in centimetres and angles in radians.
-double ToInches(double centimetres) => centimetres / 2.54;
+// Inventor stores lengths in centimeters and angles in radians.
+double ToInches(double centimeters) => centimeters / 2.54;
 double FromInches(double inches) => inches * 2.54;
-double ToMillimetres(double centimetres) => centimetres * 10.0;
-double FromMillimetres(double millimetres) => millimetres / 10.0;
+double ToMillimeters(double centimeters) => centimeters * 10.0;
+double FromMillimeters(double millimeters) => millimeters / 10.0;
 double ToDegrees(double radians) => radians * 180.0 / Math.PI;
 double FromDegrees(double degrees) => degrees * Math.PI / 180.0;
 

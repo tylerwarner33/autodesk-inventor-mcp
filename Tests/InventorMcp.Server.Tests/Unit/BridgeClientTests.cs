@@ -136,7 +136,7 @@ public sealed class BridgeClientTests
 		await cancel.CancelAsync();
 
 		_ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
-		await TestBridge.WaitUntilAsync(() => connection.Cancelled.Contains(request.Id));
+		await TestBridge.WaitUntilAsync(() => connection.Canceled.Contains(request.Id));
 	}
 
 	[Fact]

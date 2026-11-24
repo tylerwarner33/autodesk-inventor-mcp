@@ -18,7 +18,7 @@ public sealed class ScriptPreludeTests
 	{
 		string composed = ScriptPrelude.Apply("double inches = ToInches(2.54);\nreturn inches;");
 
-		Assert.Contains("double ToInches(double centimetres)", composed);
+		Assert.Contains("double ToInches(double centimeters)", composed);
 		Assert.EndsWith("#line 1\ndouble inches = ToInches(2.54);\nreturn inches;", composed);
 		Assert.StartsWith("#line hidden\n", composed);
 	}

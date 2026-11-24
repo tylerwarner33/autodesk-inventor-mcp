@@ -106,7 +106,7 @@ server's own snippet in Inventor, and the server still answers the dialogs that 
 
 ## Units and parameter kinds
 
-Inventor stores every length in centimetres and every angle in radians, whatever a document displays.
+Inventor stores every length in centimeters and every angle in radians, whatever a document displays.
 Parameter results therefore carry `internalValue` in those units alongside `expression` and `displayValue`.
 
 Not every parameter is numeric.

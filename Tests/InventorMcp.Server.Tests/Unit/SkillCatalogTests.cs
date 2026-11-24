@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 
+using InventorMcp.Server.McpTools;
 using InventorMcp.Server.Services;
 
 using ModelContextProtocol.Server;
@@ -57,6 +58,37 @@ public sealed partial class SkillCatalogTests
 				if (_pluginSkills.TryGetValue(match.Groups["name"].Value, out string? plugin))
 					Assert.True(text.Contains($"`{plugin}` plugin", StringComparison.Ordinal), $"Skill '{skill.Name}' names the plugin skill '{match.Groups["name"].Value}', but not its plugin '{plugin}'.");
 			}
+		}
+	}
+
+	/// <remarks>
+	/// 	The descriptions in the <c>SKILL.md</c> files are the only text that says when to read a skill. A skill name in
+	/// 	the instructions is a second copy that can drift from them, in every session.
+	/// 	See <c>Docs/Architecture.md</c>, "Longer knowledge travels as skills, and a tool description names its skill".
+	/// </remarks>
+	[Fact]
+	public void TheServerInstructionsSendToTheListAndNameNoSkill()
+	{
+		using Stream stream = typeof(SkillCatalog).Assembly.GetManifestResourceStream("InventorMcp.Server.ServerInstructions.md")!;
+		using StreamReader reader = new(stream);
+		string instructions = reader.ReadToEnd();
+
+		Assert.Contains("`inventor_skill` with action `list`", instructions, StringComparison.Ordinal);
+
+		foreach (string name in _embedded.Skills.Select(static skill => skill.Name).Concat(_pluginSkills.Keys))
+			Assert.False(instructions.Contains($"`{name}`", StringComparison.Ordinal), $"The server instructions name the skill '{name}'. Put when to read it in its description.");
+	}
+
+	[Fact]
+	public void TheListNamesEachPluginSkillWithItsPlugin()
+	{
+		object result = InventorTool.Skill(_embedded, "list");
+		string pluginSkills = Assert.IsType<string>(result.GetType().GetProperty("pluginSkills")?.GetValue(result));
+
+		foreach ((string name, string plugin) in _pluginSkills)
+		{
+			Assert.Contains($"`{name}`", pluginSkills, StringComparison.Ordinal);
+			Assert.Contains($"`{plugin}` plugin", pluginSkills, StringComparison.Ordinal);
 		}
 	}
 
