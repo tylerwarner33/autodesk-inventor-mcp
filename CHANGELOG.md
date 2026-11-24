@@ -9,9 +9,9 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 ## [2.0.1] - 2026-11-24
 
 ### Changed
-- The server instructions no longer list the skills. They tell a model to call `inventor_skill` with action `list` one time, before its first task, and to read the skills whose description fits each task. The description of each skill is now the only text that says when to read it, and each session loads less text at start.
-- The `list` result of `inventor_skill` names the plugin skills that hold the Inventor API facts, in `pluginSkills`. The server instructions no longer name them.
-- The dashboard panel "Skill reads and snippets, by session" also shows each `list` call. `Docs/Telemetry.md` has the steps to check that a model lists the skills one time in a session.
+- The server instructions no longer list the skills. They tell a model to call `inventor_skill` with action `list` one time, before its first task, and to read the skills whose description fits each task. The description of each skill is now the only text that says when to read it, and each session loads less text at start. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
+- The `list` result of `inventor_skill` names the plugin skills that hold the Inventor API facts, in `pluginSkills`. The server instructions no longer name them. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
+- The dashboard panel "Skill reads and snippets, by session" also shows each `list` call. `Docs/Telemetry.md` has the steps to check that a model lists the skills one time in a session. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
 
 ## [2.0.0] - 2026-11-23
 
