@@ -1,7 +1,7 @@
 # Autodesk Inventor MCP Server
 
 An MCP server that exposes a live Autodesk Inventor session, 2025 through 2027.
-See `README.md` for setup, `Docs/Architecture.md` for the decisions, and `Docs/Tasks/` for outstanding work.
+See `README.md` for the quick start, `Docs/` for the guides, `Docs/Architecture.md` for the decisions, and `Docs/Tasks/` for outstanding work.
 
 These are the instructions for a coding agent that works on this repository (ex. Claude Code, GitHub Copilot).
 The rules a model needs to *use* the Inventor tools travel with the server instead, in

@@ -28,7 +28,7 @@ limits that the project keeps:
 - **Unsaved work is guarded.** A snippet does not run on a document with unsaved changes, unless the call says so.
 - **A user can limit the tools.** `INVENTORMCP_TOOLS=read-only` removes each tool that changes a document, and
 	`INVENTORMCP_CONFIRM_RISKY_CALLS=true` makes the user confirm a call that removes a guard, answers a dialog or
-	closes documents. See `README.md`, "Limit what a model can do".
+	closes documents. See `Docs/Tools.md`, "Limit what a model can do".
 - **Telemetry is off by default**, and sends only values from a fixed list. See `Docs/Telemetry.md`.
 
 ## What is not a vulnerability

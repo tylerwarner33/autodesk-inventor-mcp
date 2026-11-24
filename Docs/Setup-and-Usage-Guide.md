@@ -40,6 +40,23 @@ means it is working.
 If it is missing, open **Tools > Add-Ins** in Inventor and check that **Inventor MCP Bridge** is loaded,
 with **Load Automatically** ticked.
 
+The Debug build of the server also adds a tool package to `%LOCALAPPDATA%\InventorMcp\Feed`, which the development
+setup of every client starts the server from. The feed is empty until the first build, so build before you connect
+a client.
+
+### Release style install
+
+A bundle that does not point back into a build folder:
+
+```
+dotnet build Source/InventorMcp.AddIn/InventorMcp.AddIn.csproj -c Release -p:AutodeskVersion=2027 -p:DeployBundle=true
+```
+
+This writes a self contained bundle to `%APPDATA%\Autodesk\ApplicationPlugins\InventorMcp.AddIn`, which is version
+independent. Run it once per release: each adds its own manifest and `Contents` subfolder, and every Inventor loads
+only the manifest gated to its own version.
+Use one form or the other, not both, or Inventor loads the add-in twice.
+
 ## Connect a client
 
 There is no connector to add and no port to open. The client starts the server itself.
@@ -48,7 +65,7 @@ Claude Code, Claude Desktop, and GitHub Copilot Chat in Visual Studio and in Vis
 Add the server once to each client's own user configuration. It is then available in every folder, repository and
 solution. Each client starts it from a package feed with `dotnet tool exec`.
 
-There are two setups, and `README.md`, "Connecting a client", has the full entry for each client in both:
+There are two setups, and `Docs/Connecting-Clients.md` has the full entry for each client in both:
 
 - **Using the server** starts it from a team feed. You need no copy of the repository.
 - **Developing the server** starts it from `%LOCALAPPDATA%\InventorMcp\Feed`, which each Debug build fills.
@@ -156,6 +173,9 @@ Claude can change your model. Two things bound that:
 - **Every executed snippet is logged** to `%LOCALAPPDATA%\InventorMcp\executed-code.log`, with a timestamp and the
 	document it targeted, so there is a record independent of the conversation.
 
+To limit what a model can do (a read-only tool set, or a question before each risky call), see
+`Docs/Tools.md`, "Limit what a model can do".
+
 Writes also suppress Inventor's dialogs for their duration, so a prompt cannot silently stall the session.
 Inventor answers a suppressed dialog with its default, which is a real behavior change rather than a cosmetic one.
 
@@ -172,7 +192,7 @@ one as its dialog settings say:
 
 To change an answer, put a `DialogSettings.json` in `%LOCALAPPDATA%\InventorMcp\`, ex.
 `{ "iLogicSecurityAlert": "Run the rule", "iLogicSecurityAdvisor": "OK" }`, then restart the server in your client.
-`README.md`, "Dialog settings", lists each entry, its values, and what each click does. Leave `migration` at `"Ask"`
+`Docs/Dialog-Settings.md`, lists each entry, its values, and what each click does. Leave `migration` at `"Ask"`
 when your files go to an older Inventor, ex. a Design Automation engine.
 
 Two variables in the `env` of the server entry also work: `INVENTORMCP_AUTOCLOSE_DIALOGS=false` closes no dialog
@@ -202,9 +222,19 @@ automatically, and `INVENTORMCP_ACCEPT_MIGRATION_DIALOG=true` clicks `OK` on Dat
 
 | Path | Contents |
 | --- | --- |
-| `%LOCALAPPDATA%\InventorMcp\<year>\addin.log` | Add-in lifecycle and failures of that release |
+| `%LOCALAPPDATA%\InventorMcp\<year>\addin.log` | Add-in lifecycle and handler failures of that release |
 | `%LOCALAPPDATA%\InventorMcp\<year>\addin-startup.log` | Loader failures on 2025 and 2026, before `addin.log` exists |
-| `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity |
-| `%LOCALAPPDATA%\InventorMcp\<year>\executed-code.log` | Every snippet run against your session |
-| `%LOCALAPPDATA%\InventorMcp\addin.log`, `executed-code.log` | From before the folder for each release |
+| `%LOCALAPPDATA%\InventorMcp\<year>\executed-code.log` | Every snippet run through the execution tools, and each dialog the server clicked |
+| `%LOCALAPPDATA%\InventorMcp\server-<date>.log` | MCP server activity, one file for each server process. Each tool call has a line with the release it used, and if the result was an error. |
+| `%LOCALAPPDATA%\InventorMcp\Results\<date>-<id>.txt` | The full text of an `inventor_eval_csharp` result that was cut to fit the size limit. Files older than 14 days are deleted. |
+| `%LOCALAPPDATA%\InventorMcp\addin.log`, `executed-code.log` | From before the folder for each release, or written before the release was known |
 | `%APPDATA%\Claude\logs\mcp-server-autodesk-inventor.log` | Claude Desktop: a server that failed to start |
+
+Each Inventor release has its own folder, ex. `%LOCALAPPDATA%\InventorMcp\2025`, because two releases can run at the
+same time. The server logs stay at the top, because one server can talk to different releases during its life.
+
+The logs are always on. Telemetry (`Docs/Telemetry.md`) does not replace or change them. The only change: with
+telemetry on, each line of `server-<date>.log` that is written during a tool call ends with the trace ID.
+
+`addin.log` and `executed-code.log` start a new file at 10 MB. The full file becomes `addin.1.log` or
+`executed-code.1.log`, and the 5 newest full files stay. The server deletes its own logs after 14 days.
