@@ -15,6 +15,9 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 - `inventor_start` is no longer marked idempotent, because a call with `newInstance` starts one more Inventor each time. ([PR #51](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/51))
 - While a session waits for an Inventor process that it chose, and more than one Inventor of the release runs, `inventor_start` and `inventor_session` with `waitSeconds` now find a dialog that holds that process at start (ex. the Vault "Log In"). ([PR #51](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/51))
 
+### Fixed
+- When the Inventor process that a session chose has no bridge, the result now tells if the process still loads or has closed. For a closed process, it lists the Inventor processes that host the bridge, so the model can call `inventor_use_release` at once. Before, it told the model to call `inventor_session`, which returned the same result and no list. ([PR #51](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/51))
+
 ## [2.1.1] - 2026-11-24
 
 ### Changed

@@ -246,16 +246,11 @@ internal sealed class ReleaseSelection
 
 		if (_chosenProcess is int chosenProcess)
 		{
-			return RunningInstances().FirstOrDefault(instance => instance.ProcessId == chosenProcess) is { } picked
+			IReadOnlyList<PipeInstance> hosting = RunningInstances();
+
+			return hosting.FirstOrDefault(instance => instance.ProcessId == chosenProcess) is { } picked
 				? Found(picked)
-				: new PipeResolution(
-					null,
-					Chosen,
-					BridgeErrorCodes.NotRunning,
-					$"The Inventor process {chosenProcess}, which this session chose, does not host the MCP bridge now. " +
-					"If inventor_start started it, it can still be loading: wait with inventor_session and waitSeconds. " +
-					"Else call inventor_session to see the processes that do, then call inventor_use_release with a release and a processId. " +
-					"Do not call inventor_start.");
+				: new PipeResolution(null, Chosen, BridgeErrorCodes.NotRunning, DescribeMissingProcess(chosenProcess, hosting));
 		}
 
 		int? year = Chosen;
@@ -330,6 +325,42 @@ internal sealed class ReleaseSelection
 			// The process ended, or this account cannot read it: the id is enough to choose.
 			return string.Create(CultureInfo.InvariantCulture, $"process {instance.ProcessId}");
 		}
+	}
+
+	/// <summary>
+	/// 	Tells the model what to do when the process that this session chose hosts no bridge.
+	/// </summary>
+	/// <remarks>
+	/// 	Only a process that still runs can still be loading the add-in.
+	/// 	For a process that closed, the message lists the processes that host a bridge, because inventor_session returns
+	/// 	this same message and cannot list them.
+	/// </remarks>
+	/// <param name="processId">
+	/// 	The process that this session chose.
+	/// </param>
+	/// <param name="hosting">
+	/// 	The processes that host a bridge now, from <see cref="RunningInstances"/>.
+	/// </param>
+	/// <returns>
+	/// 	The message.
+	/// </returns>
+	private string DescribeMissingProcess(int processId, IReadOnlyList<PipeInstance> hosting)
+	{
+		if (_inSession(processId))
+		{
+			return $"The Inventor process {processId}, which this session chose, runs but does not host the MCP bridge yet. " +
+				"It can still be loading: wait with inventor_session and waitSeconds. If the wait ends with no bridge, tell the user " +
+				"that the add-in did not load in that Inventor. Do not call inventor_start.";
+		}
+
+		string others = hosting.Count == 0
+			? "No other Inventor hosts the MCP bridge now. Ask the user whether to start Inventor, then call inventor_start."
+			: $"The Inventor processes that host the MCP bridge now: {string.Join(", ", hosting.Select(instance => $"Inventor {instance.ReleaseYear} {_describe(instance)}"))}. " +
+				"Ask the user which one to use, then call inventor_use_release with its release and processId. " +
+				"Or, when the user asks for a new Inventor, call inventor_start.";
+
+		return $"The Inventor process {processId}, which this session chose, has closed. This session does not move to another " +
+			$"Inventor unasked, because the documents differ. {others}";
 	}
 
 	private static PipeResolution Found(PipeInstance instance) => new(instance.PipeName, instance.ReleaseYear, null, null, instance.ProcessId);

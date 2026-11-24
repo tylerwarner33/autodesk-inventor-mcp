@@ -111,7 +111,8 @@ public sealed class ReleaseSelectionTests
 	[Fact]
 	public void ChosenProcessThatIsGoneIsNotRunningAndDoesNotFallBackToAnotherProcess()
 	{
-		ReleaseSelection selection = Selection(string.Empty, Pipe(2026, 111));
+		// Only the process 111 runs. The chosen process 222 closed.
+		ReleaseSelection selection = new(Prefix, string.Empty, () => [Pipe(2026, 111)], static processId => processId == 111, static instance => $"process {instance.ProcessId} (started test)");
 
 		selection.ChooseProcess(2026, 222);
 		PipeResolution resolution = selection.Resolve();
@@ -119,6 +120,37 @@ public sealed class ReleaseSelectionTests
 		Assert.Null(resolution.PipeName);
 		Assert.Equal(BridgeErrorCodes.NotRunning, resolution.ErrorCode);
 		Assert.Contains("222", resolution.Message, StringComparison.Ordinal);
+		Assert.Contains("has closed", resolution.Message, StringComparison.Ordinal);
+		// The message lists the process that is left, so the model can choose it with no other call.
+		Assert.Contains("Inventor 2026 process 111", resolution.Message, StringComparison.Ordinal);
+		Assert.Contains("inventor_use_release", resolution.Message, StringComparison.Ordinal);
+		Assert.DoesNotContain("loading", resolution.Message, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void ChosenProcessThatRunsWithNoPipeIsStillLoading()
+	{
+		// The chosen process 222 runs, and its add-in has not opened the pipe yet.
+		ReleaseSelection selection = Selection(string.Empty, Pipe(2026, 111));
+
+		selection.ChooseProcess(2026, 222);
+		PipeResolution resolution = selection.Resolve();
+
+		Assert.Equal(BridgeErrorCodes.NotRunning, resolution.ErrorCode);
+		Assert.Contains("waitSeconds", resolution.Message, StringComparison.Ordinal);
+		Assert.DoesNotContain("has closed", resolution.Message, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void ChosenProcessThatIsGoneWithNoOtherBridgeOffersAStart()
+	{
+		ReleaseSelection selection = new(Prefix, string.Empty, static () => [], static _ => false, static instance => $"process {instance.ProcessId} (started test)");
+
+		selection.ChooseProcess(2026, 222);
+		PipeResolution resolution = selection.Resolve();
+
+		Assert.Contains("No other Inventor hosts the MCP bridge", resolution.Message, StringComparison.Ordinal);
+		Assert.Contains("inventor_start", resolution.Message, StringComparison.Ordinal);
 	}
 
 	[Fact]
