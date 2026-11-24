@@ -253,7 +253,8 @@ internal sealed class ReleaseSelection
 					Chosen,
 					BridgeErrorCodes.NotRunning,
 					$"The Inventor process {chosenProcess}, which this session chose, does not host the MCP bridge now. " +
-					"Call inventor_session to see the processes that do, then call inventor_use_release with a release and a processId. " +
+					"If inventor_start started it, it can still be loading: wait with inventor_session and waitSeconds. " +
+					"Else call inventor_session to see the processes that do, then call inventor_use_release with a release and a processId. " +
 					"Do not call inventor_start.");
 		}
 

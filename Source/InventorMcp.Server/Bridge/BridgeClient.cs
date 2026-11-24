@@ -456,14 +456,15 @@ internal sealed partial class BridgeClient(
 	/// </summary>
 	/// <remarks>
 	/// 	A dialog at the start (ex. the Vault "Log In") can come before the add-in loads, so the pipe cannot give the
-	/// 	process. The process then comes from the process list, for the release this session chose. With more than one
-	/// 	candidate, the one that is starting is not known, so none is examined.
+	/// 	process. The process then comes from the process list, for the release this session chose.
+	/// 	A process that this session chose (ex. one that inventor_start started next to others) is the one examined.
+	/// 	Else, with more than one candidate, the one that is starting is not known, so none is examined.
 	/// </remarks>
 	/// <param name="cancellationToken">
 	/// 	Cancels the examination.
 	/// </param>
 	/// <returns>
-	/// 	The block state, or null when the bridge is connected, or not exactly one Inventor of the release runs.
+	/// 	The block state, or null when the bridge is connected, or the process to examine is not known.
 	/// </returns>
 	public async Task<BlockState?> GetStartingBlockStateAsync(CancellationToken cancellationToken)
 	{
@@ -471,10 +472,16 @@ internal sealed partial class BridgeClient(
 			return null;
 
 		int? release = _selection.Chosen;
+		int? chosenProcess = _selection.ChosenProcessId;
 		IReadOnlyList<RunningInventor> running = await Task.Run(() => _findRunning(release), cancellationToken).ConfigureAwait(false);
 
-		return running is [RunningInventor only]
-			? await Task.Run(() => _dialogs.Detect(only.ProcessId), cancellationToken).ConfigureAwait(false)
+		int? examined = running is [RunningInventor only] ? only.ProcessId : null;
+
+		if (chosenProcess is int chosen)
+			examined = running.Any(inventor => inventor.ProcessId == chosen) ? chosen : null;
+
+		return examined is int processId
+			? await Task.Run(() => _dialogs.Detect(processId), cancellationToken).ConfigureAwait(false)
 			: null;
 	}
 

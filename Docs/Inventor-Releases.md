@@ -26,7 +26,11 @@ That is the reason for the two process design.
 	A client that cannot show a form returns `version-required`, and Claude asks you instead.
 - The release already running, with or without the bridge: nothing starts. A different release that runs does not
 	stop the start.
-- After a start, this session uses the release it started. See "More than one Inventor release".
+- `newInstance`: one more Inventor process of the release starts, even when the release already runs (ex. a second
+	Inventor 2026). Claude sets it only when you ask for one more Inventor.
+- After a start, this session uses the release it started. After a start with `newInstance`, it uses the new process
+	only, and the Inventor processes that ran before stay with the sessions that use them. See "More than one Inventor
+	release".
 
 Inventor starts with Explorer as its parent, so closing Claude does not close Inventor.
 The call waits up to 45 s for the add-in. After that it returns `still-starting`, because a sign-in or recovery
@@ -51,7 +55,9 @@ uses one release.
 A chosen release never falls back to another release. If its Inventor is closed, the result is `inventor-not-running`
 and names the release.
 
-Two Inventor processes of one release each have their own bridge. A tool then returns `instance-required` with the
+Two Inventor processes of one release each have their own bridge, and each bridge accepts up to 16 client connections.
+Start the second one yourself, or ask Claude to start it (`inventor_start` with `newInstance`).
+In a session that did not start it, a tool then returns `instance-required` with the
 id, the start time and the window title of each process, and Claude asks you which Inventor to use, then calls
 `inventor_use_release` with the release and the `processId`. The retry of a call after a dropped connection never goes
 to another process, because it could then change other documents. After you restart Inventor, the next call uses the

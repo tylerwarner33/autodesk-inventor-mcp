@@ -132,6 +132,11 @@ Which release a server uses (`ReleaseSelection`), in order:
 Within a release, one process is used. Two processes of the release give `instance-required` with the id, the start
 time and the main window title of each process, because a user knows an Inventor by its window and not by its id.
 `inventor_use_release` with a `processId` chooses one. `inventor_session` lists the processes.
+`inventor_start` with `newInstance` starts one more process of a release that runs, and chooses its process id before
+the add-in loads. The wait then reaches the pipe of the new process only, and never the pipe of an Inventor that ran
+before. If the started process exits and exactly one new Inventor process of the release runs, the choice moves to
+it, for a launcher that hands the start over. Without `newInstance`, a release that runs is not started again,
+because a second Inventor of a release is seldom what the user wants.
 
 A chosen release never falls back to another release. An automatic session keeps the release it connected to: if that
 release closes and a different one is then the only pipe, the call returns `release-required` and is not sent. A
