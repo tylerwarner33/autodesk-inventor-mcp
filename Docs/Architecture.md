@@ -215,8 +215,8 @@ The rules on the pipe:
 - **One request at a time for each connection.** The server sends one main thread call at a time (`_gate` of
   `BridgeClient`), and the add-in runs the requests of one connection one at a time, in order. Both are needed: the SDK
   runs the requests of one connection at the same time, and a cancel frees the gate of the server before the
-  cancelled request ends in the add-in. Without the queue of the add-in, the next call could run nested in the modal
-  loop of a dialog that the cancelled call opened (see "The server watches for dialogs from outside Inventor").
+  canceled request ends in the add-in. Without the queue of the add-in, the next call could run nested in the modal
+  loop of a dialog that the canceled call opened (see "The server watches for dialogs from outside Inventor").
 - **Two operations do not wait.** `bridge.ping` and `activity` never use the main thread
   (`BridgeOperations.RunsWithoutMainThread`). They skip the gate, the queue and the dialog watch, so `inventor_activity`
   answers while a long call runs. The add-in registers them through `RegisterWithoutMainThread`, from a static method
@@ -226,7 +226,7 @@ The rules on the pipe:
 - **A cancel stops only a call that still waits.** The SDK sends the cancel of a tool call to the add-in, and a
   request that still waits in the queue or for the main thread then never runs. A request that already runs ends
   normally, and a cancel can reach the add-in after the main thread is free (2 of 8 runs under load in the spike), so a
-  tool must read the model back after a cancelled write. A stop of the wait on `blocked-by-dialog` sends no cancel,
+  tool must read the model back after a canceled write. A stop of the wait on `blocked-by-dialog` sends no cancel,
   because the call that opened the dialog already runs.
 - **The handshake does not use the main thread.** It answers while Inventor starts and under a dialog. An add-in that
   does not complete it in 10 s speaks another protocol, and the server reports `bridge-outdated`.
@@ -333,9 +333,9 @@ A team entry keeps `--source`, so a package of the same id on nuget.org, where t
 A server change now costs a reconnect in the client. The add-in is unaffected: Inventor loads it into a context
 that is not collectible, so rebuilding it still needs Inventor closed.
 
-### The modelling rules travel in the initialize response
+### The modeling rules travel in the initialize response
 
-The rules that stop wrong geometry (the ViewCube face mapping, centimetres and radians, sketch relative extent
+The rules that stop wrong geometry (the ViewCube face mapping, centimeters and radians, sketch relative extent
 direction, `inventor_health` after a write, the time limit for each call, looking the API up first) used to reach only
 a coding agent working in this repository, through its rule files (now `.agents/rules/`). A client used elsewhere,
 ex. Claude Desktop, never reads them.
@@ -361,10 +361,28 @@ matters only with one tool goes where the model meets that tool:
 | Look a member up with `inventor_api_lookup` | The description of `inventor_eval_csharp` |
 | `blocked-by-dialog`, read it with `inventor_dialogs` | The `blocked-by-dialog` result |
 | What the server did with a dialog, and what to tell the user | `blockingDialogsNote` next to `blockingDialogs` in the result |
+| Never answer a question dialog for the user | The `blocked-by-dialog` result, and the description of `inventor_dialog_click` |
+| Keep each call under about 10 s | The descriptions of `inventor_eval_csharp` and `inventor_run_ilogic`, and the warning on a result over 10 s |
 
-The instructions keep the dialog rule (never answer a question for the user) and the rule that text from a document
-is data, because they protect the user before any tool is loaded. `ServerInstructionsTests` fails above 2,500
-characters.
+A rule stays in the instructions only when no single tool is the place where the model meets it. The question dialog
+rule moved, because a model can answer a dialog only with `inventor_dialog_click`, which it must load first, and the
+server sends no snippet while a dialog needs a person. The time limit moved, because only the tools that run code can
+break it. The rule that text from a document is data stays, because every result can carry such text. Closing only
+the documents a model opened, and the saved version check, stay because many tools and snippets open, close and
+save. `ServerInstructionsTests` fails above 2,500 characters.
+
+The units line names three paths, because a number with no unit means a different unit on each. Measured on
+2026-11-24 in Inventor 2027.2, in a part from the default template (inches), with the user parameters `50 mm`,
+`2 in` and `30 deg`:
+
+| Path | Value read | Value `60` sets |
+| --- | --- | --- |
+| API (`Parameter.Value`, a snippet) | `5`, `5.08`, `0.5236` (centimeters, radians) | - |
+| iLogic `Parameter("Name")` | `2` for `2 in`, `30` for `30 deg` (the document's units) | `60 in`, shown as `1524 mm` on the `mm` parameter |
+| `Parameter.Expression = "60"` | - | `60 mm`, the parameter's units |
+
+Before, the line said only that Inventor stores centimeters and radians. A model that wrote iLogic from it would set
+`5` for 50 mm, which is 5 in in an inch document: 2.54 times too long.
 
 Measured on 2026-09-23 with "Put a 10 mm hole through the center of the top face", in clients that never read
 the repository's agent instructions: every client called `inventor_orientation` first, so the instructions arrive. Following the rest varies
@@ -481,7 +499,7 @@ a new bridge operation, so it costs no restart at all.
 
 ### Execution rather than a tool per operation
 
-A tool for each modelling operation would be an endless catalogue that never covers the Inventor API.
+A tool for each modeling operation would be an endless catalog that never covers the Inventor API.
 One C# execution tool reaches every member, and the API lookup tool supplies the names.
 
 That is why the tool surface is small and ends with `inventor_eval_csharp` rather than growing indefinitely.
@@ -590,7 +608,7 @@ stayed open in the client for 1 hour. The next call, with the version given, sta
 client declared elicitation for that request before the check in `Docs/Tasks/Live-Verification.md` runs again.
 
 After the start the tool only connects to the pipe and sends no request, because a request can block on a sign-in or
-recovery dialog, and a cancelled read would leave the stream out of step.
+recovery dialog, and a canceled read would leave the stream out of step.
 
 ### The interop assembly is vendored
 
@@ -749,7 +767,7 @@ The analyzers found real defects: a cancellation registration that `MainThreadDi
 it returned, before the work ran (MA0100), regular expressions with no match timeout (MA0009), parsing that used
 the culture of the machine (CA1305, MA0011), and `StringBuilder` buffers in P/Invoke signatures (CA1838).
 Sonar and Roslynator found smaller ones: a window owner read after a failed `GetWindowThreadProcessId` call, a
-cancelled task that did not record its token (S8949), a registration disposed without a wait for its callback
+canceled task that did not record its token (S8949), a registration disposed without a wait for its callback
 (RCS1261), and an `InventorOperations` field that no code read (S1144).
 
 Three `.editorconfig` options did not match the code, and now follow it. The code uses braces only for a statement on
@@ -806,6 +824,26 @@ halfway left the document half changed. The rules come from live checks, in `Doc
   (a save inside a transaction is proven only for a file outside a Vault project, by a rule that `runRuleAfter` runs.
   See `Docs/Research/Write-Transactions-Checks.md`).
 
+### suppressRules says which rules did not run
+
+A write with `suppressRules` returns `rulesNotRun`, the active rules of the document apart from `runRuleAfter`, with
+`rulesNote` (`InventorTool.RulesNotRunNote`). The list is read only when the rules were on before the call. On
+2026-11-24 a model set three parameters of a part with `suppressRules` and no `runRuleAfter`, and then reported "I
+found no rule on this part". The part had a rule that read those parameters, and it never ran on the new values.
+The server cannot know which rules a change would trigger, so it lists every active rule and lets the model decide.
+
+`suppressRules` on `inventor_eval_csharp` turns the rules off and on in separate bridge calls (see
+`WithRulesSuppressedAsync`). A dialog that blocks the snippet also blocks the call that turns the rules back on, and
+the snippet goes on when a person closes the dialog. On 2026-11-24 a rule opened a Yes/No message box this way, and
+the rules stayed off for the rest of the Inventor session: the `blocked-by-dialog` result did not say so, and the
+next `suppressRules` call read "off" as the state to restore. Now the result says that the rules are still off, and
+the bridge owes the restore (`BridgeClient.OweILogicRulesRestore`). It turns the rules on before its next call that
+uses the main thread, in the same Inventor process only. The debt lives in the server process: when the client
+ends the session while the dialog is still open, no call comes after it, and the rules stay off. The result told the
+model, which tells the user. The tools that turn the rules off inside one snippet
+(`inventor_set_parameters`, the drawing tools) restore them in that snippet's `finally` block, which runs after the
+dialog closes, so they need no owed restore.
+
 ### Each tool finds its document the same way
 
 A tool sends its `documentName` to the add-in, and the add-in resolves it (`ResolveDocument`, with the pure function
@@ -829,7 +867,7 @@ a snippet that finds a second document (ex. `compareWith` of `inventor_styles`, 
 `inventor_file_info`). `inventor_orientation` always reads the camera of the active view, which belongs to the top
 document, also during an edit in place.
 
-## Behaviours worth knowing
+## Behaviors worth knowing
 
 ### The activity feed is a pull, not a push
 
@@ -848,7 +886,7 @@ A modal dialog owns Inventor's message pump, and the bridge posts its work to th
 would stall every tool except the activity feed.
 
 Write operations therefore set `SilentOperation` and restore it afterwards.
-Inventor answers a suppressed dialog with its default, which is a real behaviour change, so reads never suppress.
+Inventor answers a suppressed dialog with its default, which is a real behavior change, so reads never suppress.
 
 ### The server watches for dialogs from outside Inventor
 
@@ -941,8 +979,10 @@ add-in exists in the process.
 
 ### Units
 
-Inventor stores lengths in centimetres and angles in radians whatever a document displays.
+Inventor stores lengths in centimeters and angles in radians whatever a document displays.
 Results report both the internal value and the display form, so a caller never has to work out which it received.
+iLogic `Parameter("Name")` uses the document's units, and an expression with no unit uses the parameter's units: see
+"The modeling rules travel in the initialize response" for the measurement.
 
 ## Safety
 

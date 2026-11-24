@@ -51,7 +51,7 @@
 		<InternalsVisibleTo Include="InventorMcp.Server.Tests" />
 	</ItemGroup>
 
-	<!-- The modelling rules sent to every client in the initialize response. .agents/rules points here. -->
+	<!-- The modeling rules sent to every client in the initialize response. .agents/rules points here. -->
 	<ItemGroup>
 		<EmbeddedResource Include="ServerInstructions.md" LogicalName="InventorMcp.Server.ServerInstructions.md" />
 	</ItemGroup>

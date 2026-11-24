@@ -24,7 +24,7 @@ internal sealed record BlockState(int ProcessId, bool Blocked, bool MainWindowFo
 	public string? Summary => Blocked
 		? Dialogs.Count > 0
 			? Dialogs[0].Title
-			: "a window of a different process (ex. Vault or a licence service), or a dialog with no title"
+			: "a window of a different process (ex. Vault or a license service), or a dialog with no title"
 		: null;
 }
 

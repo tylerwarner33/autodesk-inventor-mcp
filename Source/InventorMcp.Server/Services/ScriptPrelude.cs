@@ -30,6 +30,9 @@ internal static partial class ScriptPrelude
 		"RunILogicRule",
 		"ToInches",
 		"FromInches",
+		"ToMillimeters",
+		"FromMillimeters",
+		// The names before 2.1.0. See the prelude.
 		"ToMillimetres",
 		"FromMillimetres",
 		"ToDegrees",

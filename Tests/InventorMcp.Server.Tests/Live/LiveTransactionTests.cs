@@ -374,7 +374,7 @@ public sealed class LiveTransactionTests
 			""", Cancellation)).ReturnValue!;
 
 	/// <summary>
-	/// 	The internal value (centimetres) of each user parameter, in the order of the part, joined with commas.
+	/// 	The internal value (centimeters) of each user parameter, in the order of the part, joined with commas.
 	/// </summary>
 	private static async Task<string> ValuesAsync(BridgeClient client, string document) =>
 		(await LiveInventor.EvalAsync(client, $$"""

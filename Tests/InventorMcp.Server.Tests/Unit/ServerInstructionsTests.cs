@@ -14,7 +14,7 @@ public sealed class ServerInstructionsTests
 	/// <remarks>
 	/// 	Claude Code keeps the first 4,096 characters of the instructions of a server and cuts the rest, so the rules at
 	/// 	the end were lost. A rule that a model needs only with one tool goes in that tool's description or result.
-	/// 	See <c>Docs/Architecture.md</c>, "The modelling rules travel in the initialize response".
+	/// 	See <c>Docs/Architecture.md</c>, "The modeling rules travel in the initialize response".
 	/// </remarks>
 	private const int MaxCharacters = 2500;
 

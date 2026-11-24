@@ -6,13 +6,21 @@ The version is also `<Version>` in `Directory.Build.props`, which the README ver
 The newest version is first. The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/): a `Breaking` entry bumps the major version, an `Added` entry the minor version, and other entries the patch version.
 See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 
-## [2.0.1] - 2026-11-24
+## [2.1.0] - 2026-11-24
+
+### Added
+- A parameter write with `suppressRules` lists in `rulesNotRun` the active iLogic rules of the document that did not run on the new values, with a note to run the rule that the workflow needs or tell the user. Before, a model reported "no rule on this part" while a rule had not run. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
 
 ### Changed
 - The server instructions no longer list the skills. They tell a model to call `inventor_skill` with action `list` one time, before its first task, and to read the skills whose description fits each task. The description of each skill is now the only text that says when to read it, and each session loads less text at start. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
 - The `list` result of `inventor_skill` names the plugin skills that hold the Inventor API facts, in `pluginSkills`. The server instructions no longer name them. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
-- The server instructions are 60% shorter (1,653 characters, from 4,076), so no client cuts them. Claude Code cut the old text after 4,096 characters, in the rule that text from a document is data. A rule that matters only with one tool is now in that tool's description or result: ex. `blockingDialogsNote` says what to tell the user about a dialog that the server answered. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
+- The server instructions are about 60% shorter (from 4,076 characters), so no client cuts them. Claude Code cut the old text after 4,096 characters, in the rule that text from a document is data. A rule that matters only with one tool is now in that tool's description or result: ex. `blockingDialogsNote` says what to tell the user about a dialog that the server answered, and the question dialog and 10 s rules are in the tools that can break them. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
+- The units rule in the server instructions names the three units that a number with no unit can have: centimeters and radians in the API, the document's units in iLogic `Parameter()`, and the parameter's units in an expression. The `inventor_run_ilogic` description says that `Parameter()` uses the document's units. Before, the rule named only centimeters, which gives a length 2.54 times too long in iLogic in an inch document. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
+- The tool descriptions, results and documents use US spelling (ex. centimeters, canceled). The snippet helpers are `ToMillimeters` and `FromMillimeters`, and the old names still work. `inventor_start` returns the status `canceled` when the user chooses no release. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
 - The dashboard panel "Skill reads and snippets, by session" also shows each `list` call. `Docs/Telemetry.md` has the steps to check that a model lists the skills one time in a session. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
+
+### Fixed
+- `suppressRules` on `inventor_eval_csharp` no longer leaves the iLogic rules off when a dialog blocks the snippet. The result says that the rules are still off, and the server turns them back on before its next call to that Inventor. Before, the rules stayed off for the rest of the Inventor session, and the result did not say so. ([PR #49](https://github.com/tylerwarner33/autodesk-inventor-mcp/pull/49))
 
 ## [2.0.0] - 2026-11-23
 
@@ -61,7 +69,7 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 - A `documentName` can be a full document name (the path with the model state, ex. `C:\Parts\Bracket.ipt<State2>`), to name one model state of a file. A name that matches more than one open document (ex. a path whose file has two model states open, or two documents with one display name) returns the new code `ambiguous-document`, with the full document names to use.
 - `inventor_session` gives the full document name and the model state of each document, and the document in edit during an edit in place (`activeEditDocument`).
 - `inventor_activity` answers while a long call runs, because it no longer waits behind a call to Inventor's main thread.
-- A cancelled tool call now reaches the add-in, and a call that still waits for Inventor then does not run. A call that already runs ends normally.
+- A canceled tool call now reaches the add-in, and a call that still waits for Inventor then does not run. A call that already runs ends normally.
 - A second Inventor process of the same release now has its own bridge. When two run, a tool returns `instance-required` with the id, the start time and the window title of each process, and `inventor_use_release` takes a `processId` to choose one. `inventor_session` lists the processes with the same description. A session keeps its process while it runs. The retry of a call after a dropped connection never goes to another process. After a restart of Inventor, the next call uses the new process when it is the only one.
 - `version-mismatch` tells the user to restart the MCP client when an add-in is newer than the server.
 
@@ -73,7 +81,7 @@ See [.agents/rules/changelog.md](.agents/rules/changelog.md).
 - After an unload and a load of the add-in in one Inventor, the bridge tries to claim its pipe name 5 times before it stops.
 - The `untrusted-bridge-host` message for a refused account also names a server that runs with a network logon (ex. through SSH or WinRM).
 - Every tool finds its document with the same rules, in the add-in. Before, a name matched the first document with that path or display name, so a tool could use the wrong model state of a file, or the wrong one of two documents with one display name, with no message.
-- The add-in runs the calls of one server one at a time, so a cancelled call and the next call never run at the same time.
+- The add-in runs the calls of one server one at a time, so a canceled call and the next call never run at the same time.
 - `inventor_orientation` says that it reads the camera of the active view, which belongs to the top document, also during an edit in place.
 
 ### Removed

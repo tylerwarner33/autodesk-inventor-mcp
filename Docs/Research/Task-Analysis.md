@@ -409,7 +409,7 @@ together.
 ## Dedicated tool candidates
 
 **The test from the architecture.** "Execution rather than a tool per operation": a tool for each operation is a
-catalogue that never covers the API. The usage research found that the dedicated read tools are almost never
+catalog that never covers the API. The usage research found that the dedicated read tools are almost never
 called (ex. `inventor_parameters` 6 times against `inventor_eval_csharp` 444 times), and concluded that a better
 snippet tool helps more than more tools. The server has 35 tools. Visual Studio Code has a limit of 128 tools for
 one chat request, over all servers.

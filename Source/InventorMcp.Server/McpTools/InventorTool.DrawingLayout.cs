@@ -222,7 +222,7 @@ internal static partial class InventorTool
 
 				double spanX = members.Max(b => b.X) - members.Min(b => b.X);
 				double spanY = members.Max(b => b.Y) - members.Min(b => b.Y);
-				Log($"Balloons for '{group.Key ?? "no view"}': {members.Count}, closest centres {(members.Count > 1 ? In(closest) : "-")} in, group spans {In(spanX)} x {In(spanY)} in");
+				Log($"Balloons for '{group.Key ?? "no view"}': {members.Count}, closest centers {(members.Count > 1 ? In(closest) : "-")} in, group spans {In(spanX)} x {In(spanY)} in");
 			}
 
 			int issues = 0;
@@ -237,7 +237,7 @@ internal static partial class InventorTool
 				{
 					double distance = Math.Sqrt(Math.Pow(balloons[i].X - balloons[j].X, 2) + Math.Pow(balloons[i].Y - balloons[j].Y, 2));
 					if (distance < (balloons[i].Diameter + balloons[j].Diameter) / 2)
-						Issue($"balloons {balloons[i].Item} and {balloons[j].Item} overlap: centres {In(distance)} in apart");
+						Issue($"balloons {balloons[i].Item} and {balloons[j].Item} overlap: centers {In(distance)} in apart");
 
 					if (balloons[i].Segments.Any(s => balloons[j].Segments.Any(t => Cross(s.A, s.B, t.A, t.B))))
 						Issue($"leaders of balloons {balloons[i].Item} and {balloons[j].Item} cross");
@@ -412,7 +412,7 @@ internal static partial class InventorTool
 		Measures a drawing sheet and reports where its annotations collide: views, balloons, dimension text, parts lists,
 		custom tables and the title block, in inches from the sheet's lower left corner.
 
-		Reports balloons grouped by the view their leader reaches, with the closest centre spacing, and flags as
+		Reports balloons grouped by the view their leader reaches, with the closest center spacing, and flags as
 		ISSUE: balloons that overlap, balloon leaders that cross, a balloon or dimension overlapping another annotation
 		or a table, and anything outside the border.
 

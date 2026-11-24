@@ -31,7 +31,7 @@ internal static partial class InventorTool
 		'Document' is null when no document is open and none is named. The snippet still runs, so it can open or
 		create its own documents, ex. Application.Documents.Add, or run a plugin that does.
 
-		Lengths are in centimetres and angles in radians, because those are Inventor's internal units. Convert with
+		Lengths are in centimeters and angles in radians, because those are Inventor's internal units. Convert with
 		Document.UnitsOfMeasure.ConvertUnits or write expressions through parameters instead.
 
 		Keep each call under 10 s. The snippet runs on Inventor's main thread, so Inventor processes no window messages
@@ -59,7 +59,7 @@ internal static partial class InventorTool
 		  CloseDocumentsOpenedHere() closes only the documents it opened, drawings first, with no save.
 		- ILogicAutomation(), ILogicRuleNames(document), ILogicRuleText(document, name),
 		  SetILogicRuleText(document, name, text) and RunILogicRule(document, name) take any document type.
-		- ToInches, FromInches, ToMillimetres, FromMillimetres (from and to centimetres), ToDegrees, FromDegrees.
+		- ToInches, FromInches, ToMillimeters, FromMillimeters (from and to centimeters), ToDegrees, FromDegrees.
 		- TryGetUserParameter(document, name, out UserParameter parameter).
 		- InTransaction(document, name, () => { ... }) runs the action as one Undo step on that document, and aborts the step if the action throws.
 		- StartDeadline(seconds = 8) returns a guard for a loop: if (deadline.Passed) break;
@@ -140,8 +140,10 @@ internal static partial class InventorTool
 	/// </summary>
 	/// <remarks>
 	/// 	Three bridge calls, not one snippet with a finally block: the model's snippet can declare methods and return at
-	/// 	the top level, which a wrapping try block would break. The restore runs in the server's finally block, so a
-	/// 	failed snippet still restores. If the restore cannot run (ex. a dialog blocks Inventor), the result says so.
+	/// 	the top level, which a wrapping try block would break. The restore runs after a failed snippet too.
+	/// 	A dialog that blocks the snippet also blocks the restore, and the snippet goes on after a person closes it. So a
+	/// 	restore that cannot run is owed by the bridge, which runs it before its next call
+	/// 	(<see cref="BridgeClient.OweILogicRulesRestore"/>), and the result says so, also when it is a bridge error.
 	/// </remarks>
 	private static async Task<object> WithRulesSuppressedAsync<TResult>(
 		BridgeClient bridge,
@@ -163,32 +165,67 @@ internal static partial class InventorTool
 			return new { error = BridgeErrorCodes.ExecutionFailed, message = "Could not turn the iLogic rules off, so the snippet did not run.", detail = before };
 
 		bool previous = previousElement.GetBoolean();
-		object? result = null;
-		string? restoreProblem = null;
+		object? result;
 
 		try
 		{
 			result = await work().ConfigureAwait(false);
 		}
-		finally
+		catch (InventorBridgeException exception)
 		{
-			try
-			{
-				_ = await RunJsonSnippetAsync(
-					bridge,
-					$"ILogicAutomation().RulesEnabled = {(previous ? "true" : "false")}; return \"{{}}\";",
-					CancellationToken.None).ConfigureAwait(false);
-			}
-			catch (InventorBridgeException exception)
-			{
-				restoreProblem = $"iLogic rules are still turned off, because the restore failed: {exception.Message} " +
-					"Tell the user. Call inventor_eval_csharp with 'ILogicAutomation().RulesEnabled = true; return 0;' when Inventor answers.";
-			}
+			string? problem = await RestoreILogicRulesAsync(bridge, previous).ConfigureAwait(false);
+
+			if (problem is null)
+				throw;
+
+			throw new InventorBridgeException(exception.Code, $"{exception.Message}\r\n{problem}", exception.Detail);
 		}
+		catch
+		{
+			_ = await RestoreILogicRulesAsync(bridge, previous).ConfigureAwait(false);
+
+			throw;
+		}
+
+		string? restoreProblem = await RestoreILogicRulesAsync(bridge, previous).ConfigureAwait(false);
 
 		return restoreProblem is null
 			? new { result, rulesSuppressed = true, rulesEnabledNow = previous }
 			: new { result, rulesSuppressed = true, warning = restoreProblem };
+	}
+
+	/// <summary>
+	/// 	Turns the iLogic rules back on after <see cref="WithRulesSuppressedAsync"/>, or makes the bridge owe it.
+	/// </summary>
+	/// <returns>
+	/// 	Null when the rules are as they were before the call, or the text that tells the model they are still off.
+	/// </returns>
+	private static async Task<string?> RestoreILogicRulesAsync(BridgeClient bridge, bool previous)
+	{
+		// The rules were off before the call, so they are as they were.
+		if (previous is false)
+			return null;
+
+		string cause;
+
+		try
+		{
+			JsonElement restored = await RunJsonSnippetAsync(bridge, BridgeClient.RestoreILogicRulesSnippet, CancellationToken.None).ConfigureAwait(false);
+
+			if (restored.TryGetProperty("rulesEnabled", out JsonElement enabled) && enabled.GetBoolean())
+				return null;
+
+			cause = restored.TryGetProperty("message", out JsonElement message) ? message.GetString() ?? "no message" : "no message";
+		}
+		catch (InventorBridgeException exception)
+		{
+			cause = exception.Message.Split('\n')[0].TrimEnd('\r');
+		}
+
+		bridge.OweILogicRulesRestore();
+
+		return $"iLogic rules are still turned off, because the server could not turn them back on ({cause}). The server " +
+			"turns them back on before its next call to Inventor. Tell the user that rules do not run until then.";
 	}
 
 	[McpServerTool(Name = "inventor_run_ilogic", Title = "Run iLogic code", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = true)]
@@ -198,6 +235,10 @@ internal static partial class InventorTool
 
 		Use this when the work is naturally an iLogic rule, ex. driving parameters and using iLogic helpers such as
 		Parameter, iProperties or Component. Use inventor_eval_csharp when you need the raw Inventor API.
+
+		Parameter("Name") reads and sets a number in the document's units (Document.UnitsOfMeasure.LengthUnits, ex.
+		inches in the default template), not in the parameter's units and not in centimeters. Read the document's units
+		first, or set an expression with its unit, ex. Parameter.Param("Width").Expression = "50 mm".
 
 		This executes arbitrary code in the user's CAD session and is audited and guarded the same way as
 		inventor_eval_csharp. Keep each call under 10 s.

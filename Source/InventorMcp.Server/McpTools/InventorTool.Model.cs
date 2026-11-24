@@ -17,7 +17,7 @@ namespace InventorMcp.Server.McpTools;
 internal static partial class InventorTool
 {
 	[McpServerTool(Name = "inventor_parameters", Title = "Read parameters", ReadOnly = true, OpenWorld = false)]
-	[Description("Reads the parameters of an open part or assembly. Each parameter reports its kind, expression, display value, and internal value. Inventor stores lengths in centimetres and angles in radians, so always read internalValue with its units in mind. A text or boolean parameter has no internal value.")]
+	[Description("Reads the parameters of an open part or assembly. Each parameter reports its kind, expression, display value, and internal value. Inventor stores lengths in centimeters and angles in radians, so always read internalValue with its units in mind. A text or boolean parameter has no internal value.")]
 	public static Task<object> ParametersAsync(
 		BridgeClient bridge,
 		[Description("A display name, a full path, or a full document name (the path with the model state) of the open document. Omit for the active document: during an edit in place, that is the document in edit.")] string? documentName = null,

@@ -302,7 +302,7 @@ internal static partial class InventorTool
 		}
 
 		// Packs the balloons of each side over the parts they name, in the order of their attach points, then swaps
-		// neighbours whose leaders cross. A group too long for the side is spread over the side's full length.
+		// neighbors whose leaders cross. A group too long for the side is spread over the side's full length.
 		int crowdedSides = 0;
 		void Arrange(List<BalloonPlan> plans)
 		{
@@ -535,7 +535,7 @@ internal static partial class InventorTool
 		Each part file gets one balloon, attached to the curve of the part nearest its side of the view. The tool selects
 		the side from the part's outline: a side the part touches, parallel to its long axis, else the nearest side.
 		Give 'sides' to allow only some sides. The balloons of a side are packed at 'spacingInches' over the parts they
-		name, and neighbours whose leaders cross are swapped.
+		name, and neighbors whose leaders cross are swapped.
 
 		Inventor numbers each balloon from its BOM row. When an item already has a balloon on the sheet (ex. in a view
 		ballooned before, or a part of a sub-assembly that has its own row), the repeat is deleted. So the first view you
@@ -555,8 +555,8 @@ internal static partial class InventorTool
 		[Description("The sheet name, ex. 'Sheet:1'. Omit to use the active sheet.")] string? sheetName = null,
 		[Description("The sides the balloons can go on: 'Left', 'Right', 'Top', 'Bottom'. Omit to let the tool select a side for each part.")] string[]? sides = null,
 		[Description("The name of a balloon style of the drawing. Omit to use the default style of the active standard.")] string? balloonStyle = null,
-		[Description("The distance in inches between the centres of two balloons on one side. Default: the balloon diameter plus 0.06 in.")] double? spacingInches = null,
-		[Description("The distance in inches from the edge of the view to the balloon centres. Default: 1.5 times the balloon diameter.")] double? offsetInches = null,
+		[Description("The distance in inches between the centers of two balloons on one side. Default: the balloon diameter plus 0.06 in.")] double? spacingInches = null,
+		[Description("The distance in inches from the edge of the view to the balloon centers. Default: 1.5 times the balloon diameter.")] double? offsetInches = null,
 		[Description("Delete a balloon whose item number already has a balloon on the sheet. Default true.")] bool oneBalloonPerItem = true,
 		CancellationToken cancellationToken = default)
 	{

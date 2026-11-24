@@ -9,7 +9,7 @@ The rules come from two production implementations:
 - An iLogic rule that makes shop drawings, in a production rule library. It gave the side selection from the part's
   outline, the attach point nearest that side, the walk of the occurrences, and the removal of a repeated item number.
 - The drawing engine of a separate project, in its own repository.
-  It gave the attach point chain on null, the median start of a packed group, the swap of neighbours whose leaders
+  It gave the attach point chain on null, the median start of a packed group, the swap of neighbors whose leaders
   cross, and the per-occurrence curve query.
 
 ## Decisions

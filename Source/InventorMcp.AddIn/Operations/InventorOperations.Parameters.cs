@@ -93,7 +93,7 @@ internal sealed partial class InventorOperations
 	/// 	Flattens a parameter into the wire model, reporting both internal and display form.
 	/// </summary>
 	/// <remarks>
-	/// 	Inventor stores every length in centimetres and every angle in radians, whatever the document shows.
+	/// 	Inventor stores every length in centimeters and every angle in radians, whatever the document shows.
 	/// 	Returning only one form is the usual source of a silent factor of 25.4.
 	///
 	/// 	Not every parameter is numeric. A text or boolean parameter has no internal value at all,

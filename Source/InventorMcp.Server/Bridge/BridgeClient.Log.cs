@@ -43,4 +43,10 @@ internal sealed partial class BridgeClient
 
 	[LoggerMessage(Level = LogLevel.Information, Message = "Connected to the Inventor bridge on pipe {PipeName}, hosted by process {ProcessId}.")]
 	private partial void LogConnected(string pipeName, int? processId);
+
+	[LoggerMessage(Level = LogLevel.Information, Message = "Turned the iLogic rules back on in Inventor {ProcessId}, after a call that could not.")]
+	private partial void LogILogicRulesRestored(int processId);
+
+	[LoggerMessage(Level = LogLevel.Warning, Message = "Did not turn the iLogic rules back on: the bridge now goes to Inventor {ProcessId}, not {OwedProcessId}.")]
+	private partial void LogILogicRulesRestoreDropped(int? processId, int owedProcessId);
 }

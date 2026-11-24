@@ -140,7 +140,7 @@ The rest are the same snippet sent again for each case folder, which is a batchi
 ### 1. Tool changes
 
 These have the highest value, because they work for every model. Text does not reach a model that never calls the
-tool (see the Visual Studio GPT-5.3-Codex result in `Docs/Architecture.md`, "The modelling rules travel in the
+tool (see the Visual Studio GPT-5.3-Codex result in `Docs/Architecture.md`, "The modeling rules travel in the
 initialize response").
 
 Ordered by value.

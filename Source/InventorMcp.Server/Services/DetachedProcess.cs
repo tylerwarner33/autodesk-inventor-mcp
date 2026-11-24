@@ -90,14 +90,14 @@ internal sealed class DetachedProcess : IDisposable
 		IntPtr attributeList = Marshal.AllocHGlobal(attributeListSize);
 		IntPtr parentHandleValue = Marshal.AllocHGlobal(IntPtr.Size);
 		IntPtr environment = IntPtr.Zero;
-		bool attributeListInitialised = false;
+		bool attributeListInitialized = false;
 
 		try
 		{
 			if (InitializeProcThreadAttributeList(attributeList, 1, 0, ref attributeListSize) is false)
-				throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not initialise the process attribute list.");
+				throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not initialize the process attribute list.");
 
-			attributeListInitialised = true;
+			attributeListInitialized = true;
 
 			// The attribute list takes a raw handle, and shell stays open until the process is created.
 #pragma warning disable S3869
@@ -144,7 +144,7 @@ internal sealed class DetachedProcess : IDisposable
 			if (environment != IntPtr.Zero)
 				_ = DestroyEnvironmentBlock(environment);
 
-			if (attributeListInitialised)
+			if (attributeListInitialized)
 				DeleteProcThreadAttributeList(attributeList);
 
 			Marshal.FreeHGlobal(parentHandleValue);

@@ -137,7 +137,7 @@ internal static partial class InventorTool
 	/// </summary>
 	/// <remarks>
 	/// 	It is here and not in the server instructions, which every session loads, because a model needs it only when a
-	/// 	call met a dialog. See <c>Docs/Architecture.md</c>, "The modelling rules travel in the initialize response".
+	/// 	call met a dialog. See <c>Docs/Architecture.md</c>, "The modeling rules travel in the initialize response".
 	/// </remarks>
 	internal const string BlockingDialogsNote =
 		"Each dialog that this call met, and what the server did with it (action). The server answers some dialogs as " +
