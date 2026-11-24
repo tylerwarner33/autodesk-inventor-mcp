@@ -31,7 +31,7 @@ internal static class ToolPipeline
 	/// <summary>
 	/// 	The tools that answer a dialog or close documents, which the user confirms when the setting is on.
 	/// </summary>
-	private static readonly HashSet<string> _confirmedTools = new(StringComparer.Ordinal) { "inventor_dialog_click", "inventor_close_documents" };
+	private static readonly HashSet<string> _confirmedTools = new(StringComparer.Ordinal) { "inventor_dialog_click", "inventor_close_documents", "inventor_stop" };
 
 	/// <summary>
 	/// 	The pairs of tool and error code that answer the question of the tool, so they are not failures.
@@ -98,7 +98,8 @@ internal static class ToolPipeline
 			// Singleton because it indexes a 12 MB documentation file once and holds the result.
 			.AddSingleton<ApiReferenceService>()
 			.AddSingleton(skillCatalog)
-			.AddSingleton<InventorInstallations>();
+			.AddSingleton<InventorInstallations>()
+			.AddSingleton(static _ => new StartedInventors());
 
 	/// <summary>
 	/// 	Registers the tools that the settings permit.

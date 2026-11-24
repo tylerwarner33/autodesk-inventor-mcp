@@ -29,6 +29,7 @@ inventor_set_parameters | Set several parameters | readOnly=false destructive=tr
 inventor_set_property | Set an iProperty | readOnly=false destructive=true idempotent=true openWorld=false | setName*, name*, value*, documentName
 inventor_skill | Read the server guides | readOnly=true destructive=- idempotent=true openWorld=false | action, name, file
 inventor_start | Start Inventor | readOnly=false destructive=false idempotent=false openWorld=false | version, newInstance
+inventor_stop | Close an Inventor that this server started | readOnly=false destructive=true idempotent=true openWorld=false | processId*
 inventor_styles | Read drawing styles | readOnly=true destructive=- idempotent=- openWorld=false | documentName, compareWith
 inventor_test_copy | Make a test copy of a design | readOnly=false destructive=true idempotent=false openWorld=false | sources*, target*, sourceFolder, prefix
 inventor_update | Rebuild a document | readOnly=false destructive=false idempotent=true openWorld=false | documentName, full
